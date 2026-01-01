@@ -1066,6 +1066,89 @@ export default function UsersPage() {
     handleViewProfile(userToView);
   };
 
+  const handleViewDelegateProfile = async (delegateCode: string) => {
+    // البحث عن المندوب في القائمة الحالية
+    let delegate = users.find(u => u.userCode === delegateCode);
+
+    // إذا لم يكن موجود في القائمة الحالية، نبحث في كل المستخدمين
+    if (!delegate) {
+      // عرض رسالة البحث
+      const searchToastId = Date.now().toString();
+      setToasts(prev => [...prev, {
+        id: searchToastId,
+        message: '🔍 جاري البحث عن المندوب...',
+        type: 'info',
+        duration: 0 // تبقى حتى نزيلها يدوياً
+      }]);
+
+      try {
+        // تحميل كل المستخدمين إذا لم يكن محملين
+        if (!allUsersCache || allUsersCache.length === 0) {
+          const first = await fetchUsersSummaryPage(1);
+          let aggregated: User[] = first.users.map(u => ({
+            id: String(u.id),
+            name: u.name ?? '',
+            phone: u.phone,
+            userCode: u.user_code,
+            delegateCode: u.delegate_code,
+            status: u.status === 'active' ? 'active' : 'banned',
+            registrationDate: u.registered_at,
+            adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
+            role: u.role,
+            lastLogin: u.registered_at,
+            phoneVerified: u.phone_verified,
+          } as User));
+
+          const last = Math.max(1, Number(first.meta?.last_page || 1));
+          if (last > 1) {
+            const promises: Promise<UsersSummaryResponse>[] = [];
+            for (let p = 2; p <= last; p++) {
+              promises.push(fetchUsersSummaryPage(p));
+            }
+            const pages = await Promise.all(promises);
+            pages.forEach(resp => {
+              const mapped = resp.users.map(u => ({
+                id: String(u.id),
+                name: u.name ?? '',
+                phone: u.phone,
+                userCode: u.user_code,
+                delegateCode: u.delegate_code,
+                status: u.status === 'active' ? 'active' : 'banned',
+                registrationDate: u.registered_at,
+                adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
+                role: u.role,
+                lastLogin: u.registered_at,
+                phoneVerified: u.phone_verified,
+              } as User));
+              aggregated = aggregated.concat(mapped);
+            });
+          }
+          setAllUsersCache(aggregated);
+          delegate = aggregated.find(u => u.userCode === delegateCode);
+        } else {
+          delegate = allUsersCache.find(u => u.userCode === delegateCode);
+        }
+
+        // إزالة رسالة البحث
+        setToasts(prev => prev.filter(t => t.id !== searchToastId));
+
+      } catch (e) {
+        // إزالة رسالة البحث وعرض رسالة خطأ
+        setToasts(prev => prev.filter(t => t.id !== searchToastId));
+        showToast('❌ تعذر البحث عن المندوب', 'error', { duration: 4000 });
+        return;
+      }
+    }
+
+    if (!delegate) {
+      showToast(`⚠️ لم يتم العثور على مندوب بكود ${delegateCode}`, 'warning', { duration: 5000 });
+      return;
+    }
+
+    // فتح الملف الشخصي للمندوب
+    handleViewProfile(delegate);
+  };
+
   const handleSetPIN = async (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (!user) {
@@ -1180,7 +1263,7 @@ export default function UsersPage() {
               ← العودة للقائمة
             </button>
             <h1>ملف المستخدم: {selectedUser.name}</h1>
-            <p>كود المندوب: {selectedUser.userCode}</p>
+            <p>كود المستخدم: {selectedUser.userCode}</p>
           </div>
         </div>
 
@@ -2242,7 +2325,43 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="user-code">{user.userCode}</td>
-                  <td className="delegate-code">{user.delegateCode || '-'}</td>
+                  <td className="delegate-code">
+                    {user.delegateCode ? (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{user.delegateCode}</span>
+                        <button
+                          className="delegate-profile-icon"
+                          onClick={() => handleViewDelegateProfile(user.delegateCode!)}
+                          title="عرض ملف المندوب"
+                          style={{
+                            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            width: '24px',
+                            height: '24px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(99, 102, 241, 0.3)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(99, 102, 241, 0.4)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(99, 102, 241, 0.3)';
+                          }}
+                        >
+                          <UserIcon size={14} color="white" />
+                        </button>
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                   <td>
                     <span className={`status-badge ${user.status}`}>
                       {user.status === 'active' ? 'نشط' : 'محظور'}
@@ -2411,9 +2530,30 @@ export default function UsersPage() {
                   </h3>
                   <span className="user-code">كود: {user.userCode}</span>
                   {user.delegateCode && (
-                    <span className="delegate-code" style={{ fontSize: '12px', color: '#6b7280' }}>
-                      مندوب: {user.delegateCode}
-                    </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                      <span className="delegate-code">
+                        مندوب: {user.delegateCode}
+                      </span>
+                      <button
+                        onClick={() => handleViewDelegateProfile(user.delegateCode!)}
+                        title="عرض ملف المندوب"
+                        style={{
+                          background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                          border: 'none',
+                          borderRadius: '4px',
+                          width: '20px',
+                          height: '20px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          boxShadow: '0 1px 3px rgba(99, 102, 241, 0.3)'
+                        }}
+                      >
+                        <UserIcon size={12} color="white" />
+                      </button>
+                    </div>
                   )}
                 </div>
                 <span className={`status-badge ${user.status}`}>

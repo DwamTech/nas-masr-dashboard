@@ -5990,6 +5990,16 @@ body,
   text-align: center;
 }
 
+.delegate-code {
+  color: #374151;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+
 .phone-with-whatsapp {
   display: inline-flex;
   align-items: center;
@@ -6918,6 +6928,17 @@ body,
     padding: 2px 8px;
     border-radius: 4px;
     font-weight: 500;
+  }
+
+  .user-card .delegate-code {
+    font-size: 11px;
+    color: #374151;
+    background: #f9fafb;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    display: inline-block;
+    margin-top: 4px;
   }
 
   /* Card Body */

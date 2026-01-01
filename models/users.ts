@@ -11,6 +11,7 @@ export interface UserSummary {
   phone: string;
   address: string | null;
   user_code: string;
+  referral_code: string | null;
   status: string;
   registered_at: string;
   listings_count: number;

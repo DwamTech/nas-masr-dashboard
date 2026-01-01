@@ -15,6 +15,7 @@ interface User {
   phone: string;
   address?: string | null;
   userCode: string;
+  referralCode?: string | null;
   status: 'active' | 'banned';
   registrationDate: string;
   adsCount: number;
@@ -129,6 +130,7 @@ export default function UsersPage() {
           phone: u.phone,
           address: u.address,
           userCode: u.user_code,
+          referralCode: u.referral_code,
           status: u.status === 'active' ? 'active' : 'banned',
           registrationDate: u.registered_at,
           adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
@@ -438,6 +440,7 @@ export default function UsersPage() {
         phone: u.phone,
         address: u.address,
         userCode: u.user_code,
+        referralCode: u.referral_code,
         status: u.status === 'active' ? 'active' : 'banned',
         registrationDate: u.registered_at,
         adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
@@ -589,6 +592,7 @@ export default function UsersPage() {
           name: u.name ?? '',
           phone: u.phone,
           userCode: String(u.id),
+          referralCode: u.referral_code,
           status: u.status === 'active' ? 'active' : 'banned',
           registrationDate: u.registered_at,
           adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
@@ -609,6 +613,7 @@ export default function UsersPage() {
               name: u.name ?? '',
               phone: u.phone,
               userCode: String(u.id),
+              referralCode: u.referral_code,
               status: u.status === 'active' ? 'active' : 'banned',
               registrationDate: u.registered_at,
               adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
@@ -932,6 +937,7 @@ export default function UsersPage() {
         phone: editForm.phone?.trim() || undefined,
         role: roleMapped,
         status: editForm.status === 'banned' ? 'blocked' : 'active',
+        referral_code: editForm.referralCode?.trim() || undefined,
       };
       const resp = await updateUser(Number(selectedUser.id), payload);
       const u = resp.user;
@@ -941,6 +947,7 @@ export default function UsersPage() {
         phone: u.phone,
         address: u.address,
         userCode: u.user_code,
+        referralCode: u.referral_code,
         status: u.status === 'active' ? 'active' : 'banned',
         registrationDate: u.registered_at,
         adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
@@ -1047,6 +1054,7 @@ export default function UsersPage() {
       phone: client.phone,
       address: client.address,
       userCode: client.user_code,
+      referralCode: null,
       status: client.status === 'banned' || client.status === 'blocked' ? 'banned' : 'active',
       registrationDate: client.registered_at,
       adsCount: client.listings_count,
@@ -1138,7 +1146,8 @@ export default function UsersPage() {
     const rows = data.map(u => ({
       'الاسم': u.name,
       'رقم الهاتف': u.phone,
-      'كود المندوب': u.userCode,
+      'كود المستخدم': u.userCode,
+      'كود المندوب': u.referralCode || '-',
       'الحالة': u.status === 'active' ? 'نشط' : 'محظور',
       'تاريخ التسجيل': u.registrationDate,
       // 'عدد الإعلانات': u.adsCount,
@@ -1278,7 +1287,7 @@ export default function UsersPage() {
                     )}
                   </div>
                   <div className="data-item">
-                    <label>كود المندوب:</label>
+                    <label>كود المستخدم:</label>
                     {isEditing ? (
                       <input
                         type="text"
@@ -1290,6 +1299,22 @@ export default function UsersPage() {
                       />
                     ) : (
                       <span>{selectedUser.userCode}</span>
+                    )}
+                  </div>
+                  <div className="data-item">
+                    <label>كود المندوب:</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editForm?.referralCode ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, referralCode: e.target.value } : prev))
+                        }
+                        className="input"
+                        placeholder="-"
+                      />
+                    ) : (
+                      <span>{selectedUser.referralCode || '-'}</span>
                     )}
                   </div>
                   <div className="data-item">
@@ -2184,6 +2209,7 @@ export default function UsersPage() {
                 <th>الاسم</th>
                 <th>رقم الهاتف</th>
                 <th>كود المستخدم</th>
+                <th>كود المندوب</th>
                 <th>الحالة</th>
                 <th>تاريخ التسجيل</th>
                 <th>عدد الإعلانات</th>
@@ -2216,6 +2242,7 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="user-code">{user.userCode}</td>
+                  <td className="referral-code">{user.referralCode || '-'}</td>
                   <td>
                     <span className={`status-badge ${user.status}`}>
                       {user.status === 'active' ? 'نشط' : 'محظور'}
@@ -2382,7 +2409,12 @@ export default function UsersPage() {
                       </span>
                     )}
                   </h3>
-                  <span className="user-code">{user.userCode}</span>
+                  <span className="user-code">كود: {user.userCode}</span>
+                  {user.referralCode && (
+                    <span className="referral-code" style={{ fontSize: '12px', color: '#6b7280' }}>
+                      مندوب: {user.referralCode}
+                    </span>
+                  )}
                 </div>
                 <span className={`status-badge ${user.status}`}>
                   {user.status === 'active' ? 'نشط' : 'محظور'}

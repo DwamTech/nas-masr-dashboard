@@ -11,7 +11,7 @@ export interface UserSummary {
   phone: string;
   address: string | null;
   user_code: string;
-  referral_code: string | null;
+  delegate_code: string | null;
   status: string;
   registered_at: string;
   listings_count: number;
@@ -29,7 +29,7 @@ export interface UpdateUserPayload {
   phone?: string;
   role?: string;
   status?: string;
-  referral_code?: string;
+  delegate_code?: string;
 }
 
 export interface UpdateUserResponse {
@@ -50,7 +50,7 @@ export interface CreateUserPayload {
   phone: string;
   role?: string;
   status?: string;
-  referral_code?: string;
+  delegate_code?: string;
   password?: string;
 }
 

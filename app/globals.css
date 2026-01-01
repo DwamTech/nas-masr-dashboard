@@ -2617,6 +2617,13 @@ body {
   color: var(--color-black);
 }
 
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-black);
+}
+
 .modal-close {
   background: none;
   border: none;
@@ -2664,6 +2671,26 @@ body {
   font-size: 1rem;
   font-weight: 600;
   transition: var(--transition);
+  color: #111827;
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: var(--border-radius);
+  background: white;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: var(--transition);
+  color: #111827;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(27, 178, 143, 0.1);
 }
 
 .form-input:focus {

@@ -76,6 +76,7 @@ export const CATEGORY_SLUGS: CategorySlug[] = [
   'groceries',
   'food-products',
   'electronics',
+  'home-appliances',
   'home-tools',
   'furniture',
   'doctors',
@@ -101,7 +102,6 @@ export const CATEGORY_SLUGS: CategorySlug[] = [
   'light-vehicles',
   'heavy-transport',
   'tools',
-  'home-appliances',
   'missing',
 ];
 export type CategoryFieldMap = Record<string, string[]>;

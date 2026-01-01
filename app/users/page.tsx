@@ -44,6 +44,7 @@ interface UserPackage {
   startStandardNow: boolean;
   standardStartDate?: string | null;
   standardExpiryDate?: string | null;
+  categories?: number[] | null;
 }
 
 interface AdItem {
@@ -225,6 +226,7 @@ export default function UsersPage() {
   // Packages modal state
   const [isPackagesModalOpen, setIsPackagesModalOpen] = useState(false);
   const [selectedUserForPackages, setSelectedUserForPackages] = useState<User | null>(null);
+  const [selectedPackageCategories, setSelectedPackageCategories] = useState<string[]>([]); // New state for package categories
   const [packagesForm, setPackagesForm] = useState<UserPackage>({
     featuredAds: 0,
     featuredDays: 0,
@@ -236,6 +238,7 @@ export default function UsersPage() {
     startStandardNow: true,
     standardStartDate: null,
     standardExpiryDate: null,
+    categories: [],
   });
 
   // Verify modal state
@@ -704,37 +707,31 @@ export default function UsersPage() {
       const raw = localStorage.getItem('userPackageData:' + user.id);
       if (raw) {
         const data = JSON.parse(raw);
+        const isFeatured = Boolean(data.featured_active);
+        const isStandard = Boolean(data.standard_active);
+        const finalStandard = isFeatured && isStandard ? false : isStandard;
+
         setPackagesForm({
           featuredAds: Number(data.featured_ads) || 0,
           featuredDays: Number(data.featured_days) || 0,
-          startFeaturedNow: Boolean(data.featured_active),
+          startFeaturedNow: isFeatured,
           featuredStartDate: data.featured_start_date ? String(data.featured_start_date).split('T')[0] : null,
           featuredExpiryDate: data.featured_expire_date ? String(data.featured_expire_date).split('T')[0] : null,
           standardAds: Number(data.standard_ads) || 0,
           standardDays: Number(data.standard_days) || 0,
-          startStandardNow: Boolean(data.standard_active),
+          startStandardNow: finalStandard,
           standardStartDate: data.standard_start_date ? String(data.standard_start_date).split('T')[0] : null,
           standardExpiryDate: data.standard_expire_date ? String(data.standard_expire_date).split('T')[0] : null,
+          categories: Array.isArray(data.categories) ? data.categories : [],
         });
+        if (Array.isArray(data.categories)) {
+          const slugs = (data.categories as number[]).map(id => CATEGORY_SLUGS[id - 1]).filter(Boolean);
+          setSelectedPackageCategories(slugs);
+        } else {
+          setSelectedPackageCategories([]);
+        }
       } else {
-        setPackagesForm(
-          user.package ?? {
-            featuredAds: 0,
-            featuredDays: 0,
-            startFeaturedNow: true,
-            featuredStartDate: null,
-            featuredExpiryDate: null,
-            standardAds: 0,
-            standardDays: 0,
-            startStandardNow: true,
-            standardStartDate: null,
-            standardExpiryDate: null,
-          }
-        );
-      }
-    } catch {
-      setPackagesForm(
-        user.package ?? {
+        const initialPkg = user.package ?? {
           featuredAds: 0,
           featuredDays: 0,
           startFeaturedNow: true,
@@ -745,8 +742,40 @@ export default function UsersPage() {
           startStandardNow: true,
           standardStartDate: null,
           standardExpiryDate: null,
+          categories: [],
+        };
+
+        const isFeatured = initialPkg.startFeaturedNow;
+        const isStandard = initialPkg.startStandardNow;
+        const finalStandard = isFeatured && isStandard ? false : isStandard;
+
+        setPackagesForm({
+          ...initialPkg,
+          startStandardNow: finalStandard
+        });
+        if (initialPkg.categories && Array.isArray(initialPkg.categories)) {
+          const slugs = initialPkg.categories.map(id => CATEGORY_SLUGS[id - 1]).filter(Boolean);
+          setSelectedPackageCategories(slugs);
+        } else {
+          setSelectedPackageCategories([]);
         }
-      );
+      }
+    } catch {
+      const initialPkg = user.package ?? {
+        featuredAds: 0,
+        featuredDays: 0,
+        startFeaturedNow: true,
+        featuredStartDate: null,
+        featuredExpiryDate: null,
+        standardAds: 0,
+        standardDays: 0,
+        startStandardNow: true,
+        standardStartDate: null,
+        standardExpiryDate: null,
+        categories: [],
+      };
+      setPackagesForm(initialPkg);
+      setSelectedPackageCategories([]);
     }
     setIsPackagesModalOpen(true);
   };
@@ -779,16 +808,29 @@ export default function UsersPage() {
   const handlePackagesChange = (field: keyof UserPackage, value: string | number | boolean) => {
     setPackagesForm(prev => ({ ...prev, [field]: value } as UserPackage));
   };
+  const handlePackageCategoryToggle = (slug: string, checked: boolean) => {
+    setSelectedPackageCategories(prev => {
+      const set = new Set(prev);
+      if (checked) set.add(slug); else set.delete(slug);
+      return Array.from(set);
+    });
+  };
 
   const savePackages = async () => {
     if (!selectedUserForPackages) return;
     try {
+      const categoryIds = selectedPackageCategories.map(slug => {
+        const idx = CATEGORY_SLUGS.indexOf(slug as CategorySlug);
+        return idx >= 0 ? idx + 1 : 0;
+      }).filter(id => id > 0);
+
       const payload: AssignUserPackagePayload = {
         user_id: Number(selectedUserForPackages.id),
         featured_ads: Number(packagesForm.featuredAds) || 0,
         featured_days: Number(packagesForm.featuredDays) || 0,
         standard_ads: Number(packagesForm.standardAds) || 0,
         standard_days: Number(packagesForm.standardDays) || 0,
+        categories: categoryIds.length > 0 ? categoryIds : [], // Send empty array to signify "all"
       };
 
       // Force start_now even if not explicitly checked, or rely on form
@@ -1909,6 +1951,28 @@ export default function UsersPage() {
                   </label>
                 </div>
               </div>
+
+              <div className="allowed-categories-section" style={{ marginTop: '20px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: '16px', fontWeight: '700', color: '#111827' }}>الأقسام المسموحة (اتركها فارغة لكل الأقسام)</h4>
+                <div className="categories-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                  {categories.filter(c => c !== 'all').map((slug) => {
+                    const label = CATEGORY_LABELS_AR[slug] ?? slug;
+                    const checked = selectedPackageCategories.includes(slug);
+                    return (
+                      <label key={slug} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer', padding: '6px', borderRadius: '6px', backgroundColor: checked ? '#eef2ff' : 'transparent' }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => handlePackageCategoryToggle(slug, e.target.checked)}
+                          style={{ accentColor: '#4f46e5', width: '16px', height: '16px' }}
+                        />
+                        <span style={{ color: checked ? '#4f46e5' : '#374151', fontWeight: checked ? '600' : '400' }}>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
             </div>
             <div className="modal-footer">
               <button className="btn-cancel" onClick={closePackagesModal}>إلغاء</button>
@@ -2447,7 +2511,7 @@ export default function UsersPage() {
                           <path d="M3 12v5l9 4 9-4v-5" stroke="white" strokeWidth="2" />
                         </svg>
                       </button>
-                      {(String(user.role || '').toLowerCase().includes('advertiser') || String(user.role || '').includes('معلن')) && (
+                      {['advertiser', 'معلن'].includes(String(user.role || '').toLowerCase().trim()) && (
                         <button
                           className="btn-favorites"
                           onClick={() => openFavoritesModal(user)}

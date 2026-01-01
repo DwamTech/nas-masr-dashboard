@@ -37,7 +37,7 @@ export async function updateSystemSettingsImage(key: string, file: File, token?:
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  
+
   const formData = new FormData();
   formData.append('key', key);
   formData.append('image', file);

@@ -119,6 +119,7 @@ export interface AssignUserPackagePayload {
   start_standard_now?: boolean;
   standard_start_date?: string | null;
   standard_expire_date?: string | null;
+  categories?: number[];
 }
 
 export interface UserPackageData {
@@ -143,6 +144,7 @@ export interface UserPackageData {
   standard_ads_remaining: number;
   featured_active: boolean;
   standard_active: boolean;
+  categories?: number[] | null;
 }
 
 export interface AssignUserPackageResponse {

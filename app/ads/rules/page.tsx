@@ -87,8 +87,6 @@ export default function DisplayRules() {
       await updateSystemSettings({
         free_ads_count: Number(rules.free_ads_count) || 0,
         free_ad_days_validity: Number(rules.free_ad_days_validity) || 0,
-        featured_days: Number(rules.featured_days) || 0,
-        standard_days: Number(rules.standard_days) || 0,
       });
       setSavedMessage("تم حفظ قواعد الأقسام بنجاح ✅");
       setTimeout(() => setSavedMessage(""), 3000);
@@ -180,44 +178,6 @@ export default function DisplayRules() {
                     onChange={(e) => setRules({
                       ...rules,
                       free_ad_days_validity: parseInt(e.target.value) || 0,
-                    })}
-                    disabled={!isEditingSection}
-                    className={`form-input ${isEditingSection ? 'editable' : 'readonly'}`}
-                  />
-                </div>
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">
-                  <span className="label-icon">🌟</span>
-                  عدد ايام صلاحية الباقة المميزة
-                </label>
-                <div className="input-wrapper">
-                  <input
-                    type="number"
-                    value={rules.featured_days}
-                    onChange={(e) => setRules({
-                      ...rules,
-                      featured_days: parseInt(e.target.value) || 0,
-                    })}
-                    disabled={!isEditingSection}
-                    className={`form-input ${isEditingSection ? 'editable' : 'readonly'}`}
-                  />
-                </div>
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">
-                  <span className="label-icon">📄</span>
-                  عدد ايام صلاحية الباقة الاستاندر
-                </label>
-                <div className="input-wrapper">
-                  <input
-                    type="number"
-                    value={rules.standard_days}
-                    onChange={(e) => setRules({
-                      ...rules,
-                      standard_days: parseInt(e.target.value) || 0,
                     })}
                     disabled={!isEditingSection}
                     className={`form-input ${isEditingSection ? 'editable' : 'readonly'}`}

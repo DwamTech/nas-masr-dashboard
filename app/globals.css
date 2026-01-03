@@ -8337,6 +8337,19 @@ body,
   color: var(--color-black);
 }
 
+.pricing-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pricing-bottom {
+  display: flex;
+  gap: 1rem;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1rem;
+}
+
 @media (max-width: 768px) {
   .pricing-group {
     grid-template-columns: 1fr;
@@ -17573,4 +17586,46 @@ body:has(.auth-layout) .dashboard-layout {
     flex-wrap: wrap;
     justify-content: center;
   }
+}
+
+/* ==========================================================================
+   Global Table Visibility Fix
+   Ensure all table text is black for visibility against light backgrounds
+   ========================================================================== */
+table,
+.table,
+.users-table,
+.reports-table,
+.ads-table,
+.data-table {
+  color: #111827 !important;
+  /* Tailwind gray-900 (almost black) */
+}
+
+/* Specific elements inside tables */
+table th,
+.table th,
+.users-table th,
+.reports-table th,
+.ads-table th {
+  color: #111827 !important;
+  font-weight: 700 !important;
+}
+
+table td,
+.table td,
+.users-table td,
+.reports-table td,
+.ads-table td {
+  color: #1f2937 !important;
+  /* Tailwind gray-800 */
+}
+
+/* Ensure text inside cells is also dark */
+table td span:not([class*="badge"]):not([class*="status"]),
+.table td span:not([class*="badge"]):not([class*="status"]),
+.users-table td span:not([class*="badge"]):not([class*="status"]),
+.reports-table td span:not([class*="badge"]):not([class*="status"]),
+.ads-table td span:not([class*="badge"]):not([class*="status"]) {
+  color: inherit !important;
 }

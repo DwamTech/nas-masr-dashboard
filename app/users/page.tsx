@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import ManagedSelect from '@/components/ManagedSelect';
 import { CATEGORY_LABELS_AR } from '@/constants/categories';
-import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Search, RefreshCw } from 'lucide-react';
+import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Search, RefreshCw, Calendar } from 'lucide-react';
 import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, fetchCategories, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients } from '@/services/users';
 import { CATEGORY_SLUGS, CategorySlug } from '@/models/makes';
 import { UsersMeta, AssignUserPackagePayload, UsersSummaryResponse, DelegateClient } from '@/models/users';
@@ -256,6 +256,8 @@ export default function UsersPage() {
   const [delegateClients, setDelegateClients] = useState<DelegateClient[]>([]);
   const [isFetchingClients, setIsFetchingClients] = useState(false);
   const [selectedDelegateForClients, setSelectedDelegateForClients] = useState<User | null>(null);
+  const [delegateFilterStartDate, setDelegateFilterStartDate] = useState<string>('');
+  const [delegateFilterEndDate, setDelegateFilterEndDate] = useState<string>('');
 
   const openAdDetailsModal = (ad: AdItem) => {
     setAdInModal(ad);
@@ -961,7 +963,25 @@ export default function UsersPage() {
   const handleViewProfile = (user: User) => {
     setSelectedUser(user);
     setShowUserProfile(true);
+    setActiveTab('data'); // Reset tab to data when opening profile
   };
+
+  // Fetch delegate clients when activeTab is 'clients'
+  useEffect(() => {
+    if (activeTab === 'clients' && selectedUser && (selectedUser.role === 'delegate' || selectedUser.role === 'representative')) {
+      setIsFetchingClients(true);
+      fetchDelegateClients(selectedUser.id)
+        .then(response => {
+          setDelegateClients(response.data || []);
+        })
+        .catch(e => {
+          showToast(e.message || 'تعذر جلب قائمة عملاء المندوب', 'error');
+        })
+        .finally(() => {
+          setIsFetchingClients(false);
+        });
+    }
+  }, [activeTab, selectedUser]);
 
   const enableEdit = () => {
     if (!selectedUser) return;
@@ -1329,6 +1349,14 @@ export default function UsersPage() {
             >
               المعاملات
             </button> */}
+            {(selectedUser.role === 'delegate' || selectedUser.role === 'representative') && (
+              <button
+                className={`tab-btn ${activeTab === 'clients' ? 'active' : ''}`}
+                onClick={() => setActiveTab('clients')}
+              >
+                عملاء المندوب
+              </button>
+            )}
             {/*}
             <button 
               className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
@@ -1577,6 +1605,174 @@ export default function UsersPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'clients' && (
+              <div style={{ padding: '24px', flex: 1, backgroundColor: '#f9fafb' }}>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', alignItems: 'flex-end', backgroundColor: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>تاريخ التسجيل من</label>
+                    <input
+                      type="date"
+                      className="input"
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                      value={delegateFilterStartDate}
+                      onChange={(e) => setDelegateFilterStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>تاريخ التسجيل إلى</label>
+                    <input
+                      type="date"
+                      className="input"
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                      value={delegateFilterEndDate}
+                      onChange={(e) => setDelegateFilterEndDate(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    onClick={() => { setDelegateFilterStartDate(''); setDelegateFilterEndDate(''); }}
+                    style={{ padding: '8px 16px', height: '40px', backgroundColor: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', whiteSpace: 'nowrap', color: '#374151' }}
+                  >
+                    إعادة تعيين
+                  </button>
+                </div>
+
+                {isFetchingClients ? (
+                  <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6366f1' }}>
+                    <div style={{
+                      border: '4px solid #f3f4f6',
+                      borderTop: '4px solid #6366f1',
+                      borderRadius: '50%',
+                      width: '40px',
+                      height: '40px',
+                      margin: '0 auto 20px',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                    <p style={{ fontWeight: '600' }}>جاري جلب القائمة...</p>
+                  </div>
+                ) : delegateClients.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
+                    {delegateClients.filter(client => {
+                      if (!delegateFilterStartDate && !delegateFilterEndDate) return true;
+                      if (!client.registered_at) return false;
+                      const regTime = new Date(client.registered_at).getTime();
+                      const startTime = delegateFilterStartDate ? new Date(delegateFilterStartDate).getTime() : -Infinity;
+                      const endTime = delegateFilterEndDate ? new Date(delegateFilterEndDate).setHours(23, 59, 59, 999) : Infinity;
+                      return regTime >= startTime && regTime <= endTime;
+                    }).map((client) => (
+                      <div key={client.id} style={{
+                        padding: '16px',
+                        backgroundColor: 'white',
+                        borderRadius: '14px',
+                        border: '1px solid #e2e8f0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                      }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                        }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '12px',
+                            backgroundColor: '#eef2ff',
+                            color: '#6366f1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            fontSize: '18px'
+                          }}>
+                            {client.name ? client.name.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ fontWeight: '800', color: '#111827', fontSize: '15px' }}>{client.name || 'مستخدِم بدون اسم'}</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                              <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Phone size={14} style={{ color: '#6366f1' }} />
+                                <span>{client.phone}</span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <MapPin size={14} style={{ color: '#6366f1' }} />
+                                <span>{client.address || 'موقع غير محدد'}</span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Calendar size={14} style={{ color: '#6366f1' }} />
+                                <span>{formatDateDDMMYYYY(client.registered_at)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            const userToView: User = {
+                              id: String(client.id),
+                              name: client.name || 'مستخدِم بدون اسم',
+                              phone: client.phone,
+                              address: client.address,
+                              userCode: client.user_code,
+                              delegateCode: null,
+                              status: client.status === 'banned' || client.status === 'blocked' ? 'banned' : 'active',
+                              registrationDate: client.registered_at,
+                              adsCount: client.listings_count,
+                              role: client.role,
+                              lastLogin: '',
+                              phoneVerified: client.phone_verified,
+                            };
+                            handleViewProfile(userToView);
+                          }}
+                          title="عرض الملف الشخصي"
+                          style={{
+                            backgroundColor: '#6366f1',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '10px',
+                            padding: '10px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4f46e5'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#6366f1'}
+                        >
+                          <ExternalLink size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9ca3af' }}>
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 20px'
+                    }}>
+                      <Users size={40} />
+                    </div>
+                    <h4 style={{ color: '#374151', margin: '0 0 8px' }}>لا يوجد عملاء</h4>
+                    <p style={{ margin: 0, fontSize: '14px' }}>لم يقم أي مستخدمين بالتسجيل باستخدام كود هذا المندوب حتى الآن.</p>
+                  </div>
+                )}
               </div>
             )}
 

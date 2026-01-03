@@ -24,9 +24,9 @@ interface Category {
 const initialCategories: Category[] = [
   { id: 1, name: 'إيجار السيارات', icon: '🚗', status: 'active', order: 1, customFields: { 'نوع السيارة': 'text', 'السعر اليومي': 'number' }, showOnHomepage: true, cardsCount: 6 },
   { id: 2, name: 'عقارات', icon: '🏠', status: 'active', order: 2, customFields: { 'نوع العقار': 'select', 'المساحة': 'number', 'السعر': 'number' }, showOnHomepage: true, cardsCount: 8 },
-  { id: 3, name: 'السيارات', icon: '🚙', status: 'active', order: 3, customFields: { }, showOnHomepage: true, cardsCount: 10 },
+  { id: 3, name: 'السيارات', icon: '🚙', status: 'active', order: 3, customFields: {}, showOnHomepage: true, cardsCount: 10 },
   { id: 4, name: 'قطع غيار السيارات', icon: '🔧', status: 'active', order: 4, customFields: { 'نوع القطعة': 'text', 'متوافق مع': 'text' }, showOnHomepage: false },
-  { id: 36, name: 'طيور وحيوانات', icon: '🐾', status: 'active', order: 5, customFields: { }, showOnHomepage: false },
+  { id: 36, name: 'طيور وحيوانات', icon: '🐾', status: 'active', order: 5, customFields: {}, showOnHomepage: false },
   { id: 5, name: 'المدرسين', icon: '👨‍🏫', status: 'active', order: 6, customFields: { 'التخصص': 'select', 'المؤهل العلمي': 'select', 'سنوات الخبرة': 'number' }, showOnHomepage: true, cardsCount: 4 },
   { id: 6, name: 'أطباء', icon: '👨‍⚕️', status: 'active', order: 7, customFields: { 'التخصص': 'select', 'الدرجة العلمية': 'select', 'العيادة': 'text' }, showOnHomepage: true, cardsCount: 6 },
   { id: 7, name: 'الوظائف', icon: '💼', status: 'active', order: 8, customFields: { 'نوع العقد': 'select', 'الراتب': 'number', 'المؤهل المطلوب': 'select' }, showOnHomepage: true, cardsCount: 12 },
@@ -188,14 +188,14 @@ export default function CategoriesPage() {
           setCategories(mapped);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
     fetchSystemSettings(token)
       .then((data) => {
         if (data && data.data) {
           setSystemSettings(data.data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
   const getErrMsg = (err: unknown, fallback: string): string => {
     if (typeof err === 'string') return err;
@@ -332,7 +332,7 @@ export default function CategoriesPage() {
         setMAKE_IDS(ids);
         setMODEL_IDS_BY_BRAND(modelIds);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const ensureMakeId = async (name: string): Promise<number | null> => {
@@ -353,7 +353,7 @@ export default function CategoriesPage() {
           setMAKE_IDS(prev => ({ ...prev, [found.name]: found.id }));
           return found.id;
         }
-      } catch {}
+      } catch { }
       const msg = getErrMsg(err, 'حدث خطأ في الحصول على الماركة');
       showToast(msg, 'error');
       return null;
@@ -372,7 +372,7 @@ export default function CategoriesPage() {
         setMAIN_IDS_BY_SLUG(prev => ({ ...prev, [slug]: { ...(prev[slug] ?? {}), [found.name]: found.id } }));
         return found.id;
       }
-    } catch {}
+    } catch { }
     showToast('تعذر الحصول على معرف الرئيسي', 'error');
     return null;
   };
@@ -479,7 +479,7 @@ export default function CategoriesPage() {
           return sub.id;
         }
       }
-    } catch {}
+    } catch { }
     showToast('تعذر الحصول على معرف الفرعي', 'error');
     return null;
   };
@@ -633,43 +633,43 @@ export default function CategoriesPage() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined;
     Promise.all([
       fetchCategoryFieldMaps([
-      'cars',
-      'cars_rent',
-      'real_estate',
-      'teachers',
-      'doctors',
-      'jobs',
-      'spare-parts',
-      'stores',
-      'restaurants',
-      'groceries',
-      'food-products',
-      'electronics',
-      'home-tools',
-      'furniture',
-      'health',
-      'education',
-      'shipping',
-      'mens-clothes',
-      'watches-jewelry',
-      'free-professions',
-      'kids-toys',
-      'gym',
-      'construction',
-      'maintenance',
-      'car-services',
-      'home-services',
-      'lighting-decor',
-      'animals',
-      'farm-products',
-      'wholesale',
-      'production-lines',
-      'light-vehicles',
-      'heavy-transport',
-      'tools',
-      'home-appliances',
-      'missing',
-    ], token),
+        'cars',
+        'cars_rent',
+        'real_estate',
+        'teachers',
+        'doctors',
+        'jobs',
+        'spare-parts',
+        'stores',
+        'restaurants',
+        'groceries',
+        'food-products',
+        'electronics',
+        'home-tools',
+        'furniture',
+        'health',
+        'education',
+        'shipping',
+        'mens-clothes',
+        'watches-jewelry',
+        'free-professions',
+        'kids-toys',
+        'gym',
+        'construction',
+        'maintenance',
+        'car-services',
+        'home-services',
+        'lighting-decor',
+        'animals',
+        'farm-products',
+        'wholesale',
+        'production-lines',
+        'light-vehicles',
+        'heavy-transport',
+        'tools',
+        'home-appliances',
+        'missing',
+      ], token),
       fetchCategoryMainSubsBatch([
         'jobs',
         'spare-parts',
@@ -704,7 +704,7 @@ export default function CategoriesPage() {
         'heavy-transport',
       ], token),
       fetchAdminMainSectionsBatch([
-        'jobs','spare-parts','animals','food-products','restaurants','stores','groceries','kids-toys','home-services','furniture','home-tools','home-appliances','electronics','health','education','shipping','mens-clothes','watches-jewelry','free-professions','car-services','maintenance','construction','gym','light-vehicles','production-lines','farm-products','lighting-decor','missing','tools','wholesale','heavy-transport'
+        'jobs', 'spare-parts', 'animals', 'food-products', 'restaurants', 'stores', 'groceries', 'kids-toys', 'home-services', 'furniture', 'home-tools', 'home-appliances', 'electronics', 'health', 'education', 'shipping', 'mens-clothes', 'watches-jewelry', 'free-professions', 'car-services', 'maintenance', 'construction', 'gym', 'light-vehicles', 'production-lines', 'farm-products', 'lighting-decor', 'missing', 'tools', 'wholesale', 'heavy-transport'
       ], token),
     ])
       .then(([maps, mainSubs, mainWithIds]) => {
@@ -775,21 +775,14 @@ export default function CategoriesPage() {
         setDoctorSpecialtyKey(dKey || 'specialization');
         if (dSpec.length) setDoctorSpecialtyOptions(dSpec);
         const j = maps['jobs'];
-        const jCat = pick(j, ['job_category', 'category', 'فئة', 'مجال', 'قسم']);
-        const jSpec = pick(j, ['specialization', 'specialty', 'تخصص']);
-        setJobCategoryKey(findKey(j, ['job_category', 'category', 'فئة', 'مجال', 'قسم']));
-        setJobSpecialtyKey(findKey(j, ['specialization', 'specialty', 'تخصص']));
-        const jobsMainSubsMap = Object.keys(mainSubs['jobs'] ?? {}).length
-          ? (mainSubs['jobs'] as Record<string, string[]>)
-          : buildMainSubs(maps['jobs'], ['job_category', 'category', 'فئة', 'مجال', 'قسم'], ['specialization', 'specialty', 'تخصص']);
-        setJOBS_MAIN_SUBS(jobsMainSubsMap);
-        const jobsCatsFromMap = Object.keys(jobsMainSubsMap);
-        if (jobsCatsFromMap.length) {
-          setJobCategoryOptions(jobsCatsFromMap);
-        } else {
-          if (jCat.length) setJobCategoryOptions(jCat);
-        }
-        setJobSpecialtyOptions([]);
+        const jCat = pick(j, ['job_type', 'job_category', 'category', 'فئة', 'مجال', 'قسم', 'التصنيف']);
+        const jSpec = pick(j, ['specialization', 'specialty', 'تخصص', 'التخصص']);
+        setJobCategoryKey(findKey(j, ['job_type', 'job_category', 'category', 'فئة', 'مجال', 'قسم', 'التصنيف']));
+        setJobSpecialtyKey(findKey(j, ['specialization', 'specialty', 'تخصص', 'التخصص']));
+
+        // التصنيف والتخصص مستقلين - لا ربط بينهم
+        if (jCat.length) setJobCategoryOptions(jCat);
+        if (jSpec.length) setJobSpecialtyOptions(jSpec);
         setPARTS_MAIN_SUBS(Object.keys(mainSubs['spare-parts'] ?? {}).length ? (mainSubs['spare-parts'] as Record<string, string[]>) : buildMainSubs(maps['spare-parts'], ['قطعة', 'part', 'نوع', 'رئيس', 'main', 'category', 'قسم'], ['compatible', 'متوافق', 'موديل', 'model', 'فرعي', 'sub', 'brand', 'ماركة']));
         setANIMALS_MAIN_SUBS(Object.keys(mainSubs['animals'] ?? {}).length ? (mainSubs['animals'] as Record<string, string[]>) : buildMainSubs(maps['animals'], ['نوع', 'animal', 'حيوان', 'طيور', 'category'], ['سلالة', 'breed', 'sub', 'فرعي']));
         setAnimalsMainKey(findKey(maps['animals'], ['نوع', 'animal', 'حيوان', 'طيور', 'category']));
@@ -810,10 +803,10 @@ export default function CategoriesPage() {
           Object.keys(mainSubs['kids-toys'] ?? {}).length
             ? (mainSubs['kids-toys'] as Record<string, string[]>)
             : buildMainSubs(
-                maps['kids-toys'],
-                ['نوع', 'category', 'لعب', 'مستلزمات', 'أطفال'],
-                ['sub', 'فرعي']
-              )
+              maps['kids-toys'],
+              ['نوع', 'category', 'لعب', 'مستلزمات', 'أطفال'],
+              ['sub', 'فرعي']
+            )
         );
         setHOME_SERVICES_MAIN_SUBS(Object.keys(mainSubs['home-services'] ?? {}).length ? (mainSubs['home-services'] as Record<string, string[]>) : buildMainSubs(maps['home-services'], ['نوع الخدمة', 'service', 'نوع', 'category'], ['sub', 'فرعي']));
         setFURNITURE_MAIN_SUBS(Object.keys(mainSubs['furniture'] ?? {}).length ? (mainSubs['furniture'] as Record<string, string[]>) : buildMainSubs(maps['furniture'], ['نوع الأثاث', 'furniture', 'نوع', 'category'], ['sub', 'فرعي', 'مادة', 'material']));
@@ -929,9 +922,9 @@ export default function CategoriesPage() {
             subIdMap[slug] = adminSubIds(slug);
           }
           setSUB_IDS_BY_SLUG(subIdMap);
-        } catch {}
+        } catch { }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
   const [manufactureYear, setManufactureYear] = useState('');
   const [kilometersRange, setKilometersRange] = useState('');
@@ -1022,43 +1015,44 @@ export default function CategoriesPage() {
   const [selectedFoodSub, setSelectedFoodSub] = useState('');
   const [newFoodMain, setNewFoodMain] = useState('');
   const [newFoodSubsBulk, setNewFoodSubsBulk] = useState('');
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!jobCategory) {
-        if (mounted) {
-          setJobSpecialtyOptions([]);
-          setJobSpecialty('');
-        }
-        return;
-      }
-      const mainId = await ensureMainSectionId('jobs', jobCategory);
-      if (!mainId) {
-        const list = JOBS_MAIN_SUBS[jobCategory] ?? [];
-        if (mounted) {
-          setJobSpecialtyOptions(list);
-          if (!list.includes(jobSpecialty)) setJobSpecialty('');
-        }
-        return;
-      }
-      try {
-        const subs = await fetchPublicSubSections(mainId);
-        const names = subs.map(s => String(s?.name || '').trim()).filter(Boolean);
-        const list = names.length ? names : (JOBS_MAIN_SUBS[jobCategory] ?? []);
-        if (mounted) {
-          setJobSpecialtyOptions(list);
-          if (!list.includes(jobSpecialty)) setJobSpecialty('');
-        }
-      } catch {
-        const list = JOBS_MAIN_SUBS[jobCategory] ?? [];
-        if (mounted) {
-          setJobSpecialtyOptions(list);
-          if (!list.includes(jobSpecialty)) setJobSpecialty('');
-        }
-      }
-    })();
-  return () => { mounted = false; };
-  }, [jobCategory, JOBS_MAIN_SUBS]);
+  // تم تعطيل الربط بين التصنيف والتخصص - كل واحد مستقل الآن
+  // useEffect(() => {
+  //   let mounted = true;
+  //   (async () => {
+  //     if (!jobCategory) {
+  //       if (mounted) {
+  //         setJobSpecialtyOptions([]);
+  //         setJobSpecialty('');
+  //       }
+  //       return;
+  //     }
+  //     const mainId = await ensureMainSectionId('jobs', jobCategory);
+  //     if (!mainId) {
+  //       const list = JOBS_MAIN_SUBS[jobCategory] ?? [];
+  //       if (mounted) {
+  //         setJobSpecialtyOptions(list);
+  //         if (!list.includes(jobSpecialty)) setJobSpecialty('');
+  //       }
+  //       return;
+  //     }
+  //     try {
+  //       const subs = await fetchPublicSubSections(mainId);
+  //       const names = subs.map(s => String(s?.name || '').trim()).filter(Boolean);
+  //       const list = names.length ? names : (JOBS_MAIN_SUBS[jobCategory] ?? []);
+  //       if (mounted) {
+  //         setJobSpecialtyOptions(list);
+  //         if (!list.includes(jobSpecialty)) setJobSpecialty('');
+  //       }
+  //     } catch {
+  //       const list = JOBS_MAIN_SUBS[jobCategory] ?? [];
+  //       if (mounted) {
+  //         setJobSpecialtyOptions(list);
+  //         if (!list.includes(jobSpecialty)) setJobSpecialty('');
+  //       }
+  //     }
+  //   })();
+  //   return () => { mounted = false; };
+  // }, [jobCategory, JOBS_MAIN_SUBS]);
   const [RESTAURANTS_MAIN_SUBS, setRESTAURANTS_MAIN_SUBS] = useState<Record<string, string[]>>({});
   const [selectedRestaurantMain, setSelectedRestaurantMain] = useState('');
   const [selectedRestaurantSub, setSelectedRestaurantSub] = useState('');
@@ -1211,7 +1205,7 @@ export default function CategoriesPage() {
   const viewCategoryImage = (url?: string | null) => {
     const src = getImageSrc(String(url || ''));
     if (!src) return;
-    try { window.open(src, '_blank', 'noopener'); } catch {}
+    try { window.open(src, '_blank', 'noopener'); } catch { }
   };
   const uploadCategoryImage = async (categoryId: number, file: File) => {
     setCATEGORY_IMAGE_UPLOADING(prev => ({ ...prev, [categoryId]: true }));
@@ -1248,7 +1242,7 @@ export default function CategoriesPage() {
       const prev = Array.isArray(obj[govId]) ? obj[govId] : [];
       obj[govId] = Array.from(new Set([...prev, ...names]));
       localStorage.setItem('admin:govCities', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
 
   const saveCitiesCacheByName = (govName: string, names: string[]) => {
@@ -1259,7 +1253,7 @@ export default function CategoriesPage() {
       const prev = Array.isArray(obj[govName]) ? obj[govName] : [];
       obj[govName] = Array.from(new Set([...prev, ...names]));
       localStorage.setItem('admin:govCitiesByName', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const saveCityIdCache = (govId: number, cityName: string, cityId: number) => {
     try {
@@ -1270,7 +1264,7 @@ export default function CategoriesPage() {
       prev[cityName] = cityId;
       obj[govId] = prev;
       localStorage.setItem('admin:cityIds', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const renameCityIdCache = (govId: number, oldName: string, newName: string) => {
     try {
@@ -1283,7 +1277,7 @@ export default function CategoriesPage() {
       if (typeof id === 'number') prev[newName] = id;
       obj[govId] = prev;
       localStorage.setItem('admin:cityIds', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const deleteCityIdCache = (govId: number, cityName: string) => {
     try {
@@ -1294,7 +1288,7 @@ export default function CategoriesPage() {
       delete prev[cityName];
       obj[govId] = prev;
       localStorage.setItem('admin:cityIds', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const saveCityRenameById = (govId: number, oldName: string, newName: string) => {
     try {
@@ -1305,7 +1299,7 @@ export default function CategoriesPage() {
       prev[oldName] = newName;
       obj[govId] = prev;
       localStorage.setItem('admin:cityRenamesById', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const saveCityRenameByName = (govName: string, oldName: string, newName: string) => {
     try {
@@ -1316,7 +1310,7 @@ export default function CategoriesPage() {
       prev[oldName] = newName;
       obj[govName] = prev;
       localStorage.setItem('admin:cityRenamesByName', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const saveCityDeletedById = (govId: number, cityName: string) => {
     try {
@@ -1326,7 +1320,7 @@ export default function CategoriesPage() {
       const prev = Array.isArray(obj[govId]) ? obj[govId] : [];
       obj[govId] = Array.from(new Set([...prev, cityName]));
       localStorage.setItem('admin:cityDeletedById', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const saveCityDeletedByName = (govName: string, cityName: string) => {
     try {
@@ -1336,7 +1330,7 @@ export default function CategoriesPage() {
       const prev = Array.isArray(obj[govName]) ? obj[govName] : [];
       obj[govName] = Array.from(new Set([...prev, cityName]));
       localStorage.setItem('admin:cityDeletedByName', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const clearCityDeletedById = (govId: number, cityName: string) => {
     try {
@@ -1346,7 +1340,7 @@ export default function CategoriesPage() {
       const prev = Array.isArray(obj[govId]) ? obj[govId] : [];
       obj[govId] = prev.filter(x => x !== cityName);
       localStorage.setItem('admin:cityDeletedById', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const clearCityDeletedByName = (govName: string, cityName: string) => {
     try {
@@ -1356,7 +1350,7 @@ export default function CategoriesPage() {
       const prev = Array.isArray(obj[govName]) ? obj[govName] : [];
       obj[govName] = prev.filter(x => x !== cityName);
       localStorage.setItem('admin:cityDeletedByName', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const getCityId = (govName: string, cityName: string): number | undefined => {
     try {
@@ -1389,7 +1383,7 @@ export default function CategoriesPage() {
       const obj: Record<string, string> = raw ? JSON.parse(raw) : {};
       obj[oldName] = newName;
       localStorage.setItem('admin:govRenames', JSON.stringify(obj));
-    } catch {}
+    } catch { }
   };
   const cities = selectedGovernorate ? GOVERNORATES_MAP[selectedGovernorate] ?? [] : [];
   const renameGovernorate = async (prevName: string, nextRaw: string) => {
@@ -1424,7 +1418,7 @@ export default function CategoriesPage() {
             if (list.length) obj[g.name] = Array.from(new Set([...(obj[g.name] ?? []), ...list]));
             localStorage.setItem('admin:govCitiesByName', JSON.stringify(obj));
           }
-        } catch {}
+        } catch { }
         saveGovernorateRename(prevName, g.name);
         if (selectedGovernorate === prevName) setSelectedGovernorate(g.name);
         showToast('تم تعديل المحافظة', 'success');
@@ -1452,7 +1446,7 @@ export default function CategoriesPage() {
             if (list.length) obj[next] = Array.from(new Set([...(obj[next] ?? []), ...list]));
             localStorage.setItem('admin:govCitiesByName', JSON.stringify(obj));
           }
-        } catch {}
+        } catch { }
         saveGovernorateRename(prevName, next);
         if (selectedGovernorate === prevName) setSelectedGovernorate(next);
         showToast('تم تعديل المحافظة', 'success');
@@ -1540,7 +1534,7 @@ export default function CategoriesPage() {
     (async () => {
       try {
         const cachedIds = typeof window !== 'undefined' ? localStorage.getItem('admin:governorateIds') : null;
-        if (cachedIds) { try { setGOVERNORATE_IDS(JSON.parse(cachedIds as string)); } catch {} }
+        if (cachedIds) { try { setGOVERNORATE_IDS(JSON.parse(cachedIds as string)); } catch { } }
         const items = await fetchGovernorates();
         if (!mounted) return;
         const map: Record<string, string[]> = {};
@@ -1621,10 +1615,10 @@ export default function CategoriesPage() {
             const filtered = list.filter(x => !(Array.isArray(delList) && delList.includes(x)));
             map[gname] = Array.from(new Set(filtered));
           }
-        } catch {}
+        } catch { }
         setGOVERNORATES_MAP(map);
         setGOVERNORATE_IDS(idMap);
-      } catch {}
+      } catch { }
     })();
     return () => { mounted = false; };
   }, []);
@@ -1632,7 +1626,7 @@ export default function CategoriesPage() {
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') localStorage.setItem('admin:governorateIds', JSON.stringify(GOVERNORATE_IDS));
-    } catch {}
+    } catch { }
   }, [GOVERNORATE_IDS]);
   const addGovernorate = async () => {
     const name = newGovernorate.trim();
@@ -1684,7 +1678,7 @@ export default function CategoriesPage() {
             localStorage.setItem('admin:govCities', JSON.stringify(objId));
           }
         }
-      } catch {}
+      } catch { }
       if (selectedGovernorate === name) {
         setSelectedGovernorate('');
         setSelectedCity('');
@@ -2064,7 +2058,7 @@ export default function CategoriesPage() {
           modelId = found.id;
           setMODEL_IDS_BY_BRAND(prev => ({ ...prev, [selectedBrand]: { ...(prev[selectedBrand] ?? {}), [m]: modelId as number } }));
         }
-      } catch {}
+      } catch { }
     }
     if (typeof modelId !== 'number') { showToast('تعذر الحصول على معرف الموديل', 'error'); return; }
     try {
@@ -2089,7 +2083,7 @@ export default function CategoriesPage() {
         if (found && typeof found.id === 'number') {
           modelId = found.id;
         }
-      } catch {}
+      } catch { }
     }
     if (typeof modelId !== 'number') { showToast('تعذر الحصول على معرف الموديل', 'error'); return; }
     try {
@@ -2166,7 +2160,7 @@ export default function CategoriesPage() {
           modelId = found.id;
           setMODEL_IDS_BY_BRAND(prev => ({ ...prev, [selectedPartsBrand]: { ...(prev[selectedPartsBrand] ?? {}), [m]: modelId as number } }));
         }
-      } catch {}
+      } catch { }
     }
     if (typeof modelId !== 'number') { showToast('تعذر الحصول على معرف الموديل', 'error'); return; }
     try {
@@ -2207,7 +2201,7 @@ export default function CategoriesPage() {
         if (found && typeof found.id === 'number') {
           modelId = found.id;
         }
-      } catch {}
+      } catch { }
     }
     if (typeof modelId !== 'number') { showToast('تعذر الحصول على معرف الموديل', 'error'); return; }
     try {
@@ -2353,7 +2347,7 @@ export default function CategoriesPage() {
           modelId = found.id;
           setMODEL_IDS_BY_BRAND(prev => ({ ...prev, [selectedRentalBrand]: { ...(prev[selectedRentalBrand] ?? {}), [m]: modelId as number } }));
         }
-      } catch {}
+      } catch { }
     }
     if (typeof modelId !== 'number') { showToast('تعذر الحصول على معرف الموديل', 'error'); return; }
     try {
@@ -2379,7 +2373,7 @@ export default function CategoriesPage() {
         if (found && typeof found.id === 'number') {
           modelId = found.id;
         }
-      } catch {}
+      } catch { }
     }
     if (typeof modelId !== 'number') { showToast('تعذر الحصول على معرف الموديل', 'error'); return; }
     try {
@@ -2775,53 +2769,61 @@ export default function CategoriesPage() {
   const addJobCategoryOption = async () => {
     const name = newJobCategoryVal.trim();
     if (!name) return;
-    await handleAddMain('jobs', name, setJOBS_MAIN_SUBS, setJobCategory, () => setNewJobCategoryVal(''));
+    // التصنيف مستقل الآن - استخدام نفس طريقة التخصص
+    await updateOptionsWithToast('jobs', jobCategoryKey, [...jobCategoryOptions, name], 'تم إضافة التصنيف');
     setJobCategoryOptions(prev => (prev.includes(name) ? prev : [...prev, name]));
+    setNewJobCategoryVal('');
   };
   const deleteSelectedJobCategoryOption = () => {
     const v = jobCategory;
     if (!v) return;
-    handleDeleteMain('jobs', v, setJOBS_MAIN_SUBS, jobCategory, setJobCategory);
-    setJobCategoryOptions(prev => prev.filter(x => x !== v));
+    const updated = jobCategoryOptions.filter(x => x !== v);
+    updateOptionsWithToast('jobs', jobCategoryKey, updated, 'تم حذف التصنيف');
+    setJobCategoryOptions(updated);
+    setJobCategory('');
   };
   const deleteJobCategoryOption = (opt: string) => {
-    handleDeleteMain('jobs', opt, setJOBS_MAIN_SUBS, jobCategory, setJobCategory);
-    setJobCategoryOptions(prev => prev.filter(x => x !== opt));
+    const updated = jobCategoryOptions.filter(x => x !== opt);
+    updateOptionsWithToast('jobs', jobCategoryKey, updated, 'تم حذف التصنيف');
+    setJobCategoryOptions(updated);
     if (jobCategory === opt) setJobCategory('');
   };
   const renameJobCategoryOption = (prev: string, nextRaw: string) => {
     const n = nextRaw.trim();
     if (!n || prev === n) return;
-    handleRenameMain('jobs', prev, n, setJOBS_MAIN_SUBS, jobCategory, setJobCategory);
-    setJobCategoryOptions(prevList => prevList.map(x => (x === prev ? n : x)));
+    const updated = jobCategoryOptions.map(x => (x === prev ? n : x));
+    updateOptionsWithToast('jobs', jobCategoryKey, updated, 'تم تعديل التصنيف');
+    setJobCategoryOptions(updated);
     if (jobCategory === prev) setJobCategory(n);
   };
   const addJobSpecialtyOption = async () => {
-    if (!jobCategory) return;
     const name = newJobSpecialtyVal.trim();
     if (!name) return;
-    await handleAddSubsBulk('jobs', jobCategory, [name], setJOBS_MAIN_SUBS, setJobSpecialty, () => setNewJobSpecialtyVal(''));
+    // التخصص مستقل الآن - لا يحتاج jobCategory
+    await updateOptionsWithToast('jobs', jobSpecialtyKey, [...jobSpecialtyOptions, name], 'تم إضافة التخصص');
     setJobSpecialtyOptions(prev => (prev.includes(name) ? prev : [...prev, name]));
+    setNewJobSpecialtyVal('');
   };
   const deleteSelectedJobSpecialtyOption = () => {
     const v = jobSpecialty;
     if (!v) return;
-    if (!jobCategory) return;
-    handleDeleteSub('jobs', jobCategory, v, setJOBS_MAIN_SUBS, jobSpecialty, setJobSpecialty);
-    setJobSpecialtyOptions(prev => prev.filter(x => x !== v));
+    const updated = jobSpecialtyOptions.filter(x => x !== v);
+    updateOptionsWithToast('jobs', jobSpecialtyKey, updated, 'تم حذف التخصص');
+    setJobSpecialtyOptions(updated);
     setJobSpecialty('');
   };
   const deleteJobSpecialtyOption = (opt: string) => {
-    if (!jobCategory) return;
-    handleDeleteSub('jobs', jobCategory, opt, setJOBS_MAIN_SUBS, jobSpecialty, setJobSpecialty);
-    setJobSpecialtyOptions(prev => prev.filter(x => x !== opt));
+    const updated = jobSpecialtyOptions.filter(x => x !== opt);
+    updateOptionsWithToast('jobs', jobSpecialtyKey, updated, 'تم حذف التخصص');
+    setJobSpecialtyOptions(updated);
     if (jobSpecialty === opt) setJobSpecialty('');
   };
   const renameJobSpecialtyOption = (prev: string, nextRaw: string) => {
     const n = nextRaw.trim();
-    if (!n || prev === n || !jobCategory) return;
-    handleRenameSub('jobs', jobCategory, prev, n, setJOBS_MAIN_SUBS, jobSpecialty, setJobSpecialty);
-    setJobSpecialtyOptions(prevList => prevList.map(x => (x === prev ? n : x)));
+    if (!n || prev === n) return;
+    const updated = jobSpecialtyOptions.map(x => (x === prev ? n : x));
+    updateOptionsWithToast('jobs', jobSpecialtyKey, updated, 'تم تعديل التخصص');
+    setJobSpecialtyOptions(updated);
     if (jobSpecialty === prev) setJobSpecialty(n);
   };
   const addFoodMain = () => {
@@ -3277,7 +3279,7 @@ export default function CategoriesPage() {
   const removeCarServicesMain = (name: string) => {
     handleDeleteMain('car-services', name, setCAR_SERVICES_MAIN_SUBS, selectedCarServicesMain, setSelectedCarServicesMain);
   };
-  
+
   const addCarServicesSubsBulk = () => {
     if (!selectedCarServicesMain) return;
     const raw = newCarServicesSubsBulk;
@@ -3478,7 +3480,7 @@ export default function CategoriesPage() {
     handleRenameSub('lighting-decor', selectedLightingDecorMain, prevName, nextRaw, setLIGHTING_DECOR_MAIN_SUBS, selectedLightingDecorSub, setSelectedLightingDecorSub);
   };
 
-  
+
   const removeMissingMain = (name: string) => {
     handleDeleteMain('missing', name, setMISSING_MAIN_SUBS, selectedMissingMain, setSelectedMissingMain);
   };
@@ -3605,11 +3607,11 @@ export default function CategoriesPage() {
   // معلومات مساعدة لعرض النافذة
   const currentFieldMeta = fieldOptionsEditor
     ? (() => {
-        const cat = categories.find(c => c.id === fieldOptionsEditor.categoryId);
-        if (!cat) return null as null | { type: string; options?: string[] };
-        const raw = cat.customFields[fieldOptionsEditor.fieldName];
-        return typeof raw === 'string' ? { type: raw } : raw;
-      })()
+      const cat = categories.find(c => c.id === fieldOptionsEditor.categoryId);
+      if (!cat) return null as null | { type: string; options?: string[] };
+      const raw = cat.customFields[fieldOptionsEditor.fieldName];
+      return typeof raw === 'string' ? { type: raw } : raw;
+    })()
     : null;
   const currentCategoryName = fieldOptionsEditor
     ? categories.find(c => c.id === fieldOptionsEditor.categoryId)?.name || ''
@@ -3630,7 +3632,7 @@ export default function CategoriesPage() {
     if (!file || !key) return;
     const previewUrl = URL.createObjectURL(file);
     setDefaultImagePreview(prev => ({ ...prev, [key]: previewUrl }));
-    
+
     setUploadingImage(key);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined;
@@ -3730,11 +3732,11 @@ export default function CategoriesPage() {
           />
           <div className="search-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 21L16.514 16.506L21 21ZM19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" stroke="url(#searchGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M21 21L16.514 16.506L21 21ZM19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" stroke="url(#searchGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               <defs>
                 <linearGradient id="searchGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1bb28f"/>
-                  <stop offset="100%" stopColor="#3b82f6"/>
+                  <stop offset="0%" stopColor="#1bb28f" />
+                  <stop offset="100%" stopColor="#3b82f6" />
                 </linearGradient>
               </defs>
             </svg>
@@ -3781,7 +3783,7 @@ export default function CategoriesPage() {
               </div>
             ))}
           </div>
-      <div className="location-filter">
+          <div className="location-filter">
             <div className="location-group">
               <label className="location-label">المحافظة</label>
               <ManagedSelect
@@ -3802,7 +3804,7 @@ export default function CategoriesPage() {
                 />
                 <button className="btn-add" onClick={addGovernorate}>إضافة</button>
               </div>
-      </div>
+            </div>
 
             <div className="location-group">
               <label className="location-label">المدينة</label>
@@ -3929,7 +3931,7 @@ export default function CategoriesPage() {
                           {category.status === 'active' ? 'نشط' : 'معطل'}
                         </span>
                       </div>
-                  </div>
+                    </div>
 
                     <div className="homepage-visibility">
                       <label className="toggle-label">
@@ -4394,8 +4396,7 @@ export default function CategoriesPage() {
                               onChange={(v) => setJobSpecialty(v)}
                               onDelete={(opt) => deleteJobSpecialtyOption(opt)}
                               onEdit={(prev, next) => renameJobSpecialtyOption(prev, next)}
-                              disabled={!jobCategory}
-                              placeholder={jobCategory ? 'اختر التخصص' : 'اختر التصنيف أولًا'}
+                              placeholder="اختر التخصص"
                             />
                             <div className="inline-actions">
                               <input
@@ -4480,7 +4481,7 @@ export default function CategoriesPage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {category.slug === 'food-products' && (
                       <div className="category-fields">
                         <h4>إدارة الفئات الرئيسية والفرعية للمنتجات:</h4>
@@ -4740,7 +4741,7 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewHomeServiceMain(e.target.value)}
                               />
                               <button className="btn-add" onClick={addHomeServiceMain}>إضافة</button>
-                            {/*  {selectedHomeServiceMain && (
+                              {/*  {selectedHomeServiceMain && (
                                 <button className="btn-delete" onClick={() => removeHomeServiceMain(selectedHomeServiceMain)}>حذف الرئيسي</button>
                               )}*/}
                             </div>
@@ -6258,7 +6259,7 @@ export default function CategoriesPage() {
                 <div className="no-results-icon">🔍</div>
                 <h3>لا توجد أقسام تطابق البحث</h3>
                 <p>جرب تغيير معايير البحث أو الفلتر</p>
-                <button 
+                <button
                   className="btn-clear-filters"
                   onClick={() => {
                     setSearchTerm('');
@@ -6300,8 +6301,8 @@ export default function CategoriesPage() {
                     <div className="category-preview">
                       <div className="preview-image">
                         {category.homepageImage ? (
-                          <Image 
-                            src={category.homepageImage} 
+                          <Image
+                            src={category.homepageImage}
                             alt={category.name}
                             width={80}
                             height={80}
@@ -6331,12 +6332,12 @@ export default function CategoriesPage() {
                           className="cards-count-input"
                         />
                       </div> */}
-                      
+
                       <div className="control-group">
                         <label>ترتيب الظهور:</label>
-                        <input 
-                          type="number" 
-                          min="1" 
+                        <input
+                          type="number"
+                          min="1"
                           value={category.order}
                           className="order-input"
                         />
@@ -6344,15 +6345,15 @@ export default function CategoriesPage() {
 
                       <div className="control-group">
                         <label>صورة القسم:</label>
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           className="image-upload"
                         />
                       </div>
 
                       <div className="action-buttons">
-                        <button 
+                        <button
                           className="btn-homepage-toggle"
                           onClick={() => handleHomepageToggle(category.id)}
                         >
@@ -6376,11 +6377,11 @@ export default function CategoriesPage() {
                     <div key={category.id} className="hidden-category-item">
                       <span className="category-icon">{category.icon}</span>
                       <span className="category-name">{category.name}</span>
-                      <button 
+                      <button
                         className="btn-show-homepage"
                         onClick={() => handleHomepageToggle(category.id)}
                       >
-                         إظهار في الواجهة
+                        إظهار في الواجهة
                       </button>
                     </div>
                   ))}
@@ -6451,7 +6452,7 @@ export default function CategoriesPage() {
           <div className="modal-content">
             <div className="modal-header">
               <h2>{editingCategory ? 'تعديل القسم' : 'إضافة قسم جديد'}</h2>
-              <button 
+              <button
                 className="modal-close"
                 onClick={() => {
                   setShowAddModal(false);
@@ -6466,8 +6467,8 @@ export default function CategoriesPage() {
               <form className="category-form">
                 <div className="form-group">
                   <label>اسم القسم</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="أدخل اسم القسم"
                     defaultValue={editingCategory?.name || ''}
                     className="form-input"
@@ -6495,8 +6496,8 @@ export default function CategoriesPage() {
 
                 <div className="form-group">
                   <label>ترتيب الظهور</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     min="1"
                     defaultValue={editingCategory?.order || categories.length + 1}
                     className="form-input"
@@ -6538,8 +6539,8 @@ export default function CategoriesPage() {
                   <button type="submit" className="btn-save">
                     💾 {editingCategory ? 'حفظ التعديلات' : 'إضافة القسم'}
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="btn-cancel"
                     onClick={() => {
                       setShowAddModal(false);
@@ -6565,5 +6566,5 @@ export default function CategoriesPage() {
     </div>
   );
 }
-  
-  
+
+

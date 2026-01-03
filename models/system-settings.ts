@@ -16,6 +16,8 @@ export interface SystemSettingsPayload {
   jobs_default_image?: string;
   doctors_default_image?: string;
   teachers_default_image?: string;
+  featured_days?: number;
+  standard_days?: number;
 }
 
 export interface SystemSettingsData {
@@ -36,6 +38,8 @@ export interface SystemSettingsData {
   jobs_default_image?: string;
   doctors_default_image?: string;
   teachers_default_image?: string;
+  featured_days?: number;
+  standard_days?: number;
 }
 
 export interface SystemSettingsResponse {

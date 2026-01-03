@@ -8,6 +8,8 @@ import { CategoryPlanPrice, CategoryPlanPriceUpdateItem } from "../../../models/
 const initialRules = {
   free_ads_count: 0,
   free_ad_days_validity: 0,
+  featured_days: 0,
+  standard_days: 0,
 };
 
 export default function DisplayRules() {
@@ -23,9 +25,13 @@ export default function DisplayRules() {
       .then((res) => {
         const count = (res?.data?.free_ads_count ?? (res as unknown as { free_ads_count?: number }).free_ads_count ?? 0);
         const days = (res?.data?.free_ad_days_validity ?? (res as unknown as { free_ad_days_validity?: number }).free_ad_days_validity ?? 0);
+        const featured = (res?.data?.featured_days ?? (res as unknown as { featured_days?: number }).featured_days ?? 0);
+        const standard = (res?.data?.standard_days ?? (res as unknown as { standard_days?: number }).standard_days ?? 0);
         setRules({
           free_ads_count: Number(count) || 0,
           free_ad_days_validity: Number(days) || 0,
+          featured_days: Number(featured) || 0,
+          standard_days: Number(standard) || 0,
         });
       })
       .catch((err) => {
@@ -47,8 +53,10 @@ export default function DisplayRules() {
         category_id: rule.category_id,
         price_featured: Number(rule.price_featured) || 0,
         featured_ad_price: Number(rule.featured_ad_price) || 0,
+        featured_days: Number(rule.featured_days) || 0,
         price_standard: Number(rule.price_standard) || 0,
         standard_ad_price: Number(rule.standard_ad_price) || 0,
+        standard_days: Number(rule.standard_days) || 0,
         free_ad_max_price: Number(rule.free_ad_max_price) || 0,
       }));
 
@@ -79,6 +87,8 @@ export default function DisplayRules() {
       await updateSystemSettings({
         free_ads_count: Number(rules.free_ads_count) || 0,
         free_ad_days_validity: Number(rules.free_ad_days_validity) || 0,
+        featured_days: Number(rules.featured_days) || 0,
+        standard_days: Number(rules.standard_days) || 0,
       });
       setSavedMessage("تم حفظ قواعد الأقسام بنجاح ✅");
       setTimeout(() => setSavedMessage(""), 3000);
@@ -177,6 +187,43 @@ export default function DisplayRules() {
                 </div>
               </div>
 
+              <div className="input-group">
+                <label className="input-label">
+                  <span className="label-icon">🌟</span>
+                  عدد ايام صلاحية الباقة المميزة
+                </label>
+                <div className="input-wrapper">
+                  <input
+                    type="number"
+                    value={rules.featured_days}
+                    onChange={(e) => setRules({
+                      ...rules,
+                      featured_days: parseInt(e.target.value) || 0,
+                    })}
+                    disabled={!isEditingSection}
+                    className={`form-input ${isEditingSection ? 'editable' : 'readonly'}`}
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">
+                  <span className="label-icon">📄</span>
+                  عدد ايام صلاحية الباقة الاستاندر
+                </label>
+                <div className="input-wrapper">
+                  <input
+                    type="number"
+                    value={rules.standard_days}
+                    onChange={(e) => setRules({
+                      ...rules,
+                      standard_days: parseInt(e.target.value) || 0,
+                    })}
+                    disabled={!isEditingSection}
+                    className={`form-input ${isEditingSection ? 'editable' : 'readonly'}`}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -258,6 +305,22 @@ export default function DisplayRules() {
                                 className={`form-input ${isEditing ? 'editable' : 'readonly'}`}
                               />
                             </div>
+                            <div className="pricing-item">
+                              <div className="pricing-label">أيام الصلاحية</div>
+                              <input
+                                type="number"
+                                min={0}
+                                value={category.featured_days}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value) || 0;
+                                  const updated = [...categoryRules];
+                                  updated[index] = { ...updated[index], featured_days: v };
+                                  setCategoryRules(updated);
+                                }}
+                                disabled={!isEditing}
+                                className={`form-input ${isEditing ? 'editable' : 'readonly'}`}
+                              />
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -290,6 +353,22 @@ export default function DisplayRules() {
                                   const v = Number(e.target.value) || 0;
                                   const updated = [...categoryRules];
                                   updated[index] = { ...updated[index], standard_ad_price: v };
+                                  setCategoryRules(updated);
+                                }}
+                                disabled={!isEditing}
+                                className={`form-input ${isEditing ? 'editable' : 'readonly'}`}
+                              />
+                            </div>
+                            <div className="pricing-item">
+                              <div className="pricing-label">أيام الصلاحية</div>
+                              <input
+                                type="number"
+                                min={0}
+                                value={category.standard_days}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value) || 0;
+                                  const updated = [...categoryRules];
+                                  updated[index] = { ...updated[index], standard_days: v };
                                   setCategoryRules(updated);
                                 }}
                                 disabled={!isEditing}
@@ -330,6 +409,6 @@ export default function DisplayRules() {
       </div>
 
 
-    </div>
+    </div >
   );
 }

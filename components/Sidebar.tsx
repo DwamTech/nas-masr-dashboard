@@ -29,8 +29,7 @@ const navItems: NavItem[] = [
     label: "الأقسام والتصنيفات",
     icon: "/categories.png",
     subItems: [
-      { href: "/category-homepage-management", label: "إدارة أقسام الصفحة الرئيسية", icon: "/categories.png" },
-      { href: "/category-banners", label: "إدارة بنرات الأقسام", icon: "/categories.png" }
+      { href: "/category-homepage-management", label: "إدارة أقسام الصفحة الرئيسية", icon: "/categories.png" }
     ]
   },
 

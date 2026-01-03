@@ -230,39 +230,3 @@ export interface CategoryHomepageResponse {
   message: string;
   data: CategoryHomepageItem;
 }
-
-// Category Banners Interfaces
-export interface CategoryBanner {
-  id: number;
-  category_id: number;
-  category_name?: string;
-  category_slug?: string;
-  banner_url: string;
-  is_active?: boolean | number;
-  display_order?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface CategoryBannerCreateRequest {
-  category_id: number;
-  banner_image: File;
-  is_active?: boolean | number;
-  display_order?: number;
-}
-
-export interface CategoryBannerUpdateRequest {
-  category_id?: number;
-  banner_image?: File;
-  is_active?: boolean | number;
-  display_order?: number;
-}
-
-export interface CategoryBannerResponse {
-  message: string;
-  data: CategoryBanner;
-}
-
-export interface CategoryBannersListResponse {
-  data: CategoryBanner[];
-}

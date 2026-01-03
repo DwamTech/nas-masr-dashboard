@@ -12,10 +12,10 @@ type NavItem = { href: string; label: string; icon: string; subItems?: NavSubIte
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "الرئيسية", icon: "/window.svg" },
-  
+
   {
-    href: "/ads", 
-    label: "إدارة الإعلانات", 
+    href: "/ads",
+    label: "إدارة الإعلانات",
     icon: "/file.svg",
     subItems: [
       { href: "/ads/create", label: "إنشاء إعلان", icon: "/file.svg" },
@@ -24,8 +24,16 @@ const navItems: NavItem[] = [
       { href: "/moderation/unpaid", label: "مراجعة الإعلانات غير المدفوعة", icon: "/star.png" },
     ]
   },
-  { href: "/categories", label: "الأقسام والتصنيفات", icon: "/categories.png" },
-  
+  {
+    href: "/categories",
+    label: "الأقسام والتصنيفات",
+    icon: "/categories.png",
+    subItems: [
+      { href: "/category-homepage-management", label: "إدارة أقسام الصفحة الرئيسية", icon: "/categories.png" },
+      { href: "/category-banners", label: "إدارة بنرات الأقسام", icon: "/categories.png" }
+    ]
+  },
+
   { href: "/users", label: " المستخدمون والمعلِنون والمناديب ", icon: "/profile.png" },
   { href: "/reports", label: "التقارير والإحصائيات", icon: "/clipboard.png" },
   { href: "/notifications", label: "الإشعارات ", icon: "/bell.png" },
@@ -46,8 +54,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const toggleDropdown = (href: string) => {
-    setOpenDropdowns(prev => 
-      prev.includes(href) 
+    setOpenDropdowns(prev =>
+      prev.includes(href)
         ? prev.filter(item => item !== href)
         : [...prev, href]
     );
@@ -79,14 +87,14 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         };
         if (!mounted) return;
         setCounts(next);
-      } catch {}
+      } catch { }
     };
     load();
     const pollNotifications = setInterval(async () => {
       try {
         const c = await fetchAdminNotificationsCount(token).catch(() => 0);
         setCounts(prev => ({ ...prev, "/notifications": Number(c) || 0 }));
-      } catch {}
+      } catch { }
     }, 60000);
     return () => { mounted = false; clearInterval(pollNotifications); };
   }, []);
@@ -95,17 +103,17 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     <>
       {/* Overlay for mobile */}
       {isOpen && <div className="sidebar-overlay active" onClick={onClose} />}
-      
+
       <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
         {/* Close button for mobile */}
-        <button 
+        <button
           className="sidebar-close-btn"
           onClick={onClose}
           aria-label="إغلاق القائمة الجانبية"
         >
           <span className="close-icon">×</span>
         </button>
-        
+
         <div className="sidebar-header">
           <Image
             className="logo"
@@ -124,11 +132,11 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
               const hasSubItems = item.subItems && item.subItems.length > 0;
               const isDropdownOpen = openDropdowns.includes(item.href);
-              
+
               return (
                 <li key={item.href}>
                   {hasSubItems ? (
-                    <button 
+                    <button
                       className={`nav-item dropdown-toggle${isActive ? " active" : ""}`}
                       onClick={() => { router.push(item.href); toggleDropdown(item.href); }}
                       type="button"
@@ -144,8 +152,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                       </span>
                     </button>
                   ) : (
-                    <Link 
-                      href={item.href} 
+                    <Link
+                      href={item.href}
                       className={`nav-item${isActive ? " active" : ""}`}
                       onClick={onClose}
                     >
@@ -157,7 +165,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                       ) : null}
                     </Link>
                   )}
-                  
+
                   {/* Sub-items */}
                   {hasSubItems && (
                     <ul className={`nav-sub-list ${isDropdownOpen ? 'open' : ''}`}>
@@ -165,8 +173,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                         const isSubActive = pathname === subItem.href;
                         return (
                           <li key={subItem.href}>
-                            <Link 
-                              href={subItem.href} 
+                            <Link
+                              href={subItem.href}
                               className={`nav-sub-item${isSubActive ? " active" : ""}`}
                               onClick={onClose}
                             >
@@ -184,10 +192,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             })}
           </ul>
         </nav>
-        
+
         {/* Logout Button */}
         <div className="sidebar-footer">
-          <button 
+          <button
             className="logout-btn"
             onClick={() => {
               localStorage.removeItem('isAuthenticated');

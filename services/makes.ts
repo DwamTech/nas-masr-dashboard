@@ -251,7 +251,7 @@ export async function fetchCategoryMainSubs(slug: CategorySlug | string, token?:
       }
       if (Object.keys(out).length) return out;
     }
-  } catch {}
+  } catch { }
   const urlAdmin = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
   const urlOld = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
   const urlNew = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
@@ -284,13 +284,13 @@ export async function fetchCategoryMainSubs(slug: CategorySlug | string, token?:
         const subsRaw = o['sub_sections'];
         const subs: string[] = Array.isArray(subsRaw)
           ? subsRaw.map((s) => {
-              if (typeof s === 'string' || typeof s === 'number') return String(s).trim();
-              if (s && typeof s === 'object') {
-                const so = s as Record<string, unknown>;
-                return normalizeString(so['name']) || normalizeString(so['title']) || normalizeString(so['value']) || '';
-              }
-              return '';
-            }).filter((x) => x.length > 0)
+            if (typeof s === 'string' || typeof s === 'number') return String(s).trim();
+            if (s && typeof s === 'object') {
+              const so = s as Record<string, unknown>;
+              return normalizeString(so['name']) || normalizeString(so['title']) || normalizeString(so['value']) || '';
+            }
+            return '';
+          }).filter((x) => x.length > 0)
           : [];
         if (mainName) out[mainName] = subs;
       }
@@ -629,18 +629,18 @@ export async function fetchMakeModels(makeId: number | string, token?: string): 
   const o = raw as Record<string, unknown>;
   let makeObj = o;
   if (!o['models'] && o['data']) {
-      makeObj = o['data'] as Record<string, unknown>;
+    makeObj = o['data'] as Record<string, unknown>;
   }
   const modelsArr = makeObj['models'];
   if (Array.isArray(modelsArr)) {
     for (const m of modelsArr) {
-        if (m && typeof m === 'object') {
-            const mo = m as Record<string, unknown>;
-            const id = typeof mo['id'] === 'number' ? (mo['id'] as number) : undefined;
-            const name = normalizeString(mo['name']);
-            const mk = typeof mo['make_id'] === 'number' ? (mo['make_id'] as number) : (typeof makeId === 'number' ? Number(makeId) : 0);
-             if (id && name) out.push({ id, name, make_id: mk });
-        }
+      if (m && typeof m === 'object') {
+        const mo = m as Record<string, unknown>;
+        const id = typeof mo['id'] === 'number' ? (mo['id'] as number) : undefined;
+        const name = normalizeString(mo['name']);
+        const mk = typeof mo['make_id'] === 'number' ? (mo['make_id'] as number) : (typeof makeId === 'number' ? Number(makeId) : 0);
+        if (id && name) out.push({ id, name, make_id: mk });
+      }
     }
   }
   return out;
@@ -1365,7 +1365,7 @@ export async function fetchGovernorates(token?: string): Promise<GovernorateItem
         }
         localStorage.setItem('admin:cityIds', JSON.stringify(merged));
       }
-    } catch {}
+    } catch { }
     return out;
   } catch {
     try {
@@ -1380,7 +1380,7 @@ export async function fetchGovernorates(token?: string): Promise<GovernorateItem
         }
         localStorage.setItem('admin:cityIds', JSON.stringify(merged));
       }
-    } catch {}
+    } catch { }
     return out;
   }
 }
@@ -1533,7 +1533,7 @@ export async function fetchGovernorateById(governorateId: number | string, token
         existing[id] = prev;
         localStorage.setItem('admin:cityIds', JSON.stringify(existing));
       }
-    } catch {}
+    } catch { }
     return { id, name: nameOut, cities } as GovernorateItem;
   }
   return { name: String(governorateId), cities: [] } as GovernorateItem;
@@ -1629,4 +1629,334 @@ export async function deleteGovernorate(governorateId: number | string, token?: 
     if (typeof m === 'string') msg = m;
   }
   return { success: true, message: msg };
+}
+
+// ===========================
+// Category Homepage Management API
+// ===========================
+
+export async function fetchCategoryHomepage(categoryId: number, token?: string): Promise<import('@/models/makes').CategoryHomepageItem> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const url = `https://api.nasmasr.app/api/admin/categories/${categoryId}`;
+  const res = await fetch(url, { method: 'GET', headers });
+  const raw = (await res.json().catch(() => null)) as unknown;
+
+  if (!res.ok || !raw) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر جلب بيانات القسم';
+    throw new Error(message);
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const data = (obj['data'] ?? obj) as Record<string, unknown>;
+
+  const id = typeof data['id'] === 'number' ? data['id'] : categoryId;
+  const name = String(data['name'] || '');
+  const slugVal = data['slug'];
+  const slug = typeof slugVal === 'string' ? slugVal : undefined;
+  const icon_url = typeof data['icon_url'] === 'string' ? data['icon_url'] : undefined;
+  const is_active = typeof data['is_active'] === 'number' ? data['is_active'] : (typeof data['is_active'] === 'boolean' ? (data['is_active'] ? 1 : 0) : undefined);
+  const sort_order = typeof data['sort_order'] === 'number' ? data['sort_order'] : undefined;
+
+  return { id, name, slug, icon_url, is_active, sort_order };
+}
+
+export async function updateCategoryHomepage(
+  categoryId: number,
+  updateData: { name?: string; icon?: File | null; is_active?: number | boolean },
+  token?: string
+): Promise<import('@/models/makes').CategoryHomepageItem> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const formData = new FormData();
+  formData.append('_method', 'PUT');
+
+  if (updateData.name !== undefined) {
+    formData.append('name', updateData.name);
+  }
+
+  if (updateData.icon instanceof File) {
+    formData.append('icon', updateData.icon);
+  }
+
+  if (updateData.is_active !== undefined) {
+    const activeValue = typeof updateData.is_active === 'boolean' ? (updateData.is_active ? '1' : '0') : String(updateData.is_active);
+    formData.append('is_active', activeValue);
+  }
+
+  const url = `https://api.nasmasr.app/api/admin/categories/${categoryId}`;
+  const res = await fetch(url, { method: 'POST', headers, body: formData });
+  const raw = (await res.json().catch(() => null)) as unknown;
+
+  if (!res.ok || !raw) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر تحديث بيانات القسم';
+    throw new Error(message);
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const data = (obj['data'] ?? obj) as Record<string, unknown>;
+
+  const id = typeof data['id'] === 'number' ? data['id'] : categoryId;
+  const name = String(data['name'] || '');
+  const slugVal = data['slug'];
+  const slug = typeof slugVal === 'string' ? slugVal : undefined;
+  const icon_url = typeof data['icon_url'] === 'string' ? data['icon_url'] : undefined;
+  const is_active = typeof data['is_active'] === 'number' ? data['is_active'] : (typeof data['is_active'] === 'boolean' ? (data['is_active'] ? 1 : 0) : undefined);
+  const sort_order = typeof data['sort_order'] === 'number' ? data['sort_order'] : undefined;
+
+  return { id, name, slug, icon_url, is_active, sort_order };
+}
+
+export async function fetchCategoriesUsageReport(token?: string): Promise<import('@/models/makes').CategoryHomepageItem[]> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const url = 'https://api.nasmasr.app/api/admin/categories/usage-report';
+  const res = await fetch(url, { method: 'GET', headers });
+  const raw = (await res.json().catch(() => null)) as unknown;
+
+  if (!res.ok || !raw) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر جلب تقرير الاستخدام';
+    throw new Error(message);
+  }
+
+  const out: import('@/models/makes').CategoryHomepageItem[] = [];
+  const obj = raw as Record<string, unknown>;
+  const dataArray = Array.isArray(obj['data']) ? obj['data'] : (Array.isArray(raw) ? raw : []);
+
+  for (const item of dataArray) {
+    if (item && typeof item === 'object') {
+      const data = item as Record<string, unknown>;
+      const id = typeof data['id'] === 'number' ? data['id'] : 0;
+      const name = String(data['name'] || '');
+      const slugVal = data['slug'];
+      const slug = typeof slugVal === 'string' ? slugVal : undefined;
+      const icon_url = typeof data['icon_url'] === 'string' ? data['icon_url'] : undefined;
+      const is_active = typeof data['is_active'] === 'number' ? data['is_active'] : (typeof data['is_active'] === 'boolean' ? (data['is_active'] ? 1 : 0) : undefined);
+      const sort_order = typeof data['sort_order'] === 'number' ? data['sort_order'] : undefined;
+
+      if (id && name) {
+        out.push({ id, name, slug, icon_url, is_active, sort_order });
+      }
+    }
+  }
+
+  return out;
+}
+
+// ===========================
+// Category Banners API
+// ===========================
+
+/**
+ * جلب جميع البنرات (للأدمن)
+ */
+export async function fetchCategoryBanners(token?: string): Promise<import('@/models/makes').CategoryBanner[]> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const url = 'https://api.nasmasr.app/api/admin/category-banners';
+  const res = await fetch(url, { method: 'GET', headers });
+  const raw = (await res.json().catch(() => null)) as unknown;
+
+  if (!res.ok || !raw) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر جلب البنرات';
+    throw new Error(message);
+  }
+
+  const out: import('@/models/makes').CategoryBanner[] = [];
+  const obj = raw as Record<string, unknown>;
+  const dataArray = Array.isArray(obj['data']) ? obj['data'] : (Array.isArray(raw) ? raw : []);
+
+  for (const item of dataArray) {
+    if (item && typeof item === 'object') {
+      const data = item as Record<string, unknown>;
+      const id = typeof data['id'] === 'number' ? data['id'] : 0;
+      const category_id = typeof data['category_id'] === 'number' ? data['category_id'] : 0;
+      const category_name = typeof data['category_name'] === 'string' ? data['category_name'] : undefined;
+      const category_slug = typeof data['category_slug'] === 'string' ? data['category_slug'] : undefined;
+      const banner_url = typeof data['banner_url'] === 'string' ? data['banner_url'] : '';
+      const is_active = typeof data['is_active'] === 'boolean' ? data['is_active'] : (typeof data['is_active'] === 'number' ? data['is_active'] : undefined);
+      const display_order = typeof data['display_order'] === 'number' ? data['display_order'] : undefined;
+      const created_at = typeof data['created_at'] === 'string' ? data['created_at'] : undefined;
+      const updated_at = typeof data['updated_at'] === 'string' ? data['updated_at'] : undefined;
+
+      if (id && category_id && banner_url) {
+        out.push({ id, category_id, category_name, category_slug, banner_url, is_active, display_order, created_at, updated_at });
+      }
+    }
+  }
+
+  return out;
+}
+
+/**
+ * جلب بانر محدد
+ */
+export async function fetchCategoryBanner(bannerId: number, token?: string): Promise<import('@/models/makes').CategoryBanner> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const url = `https://api.nasmasr.app/api/admin/category-banners/${bannerId}`;
+  const res = await fetch(url, { method: 'GET', headers });
+  const raw = (await res.json().catch(() => null)) as unknown;
+
+  if (!res.ok || !raw) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر جلب البانر';
+    throw new Error(message);
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const data = (obj['data'] ?? obj) as Record<string, unknown>;
+
+  const id = typeof data['id'] === 'number' ? data['id'] : bannerId;
+  const category_id = typeof data['category_id'] === 'number' ? data['category_id'] : 0;
+  const category_name = typeof data['category_name'] === 'string' ? data['category_name'] : undefined;
+  const category_slug = typeof data['category_slug'] === 'string' ? data['category_slug'] : undefined;
+  const banner_url = typeof data['banner_url'] === 'string' ? data['banner_url'] : '';
+  const is_active = typeof data['is_active'] === 'boolean' ? data['is_active'] : (typeof data['is_active'] === 'number' ? data['is_active'] : undefined);
+  const display_order = typeof data['display_order'] === 'number' ? data['display_order'] : undefined;
+  const created_at = typeof data['created_at'] === 'string' ? data['created_at'] : undefined;
+  const updated_at = typeof data['updated_at'] === 'string' ? data['updated_at'] : undefined;
+
+  return { id, category_id, category_name, category_slug, banner_url, is_active, display_order, created_at, updated_at };
+}
+
+/**
+ * إنشاء بانر جديد
+ */
+export async function createCategoryBanner(
+  createData: import('@/models/makes').CategoryBannerCreateRequest,
+  token?: string
+): Promise<import('@/models/makes').CategoryBanner> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const formData = new FormData();
+  formData.append('category_id', String(createData.category_id));
+  formData.append('banner_image', createData.banner_image);
+
+  if (createData.is_active !== undefined) {
+    const activeValue = typeof createData.is_active === 'boolean' ? (createData.is_active ? '1' : '0') : String(createData.is_active);
+    formData.append('is_active', activeValue);
+  }
+
+  if (createData.display_order !== undefined) {
+    formData.append('display_order', String(createData.display_order));
+  }
+
+  const url = 'https://api.nasmasr.app/api/admin/category-banners';
+  const res = await fetch(url, { method: 'POST', headers, body: formData });
+  const raw = (await res.json().catch(() => null)) as unknown;
+
+  if (!res.ok || !raw) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر إضافة البانر';
+    throw new Error(message);
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const data = (obj['data'] ?? obj) as Record<string, unknown>;
+
+  const id = typeof data['id'] === 'number' ? data['id'] : 0;
+  const category_id = typeof data['category_id'] === 'number' ? data['category_id'] : createData.category_id;
+  const category_name = typeof data['category_name'] === 'string' ? data['category_name'] : undefined;
+  const category_slug = typeof data['category_slug'] === 'string' ? data['category_slug'] : undefined;
+  const banner_url = typeof data['banner_url'] === 'string' ? data['banner_url'] : '';
+  const is_active = typeof data['is_active'] === 'boolean' ? data['is_active'] : (typeof data['is_active'] === 'number' ? data['is_active'] : undefined);
+  const display_order = typeof data['display_order'] === 'number' ? data['display_order'] : undefined;
+  const created_at = typeof data['created_at'] === 'string' ? data['created_at'] : undefined;
+  const updated_at = typeof data['updated_at'] === 'string' ? data['updated_at'] : undefined;
+
+  return { id, category_id, category_name, category_slug, banner_url, is_active, display_order, created_at, updated_at };
+}
+
+/**
+ * تحديث بانر
+ */
+export async function updateCategoryBanner(
+  bannerId: number,
+  updateData: import('@/models/makes').CategoryBannerUpdateRequest,
+  token?: string
+): Promise<import('@/models/makes').CategoryBanner> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const formData = new FormData();
+  formData.append('_method', 'PUT');
+
+  if (updateData.category_id !== undefined) {
+    formData.append('category_id', String(updateData.category_id));
+  }
+
+  if (updateData.banner_image) {
+    formData.append('banner_image', updateData.banner_image);
+  }
+
+  if (updateData.is_active !== undefined) {
+    const activeValue = typeof updateData.is_active === 'boolean' ? (updateData.is_active ? '1' : '0') : String(updateData.is_active);
+    formData.append('is_active', activeValue);
+  }
+
+  if (updateData.display_order !== undefined) {
+    formData.append('display_order', String(updateData.display_order));
+  }
+
+  const url = `https://api.nasmasr.app/api/admin/category-banners/${bannerId}`;
+  const res = await fetch(url, { method: 'POST', headers, body: formData });
+  const raw = (await res.json().catch(() => null)) as unknown;
+
+  if (!res.ok || !raw) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر تحديث البانر';
+    throw new Error(message);
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const data = (obj['data'] ?? obj) as Record<string, unknown>;
+
+  const id = typeof data['id'] === 'number' ? data['id'] : bannerId;
+  const category_id = typeof data['category_id'] === 'number' ? data['category_id'] : 0;
+  const category_name = typeof data['category_name'] === 'string' ? data['category_name'] : undefined;
+  const category_slug = typeof data['category_slug'] === 'string' ? data['category_slug'] : undefined;
+  const banner_url = typeof data['banner_url'] === 'string' ? data['banner_url'] : '';
+  const is_active = typeof data['is_active'] === 'boolean' ? data['is_active'] : (typeof data['is_active'] === 'number' ? data['is_active'] : undefined);
+  const display_order = typeof data['display_order'] === 'number' ? data['display_order'] : undefined;
+  const created_at = typeof data['created_at'] === 'string' ? data['created_at'] : undefined;
+  const updated_at = typeof data['updated_at'] === 'string' ? data['updated_at'] : undefined;
+
+  return { id, category_id, category_name, category_slug, banner_url, is_active, display_order, created_at, updated_at };
+}
+
+/**
+ * حذف بانر
+ */
+export async function deleteCategoryBanner(bannerId: number, token?: string): Promise<void> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const url = `https://api.nasmasr.app/api/admin/category-banners/${bannerId}`;
+  const res = await fetch(url, { method: 'DELETE', headers });
+
+  if (!res.ok) {
+    const raw = (await res.json().catch(() => null)) as unknown;
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر حذف البانر';
+    throw new Error(message);
+  }
 }

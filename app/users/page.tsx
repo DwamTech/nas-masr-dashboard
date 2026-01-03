@@ -1697,7 +1697,24 @@ export default function UsersPage() {
                             {client.name ? client.name.charAt(0).toUpperCase() : 'U'}
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div style={{ fontWeight: '800', color: '#111827', fontSize: '15px' }}>{client.name || 'مستخدِم بدون اسم'}</div>
+                            <div style={{ fontWeight: '800', color: '#111827', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{client.name || 'مستخدِم بدون اسم'}</span>
+                              {client.phone_verified && (
+                                <span style={{
+                                  color: '#10b981',
+                                  fontSize: '16px',
+                                  fontWeight: 'bold',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#d1fae5',
+                                  border: '1px solid #10b981'
+                                }} title="رقم موثق">✓</span>
+                              )}
+                            </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                               <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <Phone size={14} style={{ color: '#6366f1' }} />
@@ -2351,7 +2368,24 @@ export default function UsersPage() {
                           {client.name ? client.name.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <div style={{ fontWeight: '800', color: '#111827', fontSize: '15px' }}>{client.name || 'مستخدِم بدون اسم'}</div>
+                          <div style={{ fontWeight: '800', color: '#111827', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{client.name || 'مستخدِم بدون اسم'}</span>
+                            {client.phone_verified && (
+                              <span style={{
+                                color: '#10b981',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '18px',
+                                height: '18px',
+                                borderRadius: '50%',
+                                backgroundColor: '#d1fae5',
+                                border: '1px solid #10b981'
+                              }} title="رقم موثق">✓</span>
+                            )}
+                          </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                             <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <Phone size={14} style={{ color: '#6366f1' }} />

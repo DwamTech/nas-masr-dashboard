@@ -191,3 +191,30 @@ export interface DelegateClientsResponse {
   message: string;
   data: DelegateClient[];
 }
+
+export interface UserPackageInfo {
+  ads_total: number;
+  ads_used: number;
+  ads_remaining: number;
+  days: number;
+  start_date: string | null;
+  expire_date: string | null;
+  active: boolean;
+}
+
+export interface GetUserPackageData {
+  id: number;
+  user_id: number;
+  user_name: string | null;
+  user_phone: string;
+  featured: UserPackageInfo;
+  standard: UserPackageInfo;
+  categories: number[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GetUserPackageResponse {
+  message: string;
+  data: GetUserPackageData | null;
+}

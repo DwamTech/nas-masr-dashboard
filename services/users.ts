@@ -1,4 +1,5 @@
-import { UsersSummaryResponse, UpdateUserPayload, UpdateUserResponse, BlockUserResponse, DeleteUserResponse, CreateUserPayload, CreateUserResponse, ChangePasswordResponse, CreateOtpResponse, SingleUserListingsResponse, CategoriesResponse, AssignUserPackagePayload, AssignUserPackageResponse, SetFeaturedPayload, SetFeaturedResponse, DisableFeaturedResponse, DelegateClientsResponse } from '@/models/users';
+import { UsersSummaryResponse, UpdateUserPayload, UpdateUserResponse, BlockUserResponse, DeleteUserResponse, CreateUserPayload, CreateUserResponse, ChangePasswordResponse, CreateOtpResponse, SingleUserListingsResponse, CategoriesResponse, AssignUserPackagePayload, AssignUserPackageResponse, SetFeaturedPayload, SetFeaturedResponse, DisableFeaturedResponse, DelegateClientsResponse, GetUserPackageResponse } from '@/models/users';
+
 
 export async function fetchUsersSummary(token?: string): Promise<UsersSummaryResponse> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
@@ -280,3 +281,22 @@ export async function fetchDelegateClients(userId: number | string, token?: stri
   }
   return data;
 }
+
+export async function fetchUserPackage(userId: number | string, token?: string): Promise<GetUserPackageResponse> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  const res = await fetch(`https://api.nasmasr.app/api/admin/users/${userId}/package`, {
+    method: 'GET',
+    headers,
+  });
+  const raw = (await res.json().catch(() => null)) as unknown;
+  const data = raw as GetUserPackageResponse | null;
+  if (!res.ok || !data) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = (err?.error || err?.message || 'تعذر جلب بيانات الباقة');
+    throw new Error(message);
+  }
+  return data;
+}
+

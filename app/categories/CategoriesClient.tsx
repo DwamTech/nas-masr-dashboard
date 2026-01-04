@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { fetchCarMakes, fetchCategoryFields, fetchCategoryFieldMaps, fetchCategoryMainSubsBatch, fetchGovernorates, postAdminGovernorates, createGovernorate, createCity, updateGovernorate, deleteGovernorate, updateCity, deleteCity, fetchGovernorateById, updateCategoryFieldOptions, fetchAdminMakesWithIds, postAdminMake, postAdminMakeModels, postAdminMainSection, postAdminSubSections, fetchAdminMainSectionsBatch, fetchAdminMainSections, deleteAdminMainSection, deleteAdminSubSection, fetchAdminSubSections, fetchPublicSubSections, updateAdminMake, deleteAdminMake, updateAdminModel, deleteAdminModel, fetchMakeModels, updateAdminMainSection, updateAdminSubSection, fetchAdminCategories, updateAdminCategoryActive, updateAdminCategoryImage, deleteAdminCategoryImage } from '@/services/makes';
+import { fetchCarMakes, fetchCategoryFields, fetchCategoryFieldMaps, fetchCategoryMainSubsBatch, postAdminGovernorates, updateCategoryFieldOptions, fetchAdminMakesWithIds, postAdminMake, postAdminMakeModels, postAdminMainSection, postAdminSubSections, fetchAdminMainSectionsBatch, fetchAdminMainSections, deleteAdminMainSection, deleteAdminSubSection, fetchAdminSubSections, fetchPublicSubSections, updateAdminMake, deleteAdminMake, updateAdminModel, deleteAdminModel, fetchMakeModels, updateAdminMainSection, updateAdminSubSection, fetchAdminCategories, updateAdminCategoryActive, updateAdminCategoryImage, deleteAdminCategoryImage } from '@/services/makes';
+import { fetchGovernorates, fetchGovernorateById, fetchCitiesMappings, createGovernorate, updateGovernorate, deleteGovernorate, createCity, updateCity, deleteCity } from '@/services/governorates';
 import { fetchSystemSettings, updateSystemSettings, updatePublicSystemSettingsImage } from '@/services/systemSettings';
 import type { SystemSettingsData } from '@/models/system-settings';
 import type { AdminMainSectionRecord, AdminSubSectionRecord, AdminCategoryListItem } from '@/models/makes';
@@ -1533,32 +1534,75 @@ export default function CategoriesPage() {
     let mounted = true;
     (async () => {
       try {
-        const cachedIds = typeof window !== 'undefined' ? localStorage.getItem('admin:governorateIds') : null;
-        if (cachedIds) { try { setGOVERNORATE_IDS(JSON.parse(cachedIds as string)); } catch { } }
+        // 1️⃣ جلب البيانات من الـ API أولاً
         const items = await fetchGovernorates();
         if (!mounted) return;
+
         const map: Record<string, string[]> = {};
         const idMap: Record<string, number> = {};
+
+        // 2️⃣ بناء الـ maps من الـ API response
         for (const g of items) {
           const name = g.name;
-          const cities = Array.isArray(g.cities) ? g.cities : [];
           if (!name) continue;
-          map[name] = Array.from(new Set([...(map[name] ?? []), ...cities]));
+
+          // استخراج أسماء المدن من City objects
+          const cityNames = Array.isArray(g.cities)
+            ? g.cities.map(c => typeof c === 'string' ? c : c.name).filter(Boolean)
+            : [];
+
+          map[name] = Array.from(new Set(cityNames));
           if (typeof g.id === 'number') idMap[name] = g.id;
         }
-        // merge cached cities
+
+        // 3️⃣ جلب cities mappings للحصول على IDs المدن
+        try {
+          const mappingsResp = await fetchCitiesMappings();
+          const { by_governorate_id, by_governorate_name } = mappingsResp.data;
+
+          // حفظ الـ mappings في localStorage كـ cache
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('admin:cityIds', JSON.stringify(by_governorate_id));
+              localStorage.setItem('admin:govCitiesByName', JSON.stringify(
+                Object.fromEntries(
+                  Object.entries(by_governorate_name).map(([govName, cities]) => [
+                    govName,
+                    Object.keys(cities)
+                  ])
+                )
+              ));
+              // حفظ by_governorate_id كـ city names
+              const govCitiesById: Record<number, string[]> = {};
+              for (const [govId, cities] of Object.entries(by_governorate_id)) {
+                govCitiesById[Number(govId)] = Object.keys(cities);
+              }
+              localStorage.setItem('admin:govCities', JSON.stringify(govCitiesById));
+            } catch { }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch cities mappings, using API data only:', err);
+        }
+
+        // 4️⃣ دمج البيانات المحفوظة من localStorage (cache fallback)
         try {
           const cachedByIdRaw = typeof window !== 'undefined' ? localStorage.getItem('admin:govCities') : null;
           const cachedByNameRaw = typeof window !== 'undefined' ? localStorage.getItem('admin:govCitiesByName') : null;
           const cachedById: Record<number, string[]> = cachedByIdRaw ? JSON.parse(cachedByIdRaw) : {};
           const cachedByName: Record<string, string[]> = cachedByNameRaw ? JSON.parse(cachedByNameRaw) : {};
+
+          // دمج من cache بالـ ID
           for (const [name, id] of Object.entries(idMap)) {
             const extra = Array.isArray(cachedById[id]) ? cachedById[id] : [];
             if (extra.length) map[name] = Array.from(new Set([...(map[name] ?? []), ...extra]));
           }
+
+          // دمج من cache بالاسم
           for (const [name, extra] of Object.entries(cachedByName)) {
             if (extra && extra.length) map[name] = Array.from(new Set([...(map[name] ?? []), ...extra]));
           }
+
+          // تطبيق إعادة التسمية من cache
           const renRaw = typeof window !== 'undefined' ? localStorage.getItem('admin:govRenames') : null;
           const renames: Record<string, string> = renRaw ? JSON.parse(renRaw) : {};
           for (const [oldName, newName] of Object.entries(renames)) {
@@ -1574,6 +1618,8 @@ export default function CategoriesPage() {
               delete idMap[oldName];
             }
           }
+
+          // تطبيق تعديلات المدن من cache
           const cityRenByIdRaw = typeof window !== 'undefined' ? localStorage.getItem('admin:cityRenamesById') : null;
           const cityRenByNameRaw = typeof window !== 'undefined' ? localStorage.getItem('admin:cityRenamesByName') : null;
           const cityDelByIdRaw = typeof window !== 'undefined' ? localStorage.getItem('admin:cityDeletedById') : null;
@@ -1582,6 +1628,8 @@ export default function CategoriesPage() {
           const cityRenByName: Record<string, Record<string, string>> = cityRenByNameRaw ? JSON.parse(cityRenByNameRaw) : {};
           const cityDelById: Record<number, string[]> = cityDelByIdRaw ? JSON.parse(cityDelByIdRaw) : {};
           const cityDelByName: Record<string, string[]> = cityDelByNameRaw ? JSON.parse(cityDelByNameRaw) : {};
+
+          // تطبيق إعادة التسمية للمحافظات على المدن
           for (const [oldName, newName] of Object.entries(renames)) {
             if (!oldName || !newName || oldName === newName) continue;
             const renOld = cityRenByName[oldName] ?? {};
@@ -1597,6 +1645,8 @@ export default function CategoriesPage() {
               delete cityDelByName[oldName];
             }
           }
+
+          // تطبيق التعديلات على المدن
           for (const [gname, gid] of Object.entries(idMap)) {
             const list = map[gname] ?? [];
             const renMap = cityRenById[gid] ?? {};
@@ -1605,20 +1655,53 @@ export default function CategoriesPage() {
             const filtered = renamed.filter(x => !delList.includes(x));
             map[gname] = Array.from(new Set(filtered));
           }
+
           for (const [gname, renMap] of Object.entries(cityRenByName)) {
             const list = map[gname] ?? [];
             const renamed = list.map(x => (renMap[x] ? renMap[x] : x));
             map[gname] = Array.from(new Set(renamed));
           }
+
           for (const [gname, delList] of Object.entries(cityDelByName)) {
             const list = map[gname] ?? [];
             const filtered = list.filter(x => !(Array.isArray(delList) && delList.includes(x)));
             map[gname] = Array.from(new Set(filtered));
           }
-        } catch { }
+        } catch (err) {
+          console.warn('Failed to merge localStorage cache:', err);
+        }
+
         setGOVERNORATES_MAP(map);
         setGOVERNORATE_IDS(idMap);
-      } catch { }
+      } catch (err) {
+        console.error('Failed to fetch governorates from API, trying localStorage fallback:', err);
+
+        // Fallback: استخدام localStorage فقط في حالة فشل الـ API
+        try {
+          const cachedIds = typeof window !== 'undefined' ? localStorage.getItem('admin:governorateIds') : null;
+          if (cachedIds) {
+            try { setGOVERNORATE_IDS(JSON.parse(cachedIds as string)); } catch { }
+          }
+
+          const cachedByIdRaw = typeof window !== 'undefined' ? localStorage.getItem('admin:govCities') : null;
+          const cachedByNameRaw = typeof window !== 'undefined' ? localStorage.getItem('admin:govCitiesByName') : null;
+
+          if (cachedByIdRaw || cachedByNameRaw) {
+            const map: Record<string, string[]> = {};
+            const cachedById: Record<number, string[]> = cachedByIdRaw ? JSON.parse(cachedByIdRaw) : {};
+            const cachedByName: Record<string, string[]> = cachedByNameRaw ? JSON.parse(cachedByNameRaw) : {};
+
+            // بناء الـ map من cache
+            for (const [name, cities] of Object.entries(cachedByName)) {
+              if (cities && cities.length) map[name] = Array.from(new Set(cities));
+            }
+
+            setGOVERNORATES_MAP(map);
+          }
+        } catch (fallbackErr) {
+          console.error('localStorage fallback also failed:', fallbackErr);
+        }
+      }
     })();
     return () => { mounted = false; };
   }, []);

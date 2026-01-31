@@ -2,7 +2,7 @@
 
 import type { BannersResponse, UpdateBannerResponse } from '@/models/banners';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.nasmasr.app';
+const API_BASE_URL = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
 
 /**
  * Fetch all banners

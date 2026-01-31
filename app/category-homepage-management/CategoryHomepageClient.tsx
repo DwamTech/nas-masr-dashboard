@@ -45,9 +45,9 @@ export default function CategoryHomepageManagementClient() {
     }
 
     if (u.startsWith('/defaults/')) {
-      u = `https://api.nasmasr.app/storage${u}`;
+      u = `https://back.nasmasr.app/storage${u}`;
     } else if (u.startsWith('/')) {
-      u = `https://api.nasmasr.app${u}`;
+      u = `https://back.nasmasr.app${u}`;
     }
 
     try {

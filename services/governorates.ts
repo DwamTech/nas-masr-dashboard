@@ -6,7 +6,7 @@ import {
     CreateCityResponse
 } from '@/models/governorates';
 
-const API_BASE = 'https://api.nasmasr.app/api';
+const API_BASE = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
 
 /**
  * Fetch all governorates with their cities

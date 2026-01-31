@@ -117,8 +117,8 @@ export default function CategoriesPage() {
     const isRel = u.startsWith('/');
     const looksFile = /\.(png|jpe?g|webp)$/i.test(u);
     if (!isAbs && !isRel && (u.startsWith('defaults/') || looksFile)) u = '/' + u.replace(/^\.?\/?/, '');
-    if (u.startsWith('/defaults/')) u = `https://api.nasmasr.app/storage${u}`;
-    else if (u.startsWith('/')) u = `https://api.nasmasr.app${u}`;
+    if (u.startsWith('/defaults/')) u = `https://back.nasmasr.app/storage${u}`;
+    else if (u.startsWith('/')) u = `https://back.nasmasr.app${u}`;
     try { new URL(u); return u; } catch { return null; }
   };
   useEffect(() => {

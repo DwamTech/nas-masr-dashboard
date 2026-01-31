@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'api.nasmasr.app',
+        hostname: 'back.nasmasr.app',
         pathname: '/**',
       },
       {

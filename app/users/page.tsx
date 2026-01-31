@@ -72,7 +72,7 @@ const toImageUrl = (src: string | null | undefined): string => {
   if (!src || src === 'NULL') return '/file.svg';
   if (src.startsWith('http://') || src.startsWith('https://')) return src;
   const trimmed = src.startsWith('/') ? src.slice(1) : src;
-  return `https://api.nasmasr.app/${trimmed}`;
+  return `https://back.nasmasr.app/${trimmed}`;
 };
 
 const normalizeCategorySlug = (slug: string): CategorySlug | null => {

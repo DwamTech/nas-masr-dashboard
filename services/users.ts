@@ -5,7 +5,7 @@ export async function fetchUsersSummary(token?: string): Promise<UsersSummaryRes
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/admin/users-summary', { method: 'GET', headers });
+  const res = await fetch('https://back.nasmasr.app/api/admin/users-summary', { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   const data = raw as UsersSummaryResponse | null;
   if (!res.ok || !data) {
@@ -20,7 +20,7 @@ export async function fetchUsersSummaryPage(page?: number, token?: string): Prom
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = new URL('https://api.nasmasr.app/api/admin/users-summary');
+  const url = new URL('https://back.nasmasr.app/api/admin/users-summary');
   if (typeof page === 'number' && Number.isFinite(page) && page > 0) {
     url.searchParams.set('page', String(page));
   }
@@ -39,7 +39,7 @@ export async function updateUser(userId: number | string, payload: UpdateUserPay
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/users/${userId}`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/users/${userId}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify(payload),
@@ -58,7 +58,7 @@ export async function toggleUserBlock(userId: number | string, token?: string): 
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/users/${userId}/block`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/users/${userId}/block`, {
     method: 'PATCH',
     headers,
   });
@@ -76,7 +76,7 @@ export async function deleteUser(userId: number | string, token?: string): Promi
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/users/${userId}`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/users/${userId}`, {
     method: 'DELETE',
     headers,
   });
@@ -94,7 +94,7 @@ export async function createUser(payload: CreateUserPayload, token?: string): Pr
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/admin/users', {
+  const res = await fetch('https://back.nasmasr.app/api/admin/users', {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -113,7 +113,7 @@ export async function changeUserPassword(userId: number | string, token?: string
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/change-password/${userId}`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/change-password/${userId}`, {
     method: 'PUT',
     headers,
   });
@@ -131,7 +131,7 @@ export async function createUserOtp(userId: number | string, token?: string): Pr
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/create-otp/${userId}`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/create-otp/${userId}`, {
     method: 'POST',
     headers,
   });
@@ -153,7 +153,7 @@ export async function fetchUserListings(
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const baseUrl = `https://api.nasmasr.app/api/admin/users/${userId}`;
+  const baseUrl = `https://back.nasmasr.app/api/admin/users/${userId}`;
   const url = new URL(baseUrl);
   const perPage = params?.per_page ?? 20;
   const status = params?.status ?? 'Valid';
@@ -186,7 +186,7 @@ export async function fetchCategories(token?: string): Promise<CategoriesRespons
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/categories', { method: 'GET', headers });
+  const res = await fetch('https://back.nasmasr.app/api/categories', { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   const data = raw as CategoriesResponse | null;
   if (!res.ok || !data) {
@@ -201,7 +201,7 @@ export async function setUserFeaturedCategories(payload: SetFeaturedPayload, tok
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/admin/featured', {
+  const res = await fetch('https://back.nasmasr.app/api/admin/featured', {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -232,7 +232,7 @@ export async function disableUserFeatured(recordId: number | string, token?: str
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/disable/${recordId}`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/disable/${recordId}`, {
     method: 'PUT',
     headers,
   });
@@ -250,7 +250,7 @@ export async function assignUserPackage(payload: AssignUserPackagePayload, token
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/admin/user-packages', {
+  const res = await fetch('https://back.nasmasr.app/api/admin/user-packages', {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -268,7 +268,7 @@ export async function fetchDelegateClients(userId: number | string, token?: stri
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/delegates/${userId}/clients`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/delegates/${userId}/clients`, {
     method: 'GET',
     headers,
   });
@@ -286,7 +286,7 @@ export async function fetchUserPackage(userId: number | string, token?: string):
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/users/${userId}/package`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/users/${userId}/package`, {
     method: 'GET',
     headers,
   });

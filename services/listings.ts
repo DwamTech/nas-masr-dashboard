@@ -4,7 +4,7 @@ export async function fetchAdminPendingListings(page: number = 1, perPage: numbe
   const t = token ?? (typeof window !== "undefined" ? localStorage.getItem("authToken") ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: "application/json" };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/pending-listings?page=${encodeURIComponent(String(page))}&per_page=${encodeURIComponent(String(perPage))}`;
+  const url = `https://back.nasmasr.app/api/admin/pending-listings?page=${encodeURIComponent(String(page))}&per_page=${encodeURIComponent(String(perPage))}`;
   const res = await fetch(url, { method: "GET", headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== "object") {
@@ -22,7 +22,7 @@ export async function updateSystemSettings(payload: SystemSettingsUpdateRequest,
   const t = token ?? (typeof window !== "undefined" ? localStorage.getItem("authToken") ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/system-settings`;
+  const url = `https://back.nasmasr.app/api/admin/system-settings`;
   const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== "object") {
@@ -37,7 +37,7 @@ export async function fetchSystemSettings(token?: string): Promise<Record<string
   const t = token ?? (typeof window !== "undefined" ? localStorage.getItem("authToken") ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: "application/json" };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/system-settings`;
+  const url = `https://back.nasmasr.app/api/system-settings`;
   const res = await fetch(url, { method: "GET", headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== "object") {
@@ -51,7 +51,7 @@ export async function approveListing(listingId: number | string, token?: string)
   const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(listingId));
-  const url = `https://api.nasmasr.app/api/admin/listings/${id}/approve`;
+  const url = `https://back.nasmasr.app/api/admin/listings/${id}/approve`;
   const res = await fetch(url, { method: "PATCH", headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== "object") {
@@ -67,7 +67,7 @@ export async function rejectListing(listingId: number | string, reason: string, 
   const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(listingId));
-  const url = `https://api.nasmasr.app/api/admin/listings/${id}/reject`;
+  const url = `https://back.nasmasr.app/api/admin/listings/${id}/reject`;
   const body = JSON.stringify({ reason });
   const res = await fetch(url, { method: "PATCH", headers, body });
   const raw = (await res.json().catch(() => null)) as unknown;
@@ -84,7 +84,7 @@ export async function updateListing(listingId: number | string, payload: Record<
   const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(listingId));
-  const url = `https://api.nasmasr.app/api/admin/listings/${id}`;
+  const url = `https://back.nasmasr.app/api/admin/listings/${id}`;
   const res = await fetch(url, { method: "PATCH", headers, body: JSON.stringify(payload || {}) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== "object") {
@@ -101,7 +101,7 @@ export async function updateListingForm(categorySlug: string, listingId: number 
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(listingId));
   const slug = encodeURIComponent(String(categorySlug || ''));
-  const url = `https://api.nasmasr.app/api/v1/${slug}/listings/${id}`;
+  const url = `https://back.nasmasr.app/api/v1/${slug}/listings/${id}`;
   const res = await fetch(url, { method: "POST", headers, body: formData });
   let raw: unknown = null;
   try { raw = await res.json(); } catch { }
@@ -123,7 +123,7 @@ export async function createListingForm(categorySlug: string, formData: FormData
   const headers: Record<string, string> = { Accept: "application/json" };
   if (t) headers.Authorization = `Bearer ${t}`;
   const slug = encodeURIComponent(String(categorySlug || ''));
-  const url = `https://api.nasmasr.app/api/v1/${slug}/listings`;
+  const url = `https://back.nasmasr.app/api/v1/${slug}/listings`;
   const res = await fetch(url, { method: "POST", headers, body: formData });
   let raw: unknown = null;
   try { raw = await res.json(); } catch { }

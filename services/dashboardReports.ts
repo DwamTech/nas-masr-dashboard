@@ -29,7 +29,7 @@ import {
   DateRangeParams
 } from '@/models/dashboardReports';
 
-const BASE_URL = 'https://api.nasmasr.app/api/admin';
+const BASE_URL = 'https://back.nasmasr.app/api/admin';
 
 async function fetchWithAuth<T>(endpoint: string, params: Record<string, any> = {}, token?: string): Promise<T> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
@@ -37,13 +37,13 @@ async function fetchWithAuth<T>(endpoint: string, params: Record<string, any> = 
     'Accept': 'application/json',
     'Content-Type': 'application/json'
   };
-  
+
   if (t) {
     headers['Authorization'] = `Bearer ${t}`;
   }
 
   const url = new URL(`${BASE_URL}${endpoint}`);
-  
+
   // Append query parameters
   Object.keys(params).forEach(key => {
     if (params[key] !== undefined && params[key] !== null && params[key] !== '') {

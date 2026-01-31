@@ -92,7 +92,7 @@ export async function fetchCarMakes(token?: string): Promise<CarMakesResponse> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/makes', { method: 'GET', headers });
+  const res = await fetch('https://back.nasmasr.app/api/makes', { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
     const err = raw as { error?: string; message?: string } | null;
@@ -144,9 +144,9 @@ export async function fetchCategoryFields(categorySlug: CategorySlug | string, t
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const urlAdmin = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
-  const urlOld = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
-  const urlNew = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
+  const urlAdmin = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
+  const urlOld = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
+  const urlNew = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
   let res = await fetch(t ? urlAdmin : urlOld, { method: 'GET', headers });
   let raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -252,9 +252,9 @@ export async function fetchCategoryMainSubs(slug: CategorySlug | string, token?:
       if (Object.keys(out).length) return out;
     }
   } catch { }
-  const urlAdmin = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
-  const urlOld = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
-  const urlNew = `https://api.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
+  const urlAdmin = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
+  const urlOld = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
+  const urlNew = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
   let res = await fetch(t ? urlAdmin : urlOld, { method: 'GET', headers });
   let raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -403,7 +403,7 @@ export async function postAdminCategoryFieldOptions(slug: CategorySlug | string,
     'Content-Type': 'application/json',
   };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/category-fields/${encodeURIComponent(String(slug))}`;
+  const url = `https://back.nasmasr.app/api/admin/category-fields/${encodeURIComponent(String(slug))}`;
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -427,7 +427,7 @@ export async function fetchAdminMakesWithIds(token?: string): Promise<AdminMakeL
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = 'https://api.nasmasr.app/api/makes';
+  const url = 'https://back.nasmasr.app/api/makes';
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -489,7 +489,7 @@ export async function postAdminMake(name: string, token?: string): Promise<Admin
     'Content-Type': 'application/json',
   };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = 'https://api.nasmasr.app/api/admin/makes';
+  const url = 'https://back.nasmasr.app/api/admin/makes';
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ name }) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -514,7 +514,7 @@ export async function postAdminMakeModels(makeId: number, models: string[], toke
   };
   if (t) headers.Authorization = `Bearer ${t}`;
   const uniq = Array.from(new Set(models.map((x) => String(x).trim()).filter(Boolean)));
-  const url = `https://api.nasmasr.app/api/admin/makes/${makeId}/models`;
+  const url = `https://back.nasmasr.app/api/admin/makes/${makeId}/models`;
   const body = JSON.stringify({ models: uniq });
   const res = await fetch(url, { method: 'POST', headers, body });
   const raw = (await res.json().catch(() => null)) as unknown;
@@ -547,7 +547,7 @@ export async function updateAdminMake(makeId: number, name: string, token?: stri
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/makes/${makeId}`;
+  const url = `https://back.nasmasr.app/api/admin/makes/${makeId}`;
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ name }) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -568,7 +568,7 @@ export async function deleteAdminMake(makeId: number, token?: string): Promise<v
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/makes/${makeId}`;
+  const url = `https://back.nasmasr.app/api/admin/makes/${makeId}`;
   const res = await fetch(url, { method: 'DELETE', headers });
   if (!res.ok) {
     const raw = (await res.json().catch(() => null)) as unknown;
@@ -582,7 +582,7 @@ export async function updateAdminModel(modelId: number, name: string, make_id: n
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/models/${modelId}`;
+  const url = `https://back.nasmasr.app/api/admin/models/${modelId}`;
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ name, make_id }) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -603,7 +603,7 @@ export async function deleteAdminModel(modelId: number, token?: string): Promise
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/models/${modelId}`;
+  const url = `https://back.nasmasr.app/api/admin/models/${modelId}`;
   const res = await fetch(url, { method: 'DELETE', headers });
   if (!res.ok) {
     const raw = (await res.json().catch(() => null)) as unknown;
@@ -617,7 +617,7 @@ export async function fetchMakeModels(makeId: number | string, token?: string): 
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/makes/${makeId}`;
+  const url = `https://back.nasmasr.app/api/admin/makes/${makeId}`;
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -647,33 +647,33 @@ export async function fetchMakeModels(makeId: number | string, token?: string): 
 }
 
 export function buildAdminMainSectionUrl(slug: string): string {
-  return `https://api.nasmasr.app/api/admin/main-section/${encodeURIComponent(String(slug))}`;
+  return `https://back.nasmasr.app/api/admin/main-section/${encodeURIComponent(String(slug))}`;
 }
 
 export function buildMainSectionsListUrl(slug: string): string {
-  const url = new URL('https://api.nasmasr.app/api/main-sections');
+  const url = new URL('https://back.nasmasr.app/api/main-sections');
   url.searchParams.set('category_slug', String(slug));
   return url.toString();
 }
 
 export function buildAdminSubSectionUrl(mainSectionId: number | string): string {
-  return `https://api.nasmasr.app/api/admin/sub-section/${mainSectionId}`;
+  return `https://back.nasmasr.app/api/admin/sub-section/${mainSectionId}`;
 }
 
 export function buildPublicSubSectionsUrl(mainSectionId: number | string): string {
-  return `https://api.nasmasr.app/api/sub-sections/${mainSectionId}`;
+  return `https://back.nasmasr.app/api/sub-sections/${mainSectionId}`;
 }
 
 export function buildAdminMainSectionIdUrl(mainSectionId: number | string): string {
-  return `https://api.nasmasr.app/api/admin/main-section/${mainSectionId}`;
+  return `https://back.nasmasr.app/api/admin/main-section/${mainSectionId}`;
 }
 
 export function buildAdminSubSectionIdUrl(subSectionId: number | string): string {
-  return `https://api.nasmasr.app/api/admin/sub-section/${subSectionId}`;
+  return `https://back.nasmasr.app/api/admin/sub-section/${subSectionId}`;
 }
 
 export function buildAdminCategoryImageUrl(categoryId: number | string): string {
-  return `https://api.nasmasr.app/api/admin/categories/${categoryId}/image`;
+  return `https://back.nasmasr.app/api/admin/categories/${categoryId}/image`;
 }
 
 export async function postAdminMainSection(slug: CategorySlug | string, name: string, token?: string): Promise<AdminMainSectionRecord> {
@@ -951,7 +951,7 @@ export async function fetchAdminCategories(token?: string): Promise<AdminCategor
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = 'https://api.nasmasr.app/api/admin/categories';
+  const url = 'https://back.nasmasr.app/api/admin/categories';
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -1088,7 +1088,7 @@ export async function updateAdminCategoryActive(categoryId: number | string, is_
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/categories/${categoryId}`;
+  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}`;
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ is_active }) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -1240,8 +1240,8 @@ export async function fetchGovernorates(token?: string): Promise<GovernorateItem
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const adminUrl = 'https://api.nasmasr.app/api/governorates';
-  const publicUrl = 'https://api.nasmasr.app/api/governorates';
+  const adminUrl = 'https://back.nasmasr.app/api/governorates';
+  const publicUrl = 'https://back.nasmasr.app/api/governorates';
   let res = await fetch(t ? adminUrl : publicUrl, { method: 'GET', headers });
   let raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -1390,7 +1390,7 @@ export async function postAdminGovernorates(payload: { name: string; cities: unk
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const body = JSON.stringify({ name: payload.name, cities: payload.cities });
-  const res = await fetch('https://api.nasmasr.app/api/admin/governorates', { method: 'POST', headers, body });
+  const res = await fetch('https://back.nasmasr.app/api/admin/governorates', { method: 'POST', headers, body });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
     const err = raw as { error?: string; message?: string } | null;
@@ -1442,7 +1442,7 @@ export async function createGovernorate(name: string, token?: string): Promise<G
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/admin/governorates', {
+  const res = await fetch('https://back.nasmasr.app/api/admin/governorates', {
     method: 'POST',
     headers,
     body: JSON.stringify({ name }),
@@ -1478,7 +1478,7 @@ export async function createCity(governorateId: number | string, name: string, t
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/city/${governorateId}`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/city/${governorateId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ name }),
@@ -1503,7 +1503,7 @@ export async function fetchGovernorateById(governorateId: number | string, token
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/governorates/${governorateId}`, { method: 'GET', headers });
+  const res = await fetch(`https://back.nasmasr.app/api/admin/governorates/${governorateId}`, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
     const err = raw as { error?: string; message?: string } | null;
@@ -1543,7 +1543,7 @@ export async function updateCity(cityId: number | string, name: string, token?: 
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/cities/${cityId}`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/cities/${cityId}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify({ name }),
@@ -1568,7 +1568,7 @@ export async function deleteCity(cityId: number | string, token?: string): Promi
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/cities/${cityId}`;
+  const url = `https://back.nasmasr.app/api/admin/cities/${cityId}`;
   const res = await fetch(url, { method: 'DELETE', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) {
@@ -1589,7 +1589,7 @@ export async function updateGovernorate(governorateId: number | string, name: st
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/governorates/${governorateId}`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/governorates/${governorateId}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify({ name }),
@@ -1614,7 +1614,7 @@ export async function deleteGovernorate(governorateId: number | string, token?: 
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/governorates/${governorateId}`;
+  const url = `https://back.nasmasr.app/api/admin/governorates/${governorateId}`;
   const res = await fetch(url, { method: 'DELETE', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) {
@@ -1640,7 +1640,7 @@ export async function fetchCategoryHomepage(categoryId: number, token?: string):
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
 
-  const url = `https://api.nasmasr.app/api/admin/categories/${categoryId}`;
+  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}`;
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
 
@@ -1689,7 +1689,7 @@ export async function updateCategoryHomepage(
     formData.append('is_active', activeValue);
   }
 
-  const url = `https://api.nasmasr.app/api/admin/categories/${categoryId}`;
+  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}`;
   const res = await fetch(url, { method: 'POST', headers, body: formData });
   const raw = (await res.json().catch(() => null)) as unknown;
 
@@ -1718,7 +1718,7 @@ export async function fetchCategoriesUsageReport(token?: string): Promise<import
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
 
-  const url = 'https://api.nasmasr.app/api/admin/categories/usage-report';
+  const url = 'https://back.nasmasr.app/api/admin/categories/usage-report';
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
 

@@ -40,6 +40,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="ar" suppressHydrationWarning>
       <head>
         <title>ناس مصر</title>
+        <meta name="google-site-verification" content="b_EmGmnbOaKSLjHHkflMpFhbZHf87bvEO-re-U2dn00" />
         <link rel="icon" href="/nas-masr.png" type="image/png" sizes="42x42" />
         <link rel="icon" href="/nas-masr.png" type="image/png" sizes="16x16" />
         <link rel="apple-touch-icon" href="/nas-masr.png" sizes="180x180" />

@@ -4,17 +4,17 @@ export async function fetchAdminPublishedListings(page: number = 1, perPage: num
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/published-listings?page=${encodeURIComponent(String(page))}&per_page=${encodeURIComponent(String(perPage))}`;
+  const url = `https://back.nasmasr.app/api/admin/published-listings?page=${encodeURIComponent(String(page))}&per_page=${encodeURIComponent(String(perPage))}`;
   const res = await fetch(url, { method: 'GET', headers });
   let raw: unknown = null;
-  try { raw = await res.json(); } catch {}
+  try { raw = await res.json(); } catch { }
   if (!res.ok || !raw || typeof raw !== 'object') {
     let message = 'تعذر جلب الإعلانات المنشورة';
     if (raw && typeof raw === 'object') {
       const err = raw as { error?: string; message?: string };
       message = err?.error || err?.message || message;
     } else {
-      try { message = await res.text(); } catch {}
+      try { message = await res.text(); } catch { }
     }
     throw new Error(message);
   }
@@ -30,17 +30,17 @@ export async function deletePublishedListing(categorySlug: string, listingId: nu
   if (t) headers.Authorization = `Bearer ${t}`;
   const slug = String(categorySlug).trim();
   const id = String(listingId).trim();
-  const url = `https://api.nasmasr.app/api/v1/${encodeURIComponent(slug)}/listings/${encodeURIComponent(id)}`;
+  const url = `https://back.nasmasr.app/api/v1/${encodeURIComponent(slug)}/listings/${encodeURIComponent(id)}`;
   const res = await fetch(url, { method: 'DELETE', headers });
   let raw: unknown = null;
-  try { raw = await res.json(); } catch {}
+  try { raw = await res.json(); } catch { }
   if (!res.ok) {
     let message = 'تعذر حذف الإعلان';
     if (raw && typeof raw === 'object') {
       const err = raw as { error?: string; message?: string };
       message = err?.error || err?.message || message;
     } else {
-      try { message = await res.text(); } catch {}
+      try { message = await res.text(); } catch { }
     }
     throw new Error(message);
   }
@@ -64,10 +64,10 @@ export async function fetchListingDetails(slug: string, listingId: number | stri
   const snake = encodeURIComponent(raw.replace(/-/g, '_'));
 
   const urls: string[] = [
-    `https://api.nasmasr.app/api/v1/${kebab}/listings/${id}`,
-    `https://api.nasmasr.app/api/v1/${snake}/listings/${id}`,
-    `https://api.nasmasr.app/api/admin/listings/${id}`,
-    `https://api.nasmasr.app/api/v1/listings/${id}`,
+    `https://back.nasmasr.app/api/v1/${kebab}/listings/${id}`,
+    `https://back.nasmasr.app/api/v1/${snake}/listings/${id}`,
+    `https://back.nasmasr.app/api/admin/listings/${id}`,
+    `https://back.nasmasr.app/api/v1/listings/${id}`,
   ];
 
   let lastError: string | null = null;
@@ -75,14 +75,14 @@ export async function fetchListingDetails(slug: string, listingId: number | stri
     try {
       const res = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
       let raw: unknown = null;
-      try { raw = await res.json(); } catch {}
+      try { raw = await res.json(); } catch { }
       if (!res.ok || !raw) {
         let message = 'تعذر جلب تفاصيل الإعلان';
         if (raw && typeof raw === 'object') {
           const err = raw as { error?: string; message?: string } | null;
           message = err?.error || err?.message || message;
         } else {
-          try { message = await res.text(); } catch {}
+          try { message = await res.text(); } catch { }
         }
         lastError = message;
         continue;

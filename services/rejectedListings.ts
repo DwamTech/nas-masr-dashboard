@@ -4,7 +4,7 @@ export async function fetchAdminRejectedListings(page?: number, token?: string):
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = new URL('https://api.nasmasr.app/api/admin/rejected-listings');
+  const url = new URL('https://back.nasmasr.app/api/admin/rejected-listings');
   if (typeof page === 'number' && Number.isFinite(page) && page > 0) {
     url.searchParams.set('page', String(page));
   }
@@ -25,17 +25,17 @@ export async function reopenRejectedListing(listingId: number | string, token?: 
   if (t) headers.Authorization = `Bearer ${t}`;
   const idNum = Number(String(listingId).trim());
   const id = Number.isFinite(idNum) && idNum > 0 ? String(idNum) : encodeURIComponent(String(listingId));
-  const url = `https://api.nasmasr.app/api/admin/listings/${id}/reopen`;
+  const url = `https://back.nasmasr.app/api/admin/listings/${id}/reopen`;
   const res = await fetch(url, { method: 'PATCH', headers });
   let raw: unknown = null;
-  try { raw = await res.json(); } catch {}
+  try { raw = await res.json(); } catch { }
   if (!res.ok || !raw || typeof raw !== 'object') {
     let message = 'تعذر إعادة فتح الإعلان للمراجعة';
     if (raw && typeof raw === 'object') {
       const err = raw as { error?: string; message?: string } | null;
       message = err?.error || err?.message || message;
     } else {
-      try { message = await res.text(); } catch {}
+      try { message = await res.text(); } catch { }
     }
     throw new Error(message);
   }

@@ -87,17 +87,17 @@ export async function fetchListingReports(page: number = 1, perPage: number = 20
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/listing-reports?page=${encodeURIComponent(String(page))}&per_page=${encodeURIComponent(String(perPage))}`;
+  const url = `https://back.nasmasr.app/api/admin/listing-reports?page=${encodeURIComponent(String(page))}&per_page=${encodeURIComponent(String(perPage))}`;
   const res = await fetch(url, { method: 'GET', headers });
   let raw: unknown = null;
-  try { raw = await res.json(); } catch {}
+  try { raw = await res.json(); } catch { }
   if (!res.ok || !raw || typeof raw !== 'object') {
     let message = 'تعذر جلب البلاغات';
     if (raw && typeof raw === 'object') {
       const err = raw as { error?: string; message?: string } | null;
       message = err?.error || err?.message || message;
     } else {
-      try { message = await res.text(); } catch {}
+      try { message = await res.text(); } catch { }
     }
     throw new Error(message);
   }
@@ -119,17 +119,17 @@ export async function acceptListingReport(reportId: number | string, token?: str
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(reportId));
-  const url = `https://api.nasmasr.app/api/admin/listing-reports/${id}/accept`;
+  const url = `https://back.nasmasr.app/api/admin/listing-reports/${id}/accept`;
   const res = await fetch(url, { method: 'POST', headers });
   let raw: unknown = null;
-  try { raw = await res.json(); } catch {}
+  try { raw = await res.json(); } catch { }
   if (!res.ok || !raw || typeof raw !== 'object') {
     let message = 'تعذر قبول البلاغ';
     if (raw && typeof raw === 'object') {
       const err = raw as { error?: string; message?: string } | null;
       message = err?.error || err?.message || message;
     } else {
-      try { message = await res.text(); } catch {}
+      try { message = await res.text(); } catch { }
     }
     throw new Error(message);
   }
@@ -143,17 +143,17 @@ export async function dismissListingReport(reportId: number | string, token?: st
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(reportId));
-  const url = `https://api.nasmasr.app/api/admin/listing-reports/${id}/dismiss`;
+  const url = `https://back.nasmasr.app/api/admin/listing-reports/${id}/dismiss`;
   const res = await fetch(url, { method: 'POST', headers });
   let raw: unknown = null;
-  try { raw = await res.json(); } catch {}
+  try { raw = await res.json(); } catch { }
   if (!res.ok || !raw || typeof raw !== 'object') {
     let message = 'تعذر رفض البلاغ';
     if (raw && typeof raw === 'object') {
       const err = raw as { error?: string; message?: string } | null;
       message = err?.error || err?.message || message;
     } else {
-      try { message = await res.text(); } catch {}
+      try { message = await res.text(); } catch { }
     }
     throw new Error(message);
   }
@@ -167,17 +167,17 @@ export async function markListingReportsReadAndFetch(listingId: number | string,
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(listingId));
-  const url = `https://api.nasmasr.app/api/admin/listing-reports/${id}/read`;
+  const url = `https://back.nasmasr.app/api/admin/listing-reports/${id}/read`;
   const res = await fetch(url, { method: 'PATCH', headers });
   let raw: unknown = null;
-  try { raw = await res.json(); } catch {}
+  try { raw = await res.json(); } catch { }
   if (!res.ok || !raw || typeof raw !== 'object') {
     let message = 'تعذر جلب تفاصيل الإعلان';
     if (raw && typeof raw === 'object') {
       const err = raw as { error?: string; message?: string } | null;
       message = err?.error || err?.message || message;
     } else {
-      try { message = await res.text(); } catch {}
+      try { message = await res.text(); } catch { }
     }
     throw new Error(message);
   }

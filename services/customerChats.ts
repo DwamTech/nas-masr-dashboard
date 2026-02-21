@@ -4,7 +4,7 @@ export async function fetchAdminConversations(page?: number, perPage?: number, t
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = new URL('https://api.nasmasr.app/api/admin/monitoring/conversations');
+  const url = new URL('https://back.nasmasr.app/api/admin/monitoring/conversations');
   if (typeof perPage === 'number' && perPage > 0) url.searchParams.set('per_page', String(perPage));
   if (typeof page === 'number' && page > 0) url.searchParams.set('page', String(page));
   const res = await fetch(url.toString(), { method: 'GET', headers });
@@ -22,7 +22,7 @@ export async function fetchAdminConversation(conversationId: string, page?: numb
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const base = `https://api.nasmasr.app/api/admin/monitoring/conversations/${encodeURIComponent(conversationId)}`;
+  const base = `https://back.nasmasr.app/api/admin/monitoring/conversations/${encodeURIComponent(conversationId)}`;
   const url = new URL(base);
   if (typeof perPage === 'number' && perPage > 0) url.searchParams.set('per_page', String(perPage));
   if (typeof page === 'number' && page > 0) url.searchParams.set('page', String(page));
@@ -41,7 +41,7 @@ export async function searchAdminConversations(q: string, token?: string): Promi
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = new URL('https://api.nasmasr.app/api/admin/monitoring/search');
+  const url = new URL('https://back.nasmasr.app/api/admin/monitoring/search');
   url.searchParams.set('q', q || '');
   const res = await fetch(url.toString(), { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
@@ -58,7 +58,7 @@ export async function fetchAdminConversationsStats(token?: string): Promise<Conv
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = new URL('https://api.nasmasr.app/api/admin/monitoring/stats');
+  const url = new URL('https://back.nasmasr.app/api/admin/monitoring/stats');
   const res = await fetch(url.toString(), { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   const data = raw as ConversationsStatsResponse | null;

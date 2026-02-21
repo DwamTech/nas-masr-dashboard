@@ -5,7 +5,7 @@ import Image from 'next/image';
 import ManagedSelect from '@/components/ManagedSelect';
 import { CATEGORY_LABELS_AR } from '@/constants/categories';
 import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Search, RefreshCw, Calendar } from 'lucide-react';
-import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, fetchCategories, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients } from '@/services/users';
+import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, fetchCategories, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage } from '@/services/users';
 import { CATEGORY_SLUGS, CategorySlug } from '@/models/makes';
 import { UsersMeta, AssignUserPackagePayload, UsersSummaryResponse, DelegateClient } from '@/models/users';
 
@@ -72,7 +72,7 @@ const toImageUrl = (src: string | null | undefined): string => {
   if (!src || src === 'NULL') return '/file.svg';
   if (src.startsWith('http://') || src.startsWith('https://')) return src;
   const trimmed = src.startsWith('/') ? src.slice(1) : src;
-  return `https://api.nasmasr.app/${trimmed}`;
+  return `https://back.nasmasr.app/${trimmed}`;
 };
 
 const normalizeCategorySlug = (slug: string): CategorySlug | null => {
@@ -703,83 +703,127 @@ export default function UsersPage() {
     showToast(`تم توثيق رقم هاتف المستخدم ${user?.name} بنجاح`, 'success');
   };
 
-  const openPackagesModal = (user: User) => {
+  const openPackagesModal = async (user: User) => {
     setSelectedUserForPackages(user);
-    try {
-      const raw = localStorage.getItem('userPackageData:' + user.id);
-      if (raw) {
-        const data = JSON.parse(raw);
-        const isFeatured = Boolean(data.featured_active);
-        const isStandard = Boolean(data.standard_active);
-        const finalStandard = isFeatured && isStandard ? false : isStandard;
-
-        setPackagesForm({
-          featuredAds: Number(data.featured_ads) || 0,
-          featuredDays: Number(data.featured_days) || 0,
-          startFeaturedNow: isFeatured,
-          featuredStartDate: data.featured_start_date ? String(data.featured_start_date).split('T')[0] : null,
-          featuredExpiryDate: data.featured_expire_date ? String(data.featured_expire_date).split('T')[0] : null,
-          standardAds: Number(data.standard_ads) || 0,
-          standardDays: Number(data.standard_days) || 0,
-          startStandardNow: finalStandard,
-          standardStartDate: data.standard_start_date ? String(data.standard_start_date).split('T')[0] : null,
-          standardExpiryDate: data.standard_expire_date ? String(data.standard_expire_date).split('T')[0] : null,
-          categories: Array.isArray(data.categories) ? data.categories : [],
-        });
-        if (Array.isArray(data.categories)) {
-          const slugs = (data.categories as number[]).map(id => CATEGORY_SLUGS[id - 1]).filter(Boolean);
-          setSelectedPackageCategories(slugs);
-        } else {
-          setSelectedPackageCategories([]);
-        }
-      } else {
-        const initialPkg = user.package ?? {
-          featuredAds: 0,
-          featuredDays: 0,
-          startFeaturedNow: true,
-          featuredStartDate: null,
-          featuredExpiryDate: null,
-          standardAds: 0,
-          standardDays: 0,
-          startStandardNow: true,
-          standardStartDate: null,
-          standardExpiryDate: null,
-          categories: [],
-        };
-
-        const isFeatured = initialPkg.startFeaturedNow;
-        const isStandard = initialPkg.startStandardNow;
-        const finalStandard = isFeatured && isStandard ? false : isStandard;
-
-        setPackagesForm({
-          ...initialPkg,
-          startStandardNow: finalStandard
-        });
-        if (initialPkg.categories && Array.isArray(initialPkg.categories)) {
-          const slugs = initialPkg.categories.map(id => CATEGORY_SLUGS[id - 1]).filter(Boolean);
-          setSelectedPackageCategories(slugs);
-        } else {
-          setSelectedPackageCategories([]);
-        }
-      }
-    } catch {
-      const initialPkg = user.package ?? {
-        featuredAds: 0,
-        featuredDays: 0,
-        startFeaturedNow: true,
-        featuredStartDate: null,
-        featuredExpiryDate: null,
-        standardAds: 0,
-        standardDays: 0,
-        startStandardNow: true,
-        standardStartDate: null,
-        standardExpiryDate: null,
-        categories: [],
-      };
-      setPackagesForm(initialPkg);
-      setSelectedPackageCategories([]);
-    }
     setIsPackagesModalOpen(true);
+
+    // إظهار loading state
+    setPackagesForm({
+      featuredAds: 0,
+      featuredDays: 0,
+      startFeaturedNow: false,
+      featuredStartDate: null,
+      featuredExpiryDate: null,
+      standardAds: 0,
+      standardDays: 0,
+      startStandardNow: false,
+      standardStartDate: null,
+      standardExpiryDate: null,
+      categories: [],
+    });
+    setSelectedPackageCategories([]);
+
+    try {
+      // جلب البيانات من الـ API
+      const response = await fetchUserPackage(user.id);
+      const packageData = response.data;
+
+      if (packageData) {
+        const isFeatured = Boolean(packageData.featured.active);
+        const isStandard = Boolean(packageData.standard.active);
+        const finalStandard = isFeatured && isStandard ? false : isStandard;
+
+        setPackagesForm({
+          featuredAds: packageData.featured.ads_total || 0,
+          featuredDays: packageData.featured.days || 0,
+          startFeaturedNow: isFeatured,
+          featuredStartDate: packageData.featured.start_date ? String(packageData.featured.start_date).split('T')[0] : null,
+          featuredExpiryDate: packageData.featured.expire_date ? String(packageData.featured.expire_date).split('T')[0] : null,
+          standardAds: packageData.standard.ads_total || 0,
+          standardDays: packageData.standard.days || 0,
+          startStandardNow: finalStandard,
+          standardStartDate: packageData.standard.start_date ? String(packageData.standard.start_date).split('T')[0] : null,
+          standardExpiryDate: packageData.standard.expire_date ? String(packageData.standard.expire_date).split('T')[0] : null,
+          categories: Array.isArray(packageData.categories) ? packageData.categories : [],
+        });
+
+        if (Array.isArray(packageData.categories)) {
+          const slugs = (packageData.categories as number[]).map(id => CATEGORY_SLUGS[id - 1]).filter(Boolean);
+          setSelectedPackageCategories(slugs);
+        } else {
+          setSelectedPackageCategories([]);
+        }
+
+        // حفظ البيانات في localStorage كـ cache
+        try {
+          const cacheData = {
+            featured_ads: packageData.featured.ads_total,
+            featured_days: packageData.featured.days,
+            featured_start_date: packageData.featured.start_date,
+            featured_expire_date: packageData.featured.expire_date,
+            featured_active: packageData.featured.active,
+            standard_ads: packageData.standard.ads_total,
+            standard_days: packageData.standard.days,
+            standard_start_date: packageData.standard.start_date,
+            standard_expire_date: packageData.standard.expire_date,
+            standard_active: packageData.standard.active,
+            categories: packageData.categories,
+          };
+          localStorage.setItem('userPackageData:' + user.id, JSON.stringify(cacheData));
+        } catch { }
+      }
+    } catch (error) {
+      // في حالة فشل الـ API، حاول جلب البيانات من localStorage أو user.package
+      console.error('Failed to fetch package data from API, using fallback:', error);
+
+      try {
+        const raw = localStorage.getItem('userPackageData:' + user.id);
+        if (raw) {
+          const data = JSON.parse(raw);
+          const isFeatured = Boolean(data.featured_active);
+          const isStandard = Boolean(data.standard_active);
+          const finalStandard = isFeatured && isStandard ? false : isStandard;
+
+          setPackagesForm({
+            featuredAds: Number(data.featured_ads) || 0,
+            featuredDays: Number(data.featured_days) || 0,
+            startFeaturedNow: isFeatured,
+            featuredStartDate: data.featured_start_date ? String(data.featured_start_date).split('T')[0] : null,
+            featuredExpiryDate: data.featured_expire_date ? String(data.featured_expire_date).split('T')[0] : null,
+            standardAds: Number(data.standard_ads) || 0,
+            standardDays: Number(data.standard_days) || 0,
+            startStandardNow: finalStandard,
+            standardStartDate: data.standard_start_date ? String(data.standard_start_date).split('T')[0] : null,
+            standardExpiryDate: data.standard_expire_date ? String(data.standard_expire_date).split('T')[0] : null,
+            categories: Array.isArray(data.categories) ? data.categories : [],
+          });
+          if (Array.isArray(data.categories)) {
+            const slugs = (data.categories as number[]).map(id => CATEGORY_SLUGS[id - 1]).filter(Boolean);
+            setSelectedPackageCategories(slugs);
+          }
+        } else {
+          // Use user.package as last resort
+          const initialPkg = user.package ?? {
+            featuredAds: 0,
+            featuredDays: 0,
+            startFeaturedNow: false,
+            featuredStartDate: null,
+            featuredExpiryDate: null,
+            standardAds: 0,
+            standardDays: 0,
+            startStandardNow: false,
+            standardStartDate: null,
+            standardExpiryDate: null,
+            categories: [],
+          };
+          setPackagesForm(initialPkg);
+          setSelectedPackageCategories([]);
+        }
+      } catch {
+        // If everything fails, use empty state
+        showToast('تعذر جلب بيانات الباقة، يرجى المحاولة مرة أخرى', 'error');
+      }
+    }
   };
 
   const persistPackagesLocal = (uid?: number | string) => {

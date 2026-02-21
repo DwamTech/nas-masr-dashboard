@@ -4,7 +4,7 @@ export async function fetchSupportInbox(page?: number, perPage?: number, token?:
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = new URL('https://api.nasmasr.app/api/admin/support/inbox');
+  const url = new URL('https://back.nasmasr.app/api/admin/support/inbox');
   if (typeof perPage === 'number' && perPage > 0) url.searchParams.set('per_page', String(perPage));
   if (typeof page === 'number' && page > 0) url.searchParams.set('page', String(page));
   const res = await fetch(url.toString(), { method: 'GET', headers });
@@ -22,7 +22,7 @@ export async function fetchSupportConversation(userId: number | string, page?: n
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const base = `https://api.nasmasr.app/api/admin/support/${encodeURIComponent(String(userId))}`;
+  const base = `https://back.nasmasr.app/api/admin/support/${encodeURIComponent(String(userId))}`;
   const url = new URL(base);
   if (typeof perPage === 'number' && perPage > 0) url.searchParams.set('per_page', String(perPage));
   if (typeof page === 'number' && page > 0) url.searchParams.set('page', String(page));
@@ -41,7 +41,7 @@ export async function replySupport(payload: { user_id: number | string; message:
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/admin/support/reply', {
+  const res = await fetch('https://back.nasmasr.app/api/admin/support/reply', {
     method: 'POST',
     headers,
     body: JSON.stringify({ user_id: payload.user_id, message: payload.message }),
@@ -60,7 +60,7 @@ export async function markSupportConversationRead(userId: number | string, token
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://api.nasmasr.app/api/admin/support/${encodeURIComponent(String(userId))}/read`, {
+  const res = await fetch(`https://back.nasmasr.app/api/admin/support/${encodeURIComponent(String(userId))}/read`, {
     method: 'PATCH',
     headers,
   });
@@ -78,7 +78,7 @@ export async function fetchSupportStats(token?: string): Promise<SupportStatsRes
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/admin/support/stats', { method: 'GET', headers });
+  const res = await fetch('https://back.nasmasr.app/api/admin/support/stats', { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   const data = raw as SupportStatsResponse | null;
   if (!res.ok || !data) {

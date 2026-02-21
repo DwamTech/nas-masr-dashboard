@@ -4,7 +4,7 @@ export async function fetchAdminStats(token?: string): Promise<AdminStatsRespons
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://api.nasmasr.app/api/admin/stats', { method: 'GET', headers });
+  const res = await fetch('https://back.nasmasr.app/api/admin/stats', { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   const data = raw as AdminStatsResponse | null;
   if (!res.ok || !data) {
@@ -19,7 +19,7 @@ export async function fetchRecentActivities(limit = 20, token?: string): Promise
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://api.nasmasr.app/api/admin/recent-activities?limit=${encodeURIComponent(limit)}`;
+  const url = `https://back.nasmasr.app/api/admin/recent-activities?limit=${encodeURIComponent(limit)}`;
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   const data = raw as RecentActivitiesResponse | null;

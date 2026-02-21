@@ -2289,7 +2289,7 @@ export default function UsersPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              background: '#1c6b74ff',
               color: 'white'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -2321,7 +2321,7 @@ export default function UsersPage() {
                 <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6366f1' }}>
                   <div style={{
                     border: '4px solid #f3f4f6',
-                    borderTop: '4px solid #6366f1',
+                    borderTop: '4px solid #1c6b74ff',
                     borderRadius: '50%',
                     width: '40px',
                     height: '40px',
@@ -2358,7 +2358,7 @@ export default function UsersPage() {
                           height: '48px',
                           borderRadius: '12px',
                           backgroundColor: '#eef2ff',
-                          color: '#6366f1',
+                          color: '#1c6b74ff',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -2388,11 +2388,11 @@ export default function UsersPage() {
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                             <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Phone size={14} style={{ color: '#6366f1' }} />
+                              <Phone size={14} style={{ color: '#1c6b74ff' }} />
                               <span>{client.phone}</span>
                             </div>
                             <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <MapPin size={14} style={{ color: '#6366f1' }} />
+                              <MapPin size={14} style={{ color: '#1c6b74ff' }} />
                               <span>{client.address || 'موقع غير محدد'}</span>
                             </div>
                           </div>
@@ -2403,7 +2403,7 @@ export default function UsersPage() {
                         onClick={() => handleViewClientProfile(client)}
                         title="عرض الملف الشخصي"
                         style={{
-                          backgroundColor: '#6366f1',
+                          backgroundColor: '#1c6b74ff',
                           color: 'white',
                           border: 'none',
                           borderRadius: '10px',
@@ -2411,7 +2411,7 @@ export default function UsersPage() {
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
+                          justifyContent: 'center', 
                           transition: 'all 0.2s',
                           boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)'
                         }}
@@ -2628,9 +2628,9 @@ export default function UsersPage() {
                           onClick={() => handleViewDelegateProfile(user.delegateCode!)}
                           title="عرض ملف المندوب"
                           style={{
-                            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                            background: '#1c6b74ff',
                             border: 'none',
-                            borderRadius: '6px',
+                            borderRadius: '11px',
                             width: '24px',
                             height: '24px',
                             display: 'inline-flex',
@@ -2758,10 +2758,10 @@ export default function UsersPage() {
                           onClick={() => handleOpenDelegateClients(user)}
                           title="عملاء المندوب"
                           style={{
-                            backgroundColor: '#6366f1',
+                            backgroundColor: '#1c6b74ff',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '4px',
+                            borderRadius: '11px',
                             padding: '4px 8px',
                             cursor: 'pointer',
                             display: 'flex',
@@ -2832,9 +2832,9 @@ export default function UsersPage() {
                         onClick={() => handleViewDelegateProfile(user.delegateCode!)}
                         title="عرض ملف المندوب"
                         style={{
-                          background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                          background: '#1c6b74ff',
                           border: 'none',
-                          borderRadius: '4px',
+                          borderRadius: '11px',
                           width: '20px',
                           height: '20px',
                           display: 'inline-flex',
@@ -2909,10 +2909,10 @@ export default function UsersPage() {
                     onClick={() => handleOpenDelegateClients(user)}
                     title="عملاء المندوب"
                     style={{
-                      backgroundColor: '#6366f1',
+                      backgroundColor: '#1c6b74ff',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '8px',
+                      borderRadius: '11px',
                       padding: '8px 16px',
                       cursor: 'pointer',
                       display: 'flex',

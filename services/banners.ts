@@ -17,7 +17,7 @@ export async function fetchBanners(token?: string): Promise<BannersResponse> {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/banners`, {
+    const response = await fetch(`${API_BASE_URL}/admin/banners`, {
         method: 'GET',
         headers,
     });
@@ -50,7 +50,7 @@ export async function createBanner(
     formData.append('slug', slug);
     formData.append('image', bannerFile);
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/banners`, {
+    const response = await fetch(`${API_BASE_URL}/admin/banners`, {
         method: 'POST',
         headers,
         body: formData,
@@ -85,7 +85,7 @@ export async function updateBanner(
     formData.append('image', bannerFile);
     formData.append('_method', 'PUT');
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/banners/${slug}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/banners/${slug}`, {
         method: 'POST',
         headers,
         body: formData,

@@ -47,6 +47,73 @@ interface UserPackage {
   categories?: number[] | null;
 }
 
+// New interfaces for enhanced packages modal
+interface PackageHistoryItem {
+  id: string;
+  type: 'featured' | 'standard';
+  totalAds: number;
+  consumedAds: number;
+  remainingAds: number;
+  days?: number; // إضافة عدد الأيام للمقارنة
+  startDate: string;
+  expiryDate: string;
+  status: 'active' | 'expired';
+  isCurrent: boolean;
+}
+
+interface Category {
+  id: number;
+  slug: string;
+  name: string;
+  nameAr: string;
+}
+
+interface PackageError {
+  type: 'network' | 'server' | 'permission' | 'unknown';
+  message: string;
+  canRetry: boolean;
+}
+
+interface PackageCacheData {
+  userId: string;
+  timestamp: number;
+  data: {
+    featured: {
+      ads_total: number;
+      ads_remaining: number;
+      days: number;
+      start_date: string | null;
+      expire_date: string | null;
+      active: boolean;
+    };
+    standard: {
+      ads_total: number;
+      ads_remaining: number;
+      days: number;
+      start_date: string | null;
+      expire_date: string | null;
+      active: boolean;
+    };
+    categories: number[];
+  };
+  // إضافة تاريخ الباقات المحلي
+  localHistory?: PackageHistoryItem[];
+}
+
+interface CategoriesCacheData {
+  timestamp: number;
+  categories: Category[];
+}
+
+type ModalState =
+  | 'idle'
+  | 'loading'
+  | 'loaded'
+  | 'error'
+  | 'retrying'
+  | 'saving'
+  | 'save-error';
+
 interface AdItem {
   id: string;
   title: string;
@@ -86,6 +153,309 @@ const normalizeCategorySlug = (slug: string): CategorySlug | null => {
   return null;
 };
 
+// Cache management functions
+const savePackageToCache = (userId: string, data: any, localHistory?: PackageHistoryItem[]): void => {
+  try {
+    const cacheData: PackageCacheData = {
+      userId,
+      timestamp: Date.now(),
+      data,
+      localHistory
+    };
+    localStorage.setItem(
+      `userPackageData:${userId}`,
+      JSON.stringify(cacheData)
+    );
+  } catch (error) {
+    console.error('Failed to save to cache:', error);
+  }
+};
+
+const loadPackageFromCache = (userId: string): PackageCacheData | null => {
+  try {
+    const raw = localStorage.getItem(`userPackageData:${userId}`);
+    if (!raw) return null;
+
+    const cached = JSON.parse(raw) as PackageCacheData;
+
+    // التحقق من صلاحية Cache (24 ساعة)
+    const MAX_CACHE_AGE = 24 * 60 * 60 * 1000;
+    if (Date.now() - cached.timestamp > MAX_CACHE_AGE) {
+      return null;
+    }
+
+    return cached;
+  } catch (error) {
+    console.error('Failed to load from cache:', error);
+    return null;
+  }
+};
+
+const saveCategoriesToCache = (categories: Category[]): void => {
+  try {
+    const cacheData: CategoriesCacheData = {
+      timestamp: Date.now(),
+      categories
+    };
+    localStorage.setItem('categoriesCache', JSON.stringify(cacheData));
+  } catch (error) {
+    console.error('Failed to save categories to cache:', error);
+  }
+};
+
+const loadCategoriesFromCache = (): Category[] | null => {
+  try {
+    const raw = localStorage.getItem('categoriesCache');
+    if (!raw) return null;
+
+    const cached = JSON.parse(raw) as CategoriesCacheData;
+
+    // الأقسام صالحة لمدة أسبوع
+    const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000;
+    if (Date.now() - cached.timestamp > MAX_CACHE_AGE) {
+      return null;
+    }
+
+    return cached.categories;
+  } catch (error) {
+    console.error('Failed to load categories from cache:', error);
+    return null;
+  }
+};
+
+// Error handling functions
+const getErrorMessage = (error: any): PackageError => {
+  // خطأ الشبكة
+  if (!error.response) {
+    return {
+      type: 'network',
+      message: 'تعذر الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت',
+      canRetry: true
+    };
+  }
+
+  // خطأ الصلاحيات
+  if (error.response.status === 401 || error.response.status === 403) {
+    return {
+      type: 'permission',
+      message: 'ليس لديك صلاحية للوصول إلى هذه البيانات',
+      canRetry: false
+    };
+  }
+
+  // خطأ الخادم
+  if (error.response.status >= 500) {
+    return {
+      type: 'server',
+      message: 'حدث خطأ في الخادم، يرجى المحاولة لاحقاً',
+      canRetry: true
+    };
+  }
+
+  // خطأ غير معروف
+  return {
+    type: 'unknown',
+    message: error.response?.data?.message || 'حدث خطأ غير متوقع',
+    canRetry: true
+  };
+};
+
+const retryWithDelay = async <T>(
+  fn: () => Promise<T>,
+  delay: number = 2000
+): Promise<T> => {
+  await new Promise(resolve => setTimeout(resolve, delay));
+  return fn();
+};
+
+const fetchWithRetry = async <T>(
+  fetchFn: () => Promise<T>,
+  options: {
+    maxRetries?: number;
+    retryDelay?: number;
+    onRetry?: (attempt: number) => void;
+  } = {}
+): Promise<T> => {
+  const { maxRetries = 1, retryDelay = 2000, onRetry } = options;
+  
+  let lastError: any;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fetchFn();
+    } catch (error) {
+      lastError = error;
+      
+      // إذا كان هذا آخر محاولة، نرمي الخطأ
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // إعلام المستدعي بالمحاولة
+      if (onRetry) {
+        onRetry(attempt + 1);
+      }
+      
+      // الانتظار قبل المحاولة التالية
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+  
+  throw lastError;
+};
+
+// Package history functions
+const parsePackageHistory = (
+  featuredData: any,
+  standardData: any
+): PackageHistoryItem[] => {
+  console.log('parsePackageHistory called with:', { featuredData, standardData });
+  const history: PackageHistoryItem[] = [];
+  
+  // إضافة الباقة المميزة إذا كانت موجودة
+  if (featuredData && featuredData.ads_total > 0) {
+    const consumedAds = featuredData.ads_total - (featuredData.ads_remaining || 0);
+    history.push({
+      id: `featured-${featuredData.start_date || Date.now()}`,
+      type: 'featured',
+      totalAds: featuredData.ads_total,
+      consumedAds,
+      remainingAds: featuredData.ads_remaining || 0,
+      days: featuredData.days,
+      startDate: featuredData.start_date,
+      expiryDate: featuredData.expire_date,
+      status: featuredData.active ? 'active' : 'expired',
+      isCurrent: featuredData.active
+    });
+  }
+  
+  // إضافة الباقة الستاندرد إذا كانت موجودة
+  if (standardData && standardData.ads_total > 0) {
+    const consumedAds = standardData.ads_total - (standardData.ads_remaining || 0);
+    history.push({
+      id: `standard-${standardData.start_date || Date.now()}`,
+      type: 'standard',
+      totalAds: standardData.ads_total,
+      consumedAds,
+      remainingAds: standardData.ads_remaining || 0,
+      days: standardData.days,
+      startDate: standardData.start_date,
+      expiryDate: standardData.expire_date,
+      status: standardData.active ? 'active' : 'expired',
+      isCurrent: standardData.active
+    });
+  }
+  
+  console.log('Parsed history:', history);
+  
+  // ترتيب حسب تاريخ البدء (الأحدث أولاً)
+  return history.sort((a, b) => 
+    new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+  );
+};
+
+// دالة جديدة لدمج التاريخ المحلي مع البيانات الجديدة
+const mergePackageHistory = (
+  currentHistory: PackageHistoryItem[],
+  localHistory: PackageHistoryItem[] = []
+): PackageHistoryItem[] => {
+  console.log('=== MERGE START ===');
+  console.log('Current history (from API):', JSON.stringify(currentHistory, null, 2));
+  console.log('Local history (from cache):', JSON.stringify(localHistory, null, 2));
+  
+  const merged: PackageHistoryItem[] = [];
+  const processedIds = new Set<string>();
+  
+  // معالجة كل نوع باقة على حدة
+  ['featured', 'standard'].forEach(packageType => {
+    // البحث عن السجل الحالي لهذا النوع
+    const currentItem = currentHistory.find(item => item.type === packageType);
+    
+    if (!currentItem) {
+      console.log(`No current ${packageType} package found`);
+      return;
+    }
+    
+    // البحث عن آخر سجل نشط من نفس النوع في التاريخ المحلي
+    const lastLocalActive = localHistory
+      .filter(item => item.type === packageType && item.isCurrent)
+      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0];
+    
+    console.log(`\n--- Processing ${packageType} ---`);
+    console.log('Current item:', currentItem);
+    console.log('Last local active:', lastLocalActive);
+    
+    if (lastLocalActive) {
+      // التحقق من وجود تغييرات جوهرية
+      const hasChanged = 
+        currentItem.totalAds !== lastLocalActive.totalAds ||
+        currentItem.days !== lastLocalActive.days ||
+        (currentItem.startDate && lastLocalActive.startDate && 
+         currentItem.startDate !== lastLocalActive.startDate);
+      
+      console.log('Has changed?', hasChanged);
+      console.log('Comparison:', {
+        totalAds: { current: currentItem.totalAds, local: lastLocalActive.totalAds },
+        days: { current: currentItem.days, local: lastLocalActive.days },
+        startDate: { current: currentItem.startDate, local: lastLocalActive.startDate }
+      });
+      
+      if (hasChanged) {
+        // إنشاء سجل جديد للباقة القديمة
+        const archivedRecord: PackageHistoryItem = {
+          ...lastLocalActive,
+          id: `${packageType}-archived-${Date.now()}`,
+          isCurrent: false,
+          status: 'expired'
+        };
+        merged.push(archivedRecord);
+        processedIds.add(lastLocalActive.id);
+        
+        console.log('✅ Change detected! Created archived record:', archivedRecord);
+      } else {
+        console.log('⚠️ No significant changes detected');
+      }
+    } else {
+      console.log('ℹ️ No previous local record found - this is the first package');
+    }
+    
+    // إضافة السجل الحالي دائماً
+    merged.push(currentItem);
+    processedIds.add(currentItem.id);
+    console.log('Added current record:', currentItem);
+  });
+  
+  // إضافة جميع السجلات القديمة غير النشطة من التاريخ المحلي
+  localHistory.forEach(localItem => {
+    if (!processedIds.has(localItem.id) && !localItem.isCurrent) {
+      merged.push(localItem);
+      console.log('Added old archived record:', localItem);
+    }
+  });
+  
+  // ترتيب حسب تاريخ البدء (الأحدث أولاً)
+  const sorted = merged.sort((a, b) => {
+    const dateA = new Date(a.startDate || 0).getTime();
+    const dateB = new Date(b.startDate || 0).getTime();
+    return dateB - dateA;
+  });
+  
+  console.log('\n=== MERGE RESULT ===');
+  console.log('Final merged history:', JSON.stringify(sorted, null, 2));
+  console.log('Total records:', sorted.length);
+  console.log('===================\n');
+  
+  return sorted;
+};
+
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -118,6 +488,369 @@ export default function UsersPage() {
     const m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return t;
     return `${m[3]}-${m[2]}-${m[1]}`;
+  };
+
+  // Sub-components for enhanced packages modal
+  const PackageLoadingSkeleton = () => (
+    <div className="space-y-4">
+      {/* Skeleton للبطاقات */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="animate-pulse bg-gray-200 h-48 rounded-lg" />
+        <div className="animate-pulse bg-gray-200 h-48 rounded-lg" />
+      </div>
+      {/* Skeleton للأقسام */}
+      <div className="animate-pulse bg-gray-200 h-32 rounded-lg" />
+      {/* Skeleton للجدول */}
+      <div className="animate-pulse bg-gray-200 h-64 rounded-lg" />
+    </div>
+  );
+
+  const PackageErrorDisplay = ({ error, onRetry }: { error: PackageError; onRetry: () => void }) => (
+    <div className="text-center py-8">
+      <div className="text-red-500 mb-4">{error.message}</div>
+      {error.canRetry && (
+        <button 
+          onClick={onRetry}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          إعادة المحاولة
+        </button>
+      )}
+    </div>
+  );
+
+  const PackageHistoryTable = ({ history }: { history: PackageHistoryItem[] }) => {
+    if (history.length === 0) {
+      return (
+        <div style={{
+          textAlign: 'center',
+          padding: '48px 24px',
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          border: '2px dashed #e5e7eb'
+        }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            backgroundColor: '#f3f4f6',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px',
+            fontSize: '32px'
+          }}>📦</div>
+          <p style={{ 
+            color: '#6b7280', 
+            fontSize: '15px',
+            fontWeight: '600',
+            margin: 0
+          }}>
+            لا يوجد تاريخ باقات لهذا المستخدم
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ 
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        border: '1px solid #e5e7eb',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+      }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            fontSize: '14px'
+          }}>
+            <thead>
+              <tr style={{ 
+                backgroundColor: '#1c6b74',
+                color: 'white'
+              }}>
+                <th style={{ 
+                  padding: '14px 16px', 
+                  textAlign: 'right',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  letterSpacing: '0.3px',
+                  borderBottom: '2px solid #155e66'
+                }}>نوع الباقة</th>
+                <th style={{ 
+                  padding: '14px 16px', 
+                  textAlign: 'right',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  letterSpacing: '0.3px',
+                  borderBottom: '2px solid #155e66'
+                }}>إجمالي الإعلانات</th>
+                <th style={{ 
+                  padding: '14px 16px', 
+                  textAlign: 'right',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  letterSpacing: '0.3px',
+                  borderBottom: '2px solid #155e66'
+                }}>المستهلك</th>
+                <th style={{ 
+                  padding: '14px 16px', 
+                  textAlign: 'right',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  letterSpacing: '0.3px',
+                  borderBottom: '2px solid #155e66'
+                }}>تاريخ البدء</th>
+                <th style={{ 
+                  padding: '14px 16px', 
+                  textAlign: 'right',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  letterSpacing: '0.3px',
+                  borderBottom: '2px solid #155e66'
+                }}>تاريخ الانتهاء</th>
+                <th style={{ 
+                  padding: '14px 16px', 
+                  textAlign: 'center',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  letterSpacing: '0.3px',
+                  borderBottom: '2px solid #155e66'
+                }}>الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((item, index) => (
+                <tr 
+                  key={item.id}
+                  style={{
+                    backgroundColor: item.isCurrent 
+                      ? '#ecfdf5' 
+                      : index % 2 === 0 ? '#ffffff' : '#f9fafb',
+                    borderLeft: item.isCurrent ? '4px solid #10b981' : 'none',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!item.isCurrent) {
+                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!item.isCurrent) {
+                      e.currentTarget.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f9fafb';
+                    }
+                  }}
+                >
+                  <td style={{ 
+                    padding: '14px 16px',
+                    color: '#111827',
+                    fontWeight: item.isCurrent ? '700' : '600',
+                    borderBottom: '1px solid #f3f4f6'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: item.type === 'featured' ? '#f59e0b' : '#6366f1'
+                      }} />
+                      {item.type === 'featured' ? 'مميزة' : 'ستاندرد'}
+                      {item.isCurrent && (
+                        <span style={{
+                          fontSize: '10px',
+                          padding: '2px 8px',
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          borderRadius: '12px',
+                          fontWeight: '700'
+                        }}>الحالية</span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={{ 
+                    padding: '14px 16px',
+                    color: '#374151',
+                    fontWeight: '600',
+                    borderBottom: '1px solid #f3f4f6'
+                  }}>
+                    <span style={{
+                      backgroundColor: '#eff6ff',
+                      color: '#1e40af',
+                      padding: '4px 12px',
+                      borderRadius: '8px',
+                      fontWeight: '700',
+                      fontSize: '13px'
+                    }}>{item.totalAds}</span>
+                  </td>
+                  <td style={{ 
+                    padding: '14px 16px',
+                    color: '#374151',
+                    fontWeight: '600',
+                    borderBottom: '1px solid #f3f4f6'
+                  }}>
+                    <span style={{
+                      backgroundColor: '#fef3c7',
+                      color: '#92400e',
+                      padding: '4px 12px',
+                      borderRadius: '8px',
+                      fontWeight: '700',
+                      fontSize: '13px'
+                    }}>{item.consumedAds}</span>
+                  </td>
+                  <td style={{ 
+                    padding: '14px 16px',
+                    color: '#6b7280',
+                    fontWeight: '500',
+                    fontSize: '13px',
+                    borderBottom: '1px solid #f3f4f6'
+                  }}>{formatDate(item.startDate)}</td>
+                  <td style={{ 
+                    padding: '14px 16px',
+                    color: '#6b7280',
+                    fontWeight: '500',
+                    fontSize: '13px',
+                    borderBottom: '1px solid #f3f4f6'
+                  }}>{formatDate(item.expiryDate)}</td>
+                  <td style={{ 
+                    padding: '14px 16px',
+                    textAlign: 'center',
+                    borderBottom: '1px solid #f3f4f6'
+                  }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      backgroundColor: item.status === 'active' ? '#d1fae5' : '#f3f4f6',
+                      color: item.status === 'active' ? '#065f46' : '#6b7280',
+                      border: `1px solid ${item.status === 'active' ? '#10b981' : '#d1d5db'}`
+                    }}>
+                      <span style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: item.status === 'active' ? '#10b981' : '#9ca3af'
+                      }} />
+                      {item.status === 'active' ? 'نشطة' : 'منتهية'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const DynamicCategoriesSection = ({
+    categories,
+    selectedCategories,
+    onToggle,
+    loadState
+  }: {
+    categories: Category[];
+    selectedCategories: string[];
+    onToggle: (slug: string, checked: boolean) => void;
+    loadState: 'loading' | 'loaded' | 'error';
+  }) => {
+    if (loadState === 'loading') {
+      return (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: '12px'
+        }}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div 
+              key={i}
+              style={{
+                height: '48px',
+                backgroundColor: '#f3f4f6',
+                borderRadius: '10px',
+                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+              }}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+        gap: '12px'
+      }}>
+        {categories.map((cat) => {
+          const isSelected = selectedCategories.includes(cat.slug);
+          return (
+            <label 
+              key={cat.slug}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '12px 16px',
+                backgroundColor: isSelected ? '#ecfdf5' : 'white',
+                border: `2px solid ${isSelected ? '#10b981' : '#e5e7eb'}`,
+                borderRadius: '10px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                userSelect: 'none',
+                boxShadow: isSelected ? '0 4px 6px -1px rgba(16, 185, 129, 0.1)' : '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.backgroundColor = '#f9fafb';
+                  e.currentTarget.style.borderColor = '#d1d5db';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.backgroundColor = 'white';
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                }
+              }}
+            >
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => onToggle(cat.slug, e.target.checked)}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    cursor: 'pointer',
+                    accentColor: '#10b981'
+                  }}
+                />
+              </div>
+              <span style={{
+                fontSize: '14px',
+                fontWeight: isSelected ? '700' : '600',
+                color: isSelected ? '#065f46' : '#374151',
+                flex: 1
+              }}>
+                {cat.nameAr}
+              </span>
+              {isSelected && (
+                <span style={{
+                  fontSize: '16px',
+                  color: '#10b981'
+                }}>✓</span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -241,6 +974,14 @@ export default function UsersPage() {
     categories: [],
   });
 
+  // Enhanced packages modal state
+  const [packagesModalState, setPackagesModalState] = useState<ModalState>('idle');
+  const [packagesError, setPackagesError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [packageHistory, setPackageHistory] = useState<PackageHistoryItem[]>([]);
+  const [dynamicCategories, setDynamicCategories] = useState<Category[]>([]);
+  const [categoriesLoadState, setCategoriesLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
+
   // Verify modal state
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [userForVerify, setUserForVerify] = useState<User | null>(null);
@@ -363,14 +1104,17 @@ export default function UsersPage() {
   const saveFavoritesForUser = async () => {
     if (!selectedUserForFavorites) return;
     const uid = Number(selectedUserForFavorites.id);
+    
+    // إذا كانت القائمة فارغة، استخدم clearFavoritesForUser بدلاً من إرسال قائمة فارغة
+    if (favoriteSlugs.length === 0) {
+      await clearFavoritesForUser();
+      return;
+    }
+    
     const ids = Array.from(new Set(favoriteSlugs))
       .map((slug) => normalizeCategorySlug(slug))
       .map((s) => (s ? CATEGORY_SLUGS.indexOf(s) + 1 : 0))
       .filter((id) => id > 0);
-    if (ids.length === 0) {
-      showToast('يجب اختيار قسم واحد على الأقل قبل الحفظ', 'warning');
-      return;
-    }
     try {
       const resp = await setUserFeaturedCategories({ user_id: uid, category_ids: ids });
       const rid = typeof resp.record_id === 'number' ? resp.record_id : (typeof resp?.data?.id === 'number' ? resp.data.id : undefined);
@@ -704,8 +1448,12 @@ export default function UsersPage() {
   };
 
   const openPackagesModal = async (user: User) => {
+    console.log('Opening packages modal for user:', user.id);
     setSelectedUserForPackages(user);
     setIsPackagesModalOpen(true);
+    setPackagesModalState('loading');
+    setPackagesError(null);
+    setRetryCount(0);
 
     // إظهار loading state
     setPackagesForm({
@@ -724,11 +1472,119 @@ export default function UsersPage() {
     setSelectedPackageCategories([]);
 
     try {
-      // جلب البيانات من الـ API
-      const response = await fetchUserPackage(user.id);
-      const packageData = response.data;
+      // محاولة قراءة البيانات من Cache وعرضها فوراً (stale-while-revalidate)
+      const cached = loadPackageFromCache(user.id);
+      console.log('Cached data:', cached);
+      
+      if (cached && cached.data) {
+        const packageData = cached.data;
+        
+        // التحقق من أن البيانات بالبنية الصحيحة
+        if (packageData.featured && packageData.standard) {
+          const isFeatured = Boolean(packageData.featured.active);
+          const isStandard = Boolean(packageData.standard.active);
+          const finalStandard = isFeatured && isStandard ? false : isStandard;
 
-      if (packageData) {
+          setPackagesForm({
+            featuredAds: packageData.featured.ads_total || 0,
+            featuredDays: packageData.featured.days || 0,
+            startFeaturedNow: isFeatured,
+            featuredStartDate: packageData.featured.start_date ? String(packageData.featured.start_date).split('T')[0] : null,
+            featuredExpiryDate: packageData.featured.expire_date ? String(packageData.featured.expire_date).split('T')[0] : null,
+            standardAds: packageData.standard.ads_total || 0,
+            standardDays: packageData.standard.days || 0,
+            startStandardNow: finalStandard,
+            standardStartDate: packageData.standard.start_date ? String(packageData.standard.start_date).split('T')[0] : null,
+            standardExpiryDate: packageData.standard.expire_date ? String(packageData.standard.expire_date).split('T')[0] : null,
+            categories: Array.isArray(packageData.categories) ? packageData.categories : [],
+          });
+
+          if (Array.isArray(packageData.categories)) {
+            const slugs = (packageData.categories as number[]).map(id => CATEGORY_SLUGS[id - 1]).filter(Boolean);
+            setSelectedPackageCategories(slugs);
+          }
+
+          // تحليل تاريخ الباقات من Cache
+          const currentHistory = parsePackageHistory(packageData.featured, packageData.standard);
+          const mergedHistory = mergePackageHistory(currentHistory, cached.localHistory);
+          setPackageHistory(mergedHistory);
+        } else {
+          console.warn('Cached data has invalid structure, ignoring cache');
+        }
+      }
+
+      // جلب الأقسام الديناميكية
+      const cachedCategories = loadCategoriesFromCache();
+      if (cachedCategories) {
+        setDynamicCategories(cachedCategories);
+        setCategoriesLoadState('loaded');
+      } else {
+        setCategoriesLoadState('loading');
+      }
+
+      try {
+        // جلب الأقسام من API
+        const categoriesResp = await fetchCategories();
+        console.log('Categories response:', categoriesResp);
+        if (Array.isArray(categoriesResp?.data)) {
+          const cats: Category[] = categoriesResp.data.map((c: any) => ({
+            id: c.id,
+            slug: c.slug,
+            name: c.name || c.slug,
+            nameAr: c.name || CATEGORY_LABELS_AR[c.slug as keyof typeof CATEGORY_LABELS_AR] || c.slug
+          }));
+          console.log('Processed categories:', cats);
+          setDynamicCategories(cats);
+          saveCategoriesToCache(cats);
+          setCategoriesLoadState('loaded');
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        setCategoriesLoadState('error');
+        
+        // استخدام الأقسام الاحتياطية
+        if (!cachedCategories) {
+          const fallbackCategories = Object.entries(CATEGORY_LABELS_AR).map(
+            ([slug, nameAr], index) => ({
+              id: index + 1,
+              slug,
+              name: slug,
+              nameAr
+            })
+          );
+          setDynamicCategories(fallbackCategories);
+          setCategoriesLoadState('loaded');
+        }
+      }
+
+      // جلب البيانات من API مع إعادة المحاولة التلقائية
+      console.log('Fetching package data from API...');
+      const response = await fetchWithRetry(
+        () => fetchUserPackage(user.id),
+        {
+          maxRetries: 1,
+          retryDelay: 2000,
+          onRetry: (attempt) => {
+            console.log('Retrying fetch, attempt:', attempt);
+            setPackagesModalState('retrying');
+            setRetryCount(attempt);
+          }
+        }
+      );
+
+      console.log('API response:', response);
+      
+      // التحقق من بنية البيانات
+      let packageData = response.data;
+      
+      // إذا كانت البيانات داخل data.data (بعض APIs تُرجع { data: { data: {...} } })
+      if (packageData && packageData.data && !packageData.featured && !packageData.standard) {
+        packageData = packageData.data;
+      }
+      
+      console.log('Package data after normalization:', packageData);
+
+      if (packageData && packageData.featured && packageData.standard) {
         const isFeatured = Boolean(packageData.featured.active);
         const isStandard = Boolean(packageData.standard.active);
         const finalStandard = isFeatured && isStandard ? false : isStandard;
@@ -754,75 +1610,63 @@ export default function UsersPage() {
           setSelectedPackageCategories([]);
         }
 
-        // حفظ البيانات في localStorage كـ cache
-        try {
-          const cacheData = {
-            featured_ads: packageData.featured.ads_total,
-            featured_days: packageData.featured.days,
-            featured_start_date: packageData.featured.start_date,
-            featured_expire_date: packageData.featured.expire_date,
-            featured_active: packageData.featured.active,
-            standard_ads: packageData.standard.ads_total,
-            standard_days: packageData.standard.days,
-            standard_start_date: packageData.standard.start_date,
-            standard_expire_date: packageData.standard.expire_date,
-            standard_active: packageData.standard.active,
-            categories: packageData.categories,
-          };
-          localStorage.setItem('userPackageData:' + user.id, JSON.stringify(cacheData));
-        } catch { }
+        // تحليل تاريخ الباقات
+        const currentHistory = parsePackageHistory(packageData.featured, packageData.standard);
+        
+        // دمج مع التاريخ المحلي من Cache (استخدام cached من البداية)
+        const existingCache = loadPackageFromCache(user.id);
+        console.log('Existing cache for merge:', existingCache);
+        const mergedHistory = mergePackageHistory(currentHistory, existingCache?.localHistory || []);
+        setPackageHistory(mergedHistory);
+
+        // حفظ البيانات في Cache مع التاريخ المدمج
+        savePackageToCache(user.id, {
+          featured: {
+            ads_total: packageData.featured.ads_total || 0,
+            ads_remaining: packageData.featured.ads_remaining || 0,
+            days: packageData.featured.days || 0,
+            start_date: packageData.featured.start_date,
+            expire_date: packageData.featured.expire_date,
+            active: packageData.featured.active
+          },
+          standard: {
+            ads_total: packageData.standard.ads_total || 0,
+            ads_remaining: packageData.standard.ads_remaining || 0,
+            days: packageData.standard.days || 0,
+            start_date: packageData.standard.start_date,
+            expire_date: packageData.standard.expire_date,
+            active: packageData.standard.active
+          },
+          categories: packageData.categories || []
+        }, mergedHistory);
+
+        console.log('Setting state to loaded');
+        setPackagesModalState('loaded');
+      } else {
+        console.error('Package data is missing featured or standard fields:', packageData);
+        setPackagesError('بيانات الباقة غير مكتملة');
+        setPackagesModalState('error');
       }
     } catch (error) {
-      // في حالة فشل الـ API، حاول جلب البيانات من localStorage أو user.package
-      console.error('Failed to fetch package data from API, using fallback:', error);
-
-      try {
-        const raw = localStorage.getItem('userPackageData:' + user.id);
-        if (raw) {
-          const data = JSON.parse(raw);
-          const isFeatured = Boolean(data.featured_active);
-          const isStandard = Boolean(data.standard_active);
-          const finalStandard = isFeatured && isStandard ? false : isStandard;
-
-          setPackagesForm({
-            featuredAds: Number(data.featured_ads) || 0,
-            featuredDays: Number(data.featured_days) || 0,
-            startFeaturedNow: isFeatured,
-            featuredStartDate: data.featured_start_date ? String(data.featured_start_date).split('T')[0] : null,
-            featuredExpiryDate: data.featured_expire_date ? String(data.featured_expire_date).split('T')[0] : null,
-            standardAds: Number(data.standard_ads) || 0,
-            standardDays: Number(data.standard_days) || 0,
-            startStandardNow: finalStandard,
-            standardStartDate: data.standard_start_date ? String(data.standard_start_date).split('T')[0] : null,
-            standardExpiryDate: data.standard_expire_date ? String(data.standard_expire_date).split('T')[0] : null,
-            categories: Array.isArray(data.categories) ? data.categories : [],
-          });
-          if (Array.isArray(data.categories)) {
-            const slugs = (data.categories as number[]).map(id => CATEGORY_SLUGS[id - 1]).filter(Boolean);
-            setSelectedPackageCategories(slugs);
-          }
-        } else {
-          // Use user.package as last resort
-          const initialPkg = user.package ?? {
-            featuredAds: 0,
-            featuredDays: 0,
-            startFeaturedNow: false,
-            featuredStartDate: null,
-            featuredExpiryDate: null,
-            standardAds: 0,
-            standardDays: 0,
-            startStandardNow: false,
-            standardStartDate: null,
-            standardExpiryDate: null,
-            categories: [],
-          };
-          setPackagesForm(initialPkg);
-          setSelectedPackageCategories([]);
-        }
-      } catch {
-        // If everything fails, use empty state
-        showToast('تعذر جلب بيانات الباقة، يرجى المحاولة مرة أخرى', 'error');
+      console.error('Failed to fetch package data from API:', error);
+      const packageError = getErrorMessage(error);
+      setPackagesError(packageError.message);
+      
+      // إذا كان لدينا بيانات من Cache، نعرضها مع رسالة خطأ
+      const cached = loadPackageFromCache(user.id);
+      if (cached) {
+        console.log('Using cached data after error');
+        setPackagesModalState('loaded');
+      } else {
+        console.log('No cached data, showing error');
+        setPackagesModalState('error');
       }
+    }
+  };
+
+  const retryFetchPackages = () => {
+    if (selectedUserForPackages) {
+      openPackagesModal(selectedUserForPackages);
     }
   };
 
@@ -864,6 +1708,9 @@ export default function UsersPage() {
 
   const savePackages = async () => {
     if (!selectedUserForPackages) return;
+    
+    setPackagesModalState('saving');
+    
     try {
       const categoryIds = selectedPackageCategories.map(slug => {
         const idx = CATEGORY_SLUGS.indexOf(slug as CategorySlug);
@@ -883,13 +1730,62 @@ export default function UsersPage() {
       if (packagesForm.startFeaturedNow) payload.start_featured_now = true;
       if (packagesForm.startStandardNow) payload.start_standard_now = true;
 
-      // We don't need to send explicit dates if we are using "Days" and "Start Now"
-      // But if they are fixed, let's keep them optional or remove them
-      // In this case, we prefer the backend to calculate the date from featured_days
-
       const resp = await assignUserPackage(payload);
       const d = resp.data;
-      try { localStorage.setItem('userPackageData:' + selectedUserForPackages.id, JSON.stringify(d)); } catch { }
+      
+      // تحليل التاريخ الجديد
+      const newHistory = parsePackageHistory(
+        {
+          ads_total: d.featured_ads || 0,
+          ads_remaining: d.featured_ads || 0,
+          days: d.featured_days || 0,
+          start_date: d.featured_start_date,
+          expire_date: d.featured_expire_date,
+          active: Boolean(d.featured_active)
+        },
+        {
+          ads_total: d.standard_ads || 0,
+          ads_remaining: d.standard_ads || 0,
+          days: d.standard_days || 0,
+          start_date: d.standard_start_date,
+          expire_date: d.standard_expire_date,
+          active: Boolean(d.standard_active)
+        }
+      );
+      
+      // قراءة التاريخ المحلي مباشرة من localStorage للحصول على أحدث نسخة
+      console.log('=== SAVE PACKAGES - MERGE ===');
+      console.log('New history from API:', newHistory);
+      const existingCache = loadPackageFromCache(selectedUserForPackages.id);
+      const localHistoryFromCache = existingCache?.localHistory || [];
+      console.log('Local history from cache:', localHistoryFromCache);
+      
+      // دمج مع التاريخ المحلي
+      const mergedHistory = mergePackageHistory(newHistory, localHistoryFromCache);
+      console.log('Merged result:', mergedHistory);
+      setPackageHistory(mergedHistory);
+      
+      // حفظ البيانات في Cache مع التاريخ المُحدّث
+      savePackageToCache(selectedUserForPackages.id, {
+        featured: {
+          ads_total: d.featured_ads || 0,
+          ads_remaining: d.featured_ads || 0,
+          days: d.featured_days || 0,
+          start_date: d.featured_start_date,
+          expire_date: d.featured_expire_date,
+          active: Boolean(d.featured_active)
+        },
+        standard: {
+          ads_total: d.standard_ads || 0,
+          ads_remaining: d.standard_ads || 0,
+          days: d.standard_days || 0,
+          start_date: d.standard_start_date,
+          expire_date: d.standard_expire_date,
+          active: Boolean(d.standard_active)
+        },
+        categories: categoryIds
+      }, mergedHistory);
+      
       const updatedUser = {
         ...selectedUserForPackages,
         package: {
@@ -905,16 +1801,20 @@ export default function UsersPage() {
           standardExpiryDate: d.standard_expire_date ? String(d.standard_expire_date).split('T')[0] : null,
         },
       } as User;
+      
       setUsers(prev => prev.map(u => (u.id === selectedUserForPackages.id ? updatedUser : u)));
       if (selectedUser?.id === selectedUserForPackages.id) {
         setSelectedUser(updatedUser);
       }
+      
+      setPackagesModalState('loaded');
       setIsPackagesModalOpen(false);
       setSelectedUserForPackages(null);
-      const idText = typeof d.id === 'number' ? String(d.id) : '';
+      
       const daysText = `${d.featured_days || 0} مميزة | ${d.standard_days || 0} ستاندرد`;
       showToast((resp.message || 'تم تحديث الباقة بنجاح') + ` | ${daysText}`, 'success');
     } catch (e) {
+      setPackagesModalState('loaded');
       showToast('تعذر حفظ الباقة للمستخدم', 'error');
     }
   };
@@ -2104,136 +3004,207 @@ export default function UsersPage() {
               <button className="modal-close" onClick={closePackagesModal}>✕</button>
             </div>
             <div className="modal-content">
-              <div className="plan-cards">
-                <div className="plan-card">
-                  <div className="plan-title">الباقة المتميزة <span className={`status-pill ${packagesForm.startFeaturedNow ? (getRemainingByDates(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate) > 0 ? 'success' : 'danger') : 'neutral'}`}>{packagesForm.startFeaturedNow ? (getRemainingByDates(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate) > 0 ? 'نشطة' : 'منتهية') : 'غير نشطة'}</span></div>
-                  <div className="plan-meta">
-                    <div className="meta-item"><span className="meta-label">تاريخ البدء</span><span className="meta-value">{packagesForm.featuredStartDate || '—'}</span></div>
-                    <div className="meta-item"><span className="meta-label">تاريخ الانتهاء</span><span className="meta-value">{packagesForm.featuredExpiryDate || '—'}</span></div>
-                    <div className="meta-item remaining"><span className="meta-label">المتبقي</span><span className="meta-value">{getRemainingByDates(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate)} يوم</span></div>
-                  </div>
-                  <div className="plan-progress"><div className="progress-track"><div className="progress-bar" style={{ width: `${getProgressPercent(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate)}%` }}></div></div><div className="progress-label">{getProgressPercent(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate)}%</div></div>
-                  <div className="plan-grid">
-                    <div className="field">
-                      <label>عدد الإعلانات المتميزة</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        min={0}
-                        value={packagesForm.featuredAds}
-                        onChange={(e) => handlePackagesChange('featuredAds', Number(e.target.value))}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>عدد أيام صلاحية المتميزة</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        min={0}
-                        value={packagesForm.featuredDays}
-                        onChange={(e) => handlePackagesChange('featuredDays', Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
-                  <label className="toggle-label compact">
-                    <span className="toggle-text">بدء الآن</span>
-                    <div className="toggle-switch-container">
-                      <input
-                        type="checkbox"
-                        className="toggle-input"
-                        checked={packagesForm.startFeaturedNow}
-                        onChange={(e) => {
-                          const v = e.target.checked;
-                          handlePackagesChange('startFeaturedNow', v);
-                          if (v) {
-                            handlePackagesChange('featuredStartDate', new Date().toISOString().split('T')[0]);
-                            handlePackagesChange('startStandardNow', false);
-                          }
-                        }}
-                      />
-                      <span className="toggle-slider"></span>
-                      <span className="toggle-status">{packagesForm.startFeaturedNow ? 'مفعل' : 'مغلق'}</span>
-                    </div>
-                  </label>
-                </div>
-                <div className="plan-card">
-                  <div className="plan-title">الباقة الستاندر <span className={`status-pill ${packagesForm.startStandardNow ? (getRemainingByDates(packagesForm.standardStartDate, packagesForm.standardExpiryDate) > 0 ? 'success' : 'danger') : 'neutral'}`}>{packagesForm.startStandardNow ? (getRemainingByDates(packagesForm.standardStartDate, packagesForm.standardExpiryDate) > 0 ? 'نشطة' : 'منتهية') : 'غير نشطة'}</span></div>
-                  <div className="plan-meta">
-                    <div className="meta-item"><span className="meta-label">تاريخ البدء</span><span className="meta-value">{packagesForm.standardStartDate || '—'}</span></div>
-                    <div className="meta-item"><span className="meta-label">تاريخ الانتهاء</span><span className="meta-value">{packagesForm.standardExpiryDate || '—'}</span></div>
-                    <div className="meta-item remaining"><span className="meta-label">المتبقي</span><span className="meta-value">{getRemainingByDates(packagesForm.standardStartDate, packagesForm.standardExpiryDate)} يوم</span></div>
-                  </div>
-                  <div className="plan-progress"><div className="progress-track"><div className="progress-bar" style={{ width: `${getProgressPercent(packagesForm.standardStartDate, packagesForm.standardExpiryDate)}%` }}></div></div><div className="progress-label">{getProgressPercent(packagesForm.standardStartDate, packagesForm.standardExpiryDate)}%</div></div>
-                  <div className="plan-grid">
-                    <div className="field">
-                      <label>عدد الإعلانات الستاندر</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        min={0}
-                        value={packagesForm.standardAds}
-                        onChange={(e) => handlePackagesChange('standardAds', Number(e.target.value))}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>عدد أيام صلاحية الستاندر</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        min={0}
-                        value={packagesForm.standardDays}
-                        onChange={(e) => handlePackagesChange('standardDays', Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
-                  <label className="toggle-label compact">
-                    <span className="toggle-text">بدء الآن</span>
-                    <div className="toggle-switch-container">
-                      <input
-                        type="checkbox"
-                        className="toggle-input"
-                        checked={packagesForm.startStandardNow}
-                        onChange={(e) => {
-                          const v = e.target.checked;
-                          handlePackagesChange('startStandardNow', v);
-                          if (v) {
-                            handlePackagesChange('standardStartDate', new Date().toISOString().split('T')[0]);
-                            handlePackagesChange('startFeaturedNow', false);
-                          }
-                        }}
-                      />
-                      <span className="toggle-slider"></span>
-                      <span className="toggle-status">{packagesForm.startStandardNow ? 'مفعل' : 'مغلق'}</span>
-                    </div>
-                  </label>
-                </div>
-              </div>
+              {/* Loading State */}
+              {(packagesModalState === 'loading' || packagesModalState === 'retrying') && <PackageLoadingSkeleton />}
 
-              <div className="allowed-categories-section" style={{ marginTop: '20px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '16px', fontWeight: '700', color: '#111827' }}>الأقسام المسموحة (اتركها فارغة لكل الأقسام)</h4>
-                <div className="categories-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                  {categories.filter(c => c !== 'all').map((slug) => {
-                    const label = CATEGORY_LABELS_AR[slug] ?? slug;
-                    const checked = selectedPackageCategories.includes(slug);
-                    return (
-                      <label key={slug} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer', padding: '6px', borderRadius: '6px', backgroundColor: checked ? '#eef2ff' : 'transparent' }}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => handlePackageCategoryToggle(slug, e.target.checked)}
-                          style={{ accentColor: '#4f46e5', width: '16px', height: '16px' }}
-                        />
-                        <span style={{ color: checked ? '#4f46e5' : '#374151', fontWeight: checked ? '600' : '400' }}>{label}</span>
+              {/* Error State */}
+              {packagesModalState === 'error' && packagesError && (
+                <PackageErrorDisplay 
+                  error={{ type: 'unknown', message: packagesError, canRetry: true }} 
+                  onRetry={retryFetchPackages} 
+                />
+              )}
+
+              {/* Loaded State */}
+              {packagesModalState === 'loaded' && (
+                <>
+                  <div className="plan-cards">
+                    <div className="plan-card">
+                      <div className="plan-title">الباقة المتميزة <span className={`status-pill ${packagesForm.startFeaturedNow ? (getRemainingByDates(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate) > 0 ? 'success' : 'danger') : 'neutral'}`}>{packagesForm.startFeaturedNow ? (getRemainingByDates(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate) > 0 ? 'نشطة' : 'منتهية') : 'غير نشطة'}</span></div>
+                      <div className="plan-meta">
+                        <div className="meta-item"><span className="meta-label">تاريخ البدء</span><span className="meta-value">{packagesForm.featuredStartDate || '—'}</span></div>
+                        <div className="meta-item"><span className="meta-label">تاريخ الانتهاء</span><span className="meta-value">{packagesForm.featuredExpiryDate || '—'}</span></div>
+                        <div className="meta-item remaining"><span className="meta-label">المتبقي</span><span className="meta-value">{getRemainingByDates(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate)} يوم</span></div>
+                      </div>
+                      <div className="plan-progress"><div className="progress-track"><div className="progress-bar" style={{ width: `${getProgressPercent(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate)}%` }}></div></div><div className="progress-label">{getProgressPercent(packagesForm.featuredStartDate, packagesForm.featuredExpiryDate)}%</div></div>
+                      <div className="plan-grid">
+                        <div className="field">
+                          <label>عدد الإعلانات المتميزة</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            min={0}
+                            value={packagesForm.featuredAds}
+                            onChange={(e) => handlePackagesChange('featuredAds', Number(e.target.value))}
+                            disabled={packagesModalState === 'loading' || packagesModalState === 'saving'}
+                          />
+                        </div>
+                        <div className="field">
+                          <label>عدد أيام صلاحية المتميزة</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            min={0}
+                            value={packagesForm.featuredDays}
+                            onChange={(e) => handlePackagesChange('featuredDays', Number(e.target.value))}
+                            disabled={packagesModalState === 'loading' || packagesModalState === 'saving'}
+                          />
+                        </div>
+                      </div>
+                      <label className="toggle-label compact">
+                        <span className="toggle-text">بدء الآن</span>
+                        <div className="toggle-switch-container">
+                          <input
+                            type="checkbox"
+                            className="toggle-input"
+                            checked={packagesForm.startFeaturedNow}
+                            onChange={(e) => {
+                              const v = e.target.checked;
+                              handlePackagesChange('startFeaturedNow', v);
+                              if (v) {
+                                handlePackagesChange('featuredStartDate', new Date().toISOString().split('T')[0]);
+                                handlePackagesChange('startStandardNow', false);
+                              }
+                            }}
+                            disabled={packagesModalState === 'loading' || packagesModalState === 'saving'}
+                          />
+                          <span className="toggle-slider"></span>
+                          <span className="toggle-status">{packagesForm.startFeaturedNow ? 'مفعل' : 'مغلق'}</span>
+                        </div>
                       </label>
-                    );
-                  })}
-                </div>
-              </div>
+                    </div>
+                    <div className="plan-card">
+                      <div className="plan-title">الباقة الستاندر <span className={`status-pill ${packagesForm.startStandardNow ? (getRemainingByDates(packagesForm.standardStartDate, packagesForm.standardExpiryDate) > 0 ? 'success' : 'danger') : 'neutral'}`}>{packagesForm.startStandardNow ? (getRemainingByDates(packagesForm.standardStartDate, packagesForm.standardExpiryDate) > 0 ? 'نشطة' : 'منتهية') : 'غير نشطة'}</span></div>
+                      <div className="plan-meta">
+                        <div className="meta-item"><span className="meta-label">تاريخ البدء</span><span className="meta-value">{packagesForm.standardStartDate || '—'}</span></div>
+                        <div className="meta-item"><span className="meta-label">تاريخ الانتهاء</span><span className="meta-value">{packagesForm.standardExpiryDate || '—'}</span></div>
+                        <div className="meta-item remaining"><span className="meta-label">المتبقي</span><span className="meta-value">{getRemainingByDates(packagesForm.standardStartDate, packagesForm.standardExpiryDate)} يوم</span></div>
+                      </div>
+                      <div className="plan-progress"><div className="progress-track"><div className="progress-bar" style={{ width: `${getProgressPercent(packagesForm.standardStartDate, packagesForm.standardExpiryDate)}%` }}></div></div><div className="progress-label">{getProgressPercent(packagesForm.standardStartDate, packagesForm.standardExpiryDate)}%</div></div>
+                      <div className="plan-grid">
+                        <div className="field">
+                          <label>عدد الإعلانات الستاندر</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            min={0}
+                            value={packagesForm.standardAds}
+                            onChange={(e) => handlePackagesChange('standardAds', Number(e.target.value))}
+                            disabled={packagesModalState === 'loading' || packagesModalState === 'saving'}
+                          />
+                        </div>
+                        <div className="field">
+                          <label>عدد أيام صلاحية الستاندر</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            min={0}
+                            value={packagesForm.standardDays}
+                            onChange={(e) => handlePackagesChange('standardDays', Number(e.target.value))}
+                            disabled={packagesModalState === 'loading' || packagesModalState === 'saving'}
+                          />
+                        </div>
+                      </div>
+                      <label className="toggle-label compact">
+                        <span className="toggle-text">بدء الآن</span>
+                        <div className="toggle-switch-container">
+                          <input
+                            type="checkbox"
+                            className="toggle-input"
+                            checked={packagesForm.startStandardNow}
+                            onChange={(e) => {
+                              const v = e.target.checked;
+                              handlePackagesChange('startStandardNow', v);
+                              if (v) {
+                                handlePackagesChange('standardStartDate', new Date().toISOString().split('T')[0]);
+                                handlePackagesChange('startFeaturedNow', false);
+                              }
+                            }}
+                            disabled={packagesModalState === 'loading' || packagesModalState === 'saving'}
+                          />
+                          <span className="toggle-slider"></span>
+                          <span className="toggle-status">{packagesForm.startStandardNow ? 'مفعل' : 'مغلق'}</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
 
+                  {/* Dynamic Categories Section */}
+                  <div style={{ 
+                    marginTop: '24px',
+                    padding: '20px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '12px',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      marginBottom: '16px'
+                    }}>
+                      <div style={{
+                        width: '4px',
+                        height: '24px',
+                        backgroundColor: '#1c6b74',
+                        borderRadius: '2px'
+                      }} />
+                      <h4 style={{ 
+                        margin: 0,
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        color: '#111827'
+                      }}>الأقسام المسموحة ({dynamicCategories.length} قسم)</h4>
+                    </div>
+                    <DynamicCategoriesSection
+                      categories={dynamicCategories}
+                      selectedCategories={selectedPackageCategories}
+                      onToggle={handlePackageCategoryToggle}
+                      loadState={categoriesLoadState}
+                    />
+                  </div>
+
+                  {/* Package History Table */}
+                  <div style={{ 
+                    marginTop: '24px',
+                    padding: '20px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '12px',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      marginBottom: '16px'
+                    }}>
+                      <div style={{
+                        width: '4px',
+                        height: '24px',
+                        backgroundColor: '#1c6b74',
+                        borderRadius: '2px'
+                      }} />
+                      <h4 style={{ 
+                        margin: 0,
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        color: '#111827'
+                      }}>تاريخ الباقات ({packageHistory.length} سجل)</h4>
+                    </div>
+                    <PackageHistoryTable history={packageHistory} />
+                  </div>
+                </>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn-cancel" onClick={closePackagesModal}>إلغاء</button>
-              <button className="btn-save-package" onClick={savePackages}>حفظ الباقة</button>
+              <button 
+                className="btn-save-package" 
+                onClick={savePackages}
+                disabled={packagesModalState === 'loading' || packagesModalState === 'saving'}
+              >
+                {packagesModalState === 'saving' ? 'جاري الحفظ...' : 'حفظ الباقة'}
+              </button>
             </div>
           </div>
         </div>
@@ -2282,7 +3253,8 @@ export default function UsersPage() {
             <div className="modal-content">
               <div className="favorites-grid">
                 {categories.filter(c => c !== 'all').map((slug) => {
-                  const label = CATEGORY_LABELS_AR[slug] ?? slug;
+                  const categoryObj = dynamicCategories.find(cat => cat.slug === slug);
+                  const label = categoryObj?.nameAr ?? slug;
                   const checked = favoriteSlugs.includes(slug);
                   return (
                     <div key={slug} className="favorite-item">
@@ -2455,7 +3427,7 @@ export default function UsersPage() {
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center', 
+                          justifyContent: 'center',
                           transition: 'all 0.2s',
                           boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)'
                         }}

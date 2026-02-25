@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { fetchCarMakes, fetchCategoryFields, fetchCategoryFieldMaps, fetchCategoryMainSubsBatch, postAdminGovernorates, updateCategoryFieldOptions, fetchAdminMakesWithIds, postAdminMake, postAdminMakeModels, postAdminMainSection, postAdminSubSections, fetchAdminMainSectionsBatch, fetchAdminMainSections, deleteAdminMainSection, deleteAdminSubSection, fetchAdminSubSections, fetchPublicSubSections, updateAdminMake, deleteAdminMake, updateAdminModel, deleteAdminModel, fetchMakeModels, updateAdminMainSection, updateAdminSubSection, fetchAdminCategories, updateAdminCategoryActive, updateAdminCategoryImage, deleteAdminCategoryImage } from '@/services/makes';
 import { fetchGovernorates, fetchGovernorateById, fetchCitiesMappings, createGovernorate, updateGovernorate, deleteGovernorate, createCity, updateCity, deleteCity } from '@/services/governorates';
 import { fetchSystemSettings, updateSystemSettings, updatePublicSystemSettingsImage } from '@/services/systemSettings';
+import { processOptions, processOptionsMap, processHierarchicalOptions } from '@/utils/optionsHelper';
 import type { SystemSettingsData } from '@/models/system-settings';
 import type { AdminMainSectionRecord, AdminSubSectionRecord, AdminCategoryListItem } from '@/models/makes';
 
@@ -268,7 +269,7 @@ export default function CategoriesPage() {
     if (typeof id === 'number') setMAKE_IDS(prev => ({ ...prev, [name]: id! }));
   };
   const propagateModelsAdded = (brand: string, names: string[], idMap?: Record<string, number>) => {
-    const addTo = (prev: Record<string, string[]>) => { const existing = prev[brand] ?? []; const toAdd = names.filter(m => !existing.includes(m)); if (toAdd.length === 0) return prev; return { ...prev, [brand]: [...existing, ...toAdd] }; };
+    const addTo = (prev: Record<string, string[]>) => { const existing = prev[brand] ?? []; const toAdd = names.filter(m => !existing.includes(m)); if (toAdd.length === 0) return prev; return { ...prev, [brand]: processOptions([...existing, ...toAdd]) }; };
     setBRANDS_MODELS(prev => addTo(prev));
     setRENTAL_BRANDS_MODELS(prev => addTo(prev));
     setPARTS_BRANDS_MODELS(prev => addTo(prev));
@@ -313,6 +314,7 @@ export default function CategoriesPage() {
             map[it.name] = Array.isArray(it.models) ? it.models : [];
           }
         }
+        // البيانات جاية مرتبة من الباك إند - لا حاجة لإعادة الترتيب
         setBRANDS_MODELS(map);
         setRENTAL_BRANDS_MODELS(map);
         setPARTS_BRANDS_MODELS(map);
@@ -428,7 +430,7 @@ export default function CategoriesPage() {
         const existing = prev[selectedMain] ?? [];
         const toAdd = createdNames.filter(s => !existing.includes(s));
         if (toAdd.length === 0) return prev;
-        return { ...prev, [selectedMain]: [...existing, ...toAdd] };
+        return { ...prev, [selectedMain]: processOptions([...existing, ...toAdd]) };
       });
       if (Object.keys(idMap).length) {
         setSUB_IDS_BY_SLUG(prev => ({
@@ -745,36 +747,36 @@ export default function CategoriesPage() {
         setCarsTransmissionKey(findKey(cars, ['فتيس', 'ناقل', 'transmission', 'gear']));
         setCarsExteriorColorKey(findKey(cars, ['خارجي', 'exterior', 'color']));
         setCarsTypeKey(findKey(cars, ['النوع', 'type']));
-        if (year.length) setYearOptions(year.slice().sort((a, b) => Number(b) - Number(a)));
-        if (kms.length) setKmOptions(kms);
-        if (fuel.length) setFuelOptions(fuel);
-        if (trans.length) setTransmissionOptions(trans);
-        if (exterior.length) setExteriorColorOptions(exterior);
-        if (ctype.length) setCarTypeOptions(ctype);
+        if (year.length) setYearOptions(processOptions(year.slice().sort((a, b) => Number(b) - Number(a))));
+        if (kms.length) setKmOptions(processOptions(kms));
+        if (fuel.length) setFuelOptions(processOptions(fuel));
+        if (trans.length) setTransmissionOptions(processOptions(trans));
+        if (exterior.length) setExteriorColorOptions(processOptions(exterior));
+        if (ctype.length) setCarTypeOptions(processOptions(ctype));
         const rent = maps['cars_rent'];
         const rYear = pick(rent, ['سنة', 'year', 'تصنيع', 'model']);
         const drv = pick(rent, ['سائق', 'driver']);
         setRentalYearKey(findKey(rent, ['سنة', 'year', 'تصنيع', 'model']));
         setDriverKey(findKey(rent, ['سائق', 'driver']));
-        if (rYear.length) setRentalYearOptions(rYear.slice().sort((a, b) => Number(b) - Number(a)));
-        if (drv.length) setDriverOptions(drv);
+        if (rYear.length) setRentalYearOptions(processOptions(rYear.slice().sort((a, b) => Number(b) - Number(a))));
+        if (drv.length) setDriverOptions(processOptions(drv));
         const real = maps['real_estate'];
         const prop = pick(real, ['نوع العقار', 'property', 'estate', 'type']);
         const contract = pick(real, ['عقد', 'contract', 'rent', 'sale']);
         setRealPropertyKey(findKey(real, ['نوع العقار', 'property', 'estate', 'type']));
         setRealContractKey(findKey(real, ['عقد', 'contract', 'rent', 'sale']));
-        if (prop.length) setPropertyTypeOptions(prop);
-        if (contract.length) setContractTypeOptions(contract);
+        if (prop.length) setPropertyTypeOptions(processOptions(prop));
+        if (contract.length) setContractTypeOptions(processOptions(contract));
         const t = maps['teachers'];
         const tSpec = pick(t, ['specialization', 'teacher_specialty', 'تخصص', 'specialty', 'subject']);
         const tKey = findKey(t, ['specialization', 'teacher_specialty', 'تخصص', 'specialty', 'subject']);
         setTeacherSpecialtyKey(tKey || 'specialization');
-        if (tSpec.length) setTeacherSpecialtyOptions(tSpec);
+        if (tSpec.length) setTeacherSpecialtyOptions(processOptions(tSpec));
         const d = maps['doctors'];
         const dSpec = pick(d, ['specialization', 'doctor_specialty', 'تخصص', 'specialty']);
         const dKey = findKey(d, ['specialization', 'doctor_specialty', 'تخصص', 'specialty']);
         setDoctorSpecialtyKey(dKey || 'specialization');
-        if (dSpec.length) setDoctorSpecialtyOptions(dSpec);
+        if (dSpec.length) setDoctorSpecialtyOptions(processOptions(dSpec));
         const j = maps['jobs'];
         const jCat = pick(j, ['job_type', 'job_category', 'category', 'فئة', 'مجال', 'قسم', 'التصنيف']);
         const jSpec = pick(j, ['specialization', 'specialty', 'تخصص', 'التخصص']);
@@ -782,56 +784,56 @@ export default function CategoriesPage() {
         setJobSpecialtyKey(findKey(j, ['specialization', 'specialty', 'تخصص', 'التخصص']));
 
         // التصنيف والتخصص مستقلين - لا ربط بينهم
-        if (jCat.length) setJobCategoryOptions(jCat);
-        if (jSpec.length) setJobSpecialtyOptions(jSpec);
-        setPARTS_MAIN_SUBS(Object.keys(mainSubs['spare-parts'] ?? {}).length ? (mainSubs['spare-parts'] as Record<string, string[]>) : buildMainSubs(maps['spare-parts'], ['قطعة', 'part', 'نوع', 'رئيس', 'main', 'category', 'قسم'], ['compatible', 'متوافق', 'موديل', 'model', 'فرعي', 'sub', 'brand', 'ماركة']));
-        setANIMALS_MAIN_SUBS(Object.keys(mainSubs['animals'] ?? {}).length ? (mainSubs['animals'] as Record<string, string[]>) : buildMainSubs(maps['animals'], ['نوع', 'animal', 'حيوان', 'طيور', 'category'], ['سلالة', 'breed', 'sub', 'فرعي']));
+        if (jCat.length) setJobCategoryOptions(processOptions(jCat));
+        if (jSpec.length) setJobSpecialtyOptions(processOptions(jSpec));
+        setPARTS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['spare-parts'] ?? {}).length ? (mainSubs['spare-parts'] as Record<string, string[]>) : buildMainSubs(maps['spare-parts'], ['قطعة', 'part', 'نوع', 'رئيس', 'main', 'category', 'قسم'], ['compatible', 'متوافق', 'موديل', 'model', 'فرعي', 'sub', 'brand', 'ماركة'])));
+        setANIMALS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['animals'] ?? {}).length ? (mainSubs['animals'] as Record<string, string[]>) : buildMainSubs(maps['animals'], ['نوع', 'animal', 'حيوان', 'طيور', 'category'], ['سلالة', 'breed', 'sub', 'فرعي'])));
         setAnimalsMainKey(findKey(maps['animals'], ['نوع', 'animal', 'حيوان', 'طيور', 'category']));
         setAnimalsSubKey(findKey(maps['animals'], ['سلالة', 'breed', 'sub', 'فرعي']));
-        setFOOD_MAIN_SUBS(Object.keys(mainSubs['food-products'] ?? {}).length ? (mainSubs['food-products'] as Record<string, string[]>) : buildMainSubs(maps['food-products'], ['نوع', 'food', 'منتج', 'category'], ['sub', 'فرعي', 'فئة', 'تصنيف']));
+        setFOOD_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['food-products'] ?? {}).length ? (mainSubs['food-products'] as Record<string, string[]>) : buildMainSubs(maps['food-products'], ['نوع', 'food', 'منتج', 'category'], ['sub', 'فرعي', 'فئة', 'تصنيف'])));
         setFoodMainKey(findKey(maps['food-products'], ['نوع', 'food', 'منتج', 'category']));
         setFoodSubKey(findKey(maps['food-products'], ['sub', 'فرعي', 'فئة', 'تصنيف']));
-        setRESTAURANTS_MAIN_SUBS(Object.keys(mainSubs['restaurants'] ?? {}).length ? (mainSubs['restaurants'] as Record<string, string[]>) : buildMainSubs(maps['restaurants'], ['مطبخ', 'cuisine', 'نوع', 'category'], ['sub', 'فرعي', 'قائمة', 'menu']));
+        setRESTAURANTS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['restaurants'] ?? {}).length ? (mainSubs['restaurants'] as Record<string, string[]>) : buildMainSubs(maps['restaurants'], ['مطبخ', 'cuisine', 'نوع', 'category'], ['sub', 'فرعي', 'قائمة', 'menu'])));
         setRestaurantsMainKey(findKey(maps['restaurants'], ['مطبخ', 'cuisine', 'نوع', 'category']));
         setRestaurantsSubKey(findKey(maps['restaurants'], ['sub', 'فرعي', 'قائمة', 'menu']));
-        setSTORES_MAIN_SUBS(Object.keys(mainSubs['stores'] ?? {}).length ? (mainSubs['stores'] as Record<string, string[]>) : buildMainSubs(maps['stores'], ['نوع المتجر', 'store', 'نوع', 'category'], ['sub', 'فرعي']));
+        setSTORES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['stores'] ?? {}).length ? (mainSubs['stores'] as Record<string, string[]>) : buildMainSubs(maps['stores'], ['نوع المتجر', 'store', 'نوع', 'category'], ['sub', 'فرعي'])));
         setStoresMainKey(findKey(maps['stores'], ['نوع المتجر', 'store', 'نوع', 'category']));
         setStoresSubKey(findKey(maps['stores'], ['sub', 'فرعي']));
-        setGROCERIES_MAIN_SUBS(Object.keys(mainSubs['groceries'] ?? {}).length ? (mainSubs['groceries'] as Record<string, string[]>) : buildMainSubs(maps['groceries'], ['نوع', 'category', 'منتج'], ['sub', 'فرعي']));
+        setGROCERIES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['groceries'] ?? {}).length ? (mainSubs['groceries'] as Record<string, string[]>) : buildMainSubs(maps['groceries'], ['نوع', 'category', 'منتج'], ['sub', 'فرعي'])));
         setGroceriesMainKey(findKey(maps['groceries'], ['نوع', 'category', 'منتج']));
         setGroceriesSubKey(findKey(maps['groceries'], ['sub', 'فرعي']));
         setKIDS_SUPPLIES_TOYS_MAIN_SUBS(
-          Object.keys(mainSubs['kids-toys'] ?? {}).length
+          processHierarchicalOptions(Object.keys(mainSubs['kids-toys'] ?? {}).length
             ? (mainSubs['kids-toys'] as Record<string, string[]>)
             : buildMainSubs(
               maps['kids-toys'],
               ['نوع', 'category', 'لعب', 'مستلزمات', 'أطفال'],
               ['sub', 'فرعي']
-            )
+            ))
         );
-        setHOME_SERVICES_MAIN_SUBS(Object.keys(mainSubs['home-services'] ?? {}).length ? (mainSubs['home-services'] as Record<string, string[]>) : buildMainSubs(maps['home-services'], ['نوع الخدمة', 'service', 'نوع', 'category'], ['sub', 'فرعي']));
-        setFURNITURE_MAIN_SUBS(Object.keys(mainSubs['furniture'] ?? {}).length ? (mainSubs['furniture'] as Record<string, string[]>) : buildMainSubs(maps['furniture'], ['نوع الأثاث', 'furniture', 'نوع', 'category'], ['sub', 'فرعي', 'مادة', 'material']));
-        setHOUSEHOLD_TOOLS_MAIN_SUBS(Object.keys(mainSubs['home-tools'] ?? {}).length ? (mainSubs['home-tools'] as Record<string, string[]>) : buildMainSubs(maps['home-tools'], ['نوع الأداة', 'tool', 'نوع', 'category'], ['sub', 'فرعي']));
-        setHOME_APPLIANCES_MAIN_SUBS(Object.keys(mainSubs['home-appliances'] ?? {}).length ? (mainSubs['home-appliances'] as Record<string, string[]>) : buildMainSubs(maps['home-appliances'], ['نوع الجهاز', 'appliance', 'نوع', 'category'], ['sub', 'فرعي', 'موديل', 'model']));
-        setELECTRONICS_MAIN_SUBS(Object.keys(mainSubs['electronics'] ?? {}).length ? (mainSubs['electronics'] as Record<string, string[]>) : buildMainSubs(maps['electronics'], ['نوع الجهاز', 'device', 'نوع', 'category'], ['sub', 'فرعي', 'موديل', 'model']));
-        setHEALTH_MAIN_SUBS(Object.keys(mainSubs['health'] ?? {}).length ? (mainSubs['health'] as Record<string, string[]>) : buildMainSubs(maps['health'], ['نوع الخدمة', 'خدمة', 'category'], ['sub', 'فرعي', 'تخصص', 'specialty']));
-        setEDUCATION_MAIN_SUBS(Object.keys(mainSubs['education'] ?? {}).length ? (mainSubs['education'] as Record<string, string[]>) : buildMainSubs(maps['education'], ['مرحلة', 'المرحلة', 'education', 'category'], ['مادة', 'subject', 'sub', 'فرعي']));
-        setSHIPPING_MAIN_SUBS(Object.keys(mainSubs['shipping'] ?? {}).length ? (mainSubs['shipping'] as Record<string, string[]>) : buildMainSubs(maps['shipping'], ['نوع الشحن', 'shipping', 'نوع', 'category'], ['sub', 'فرعي']));
-        setMENS_CLOTHING_SHOES_MAIN_SUBS(Object.keys(mainSubs['mens-clothes'] ?? {}).length ? (mainSubs['mens-clothes'] as Record<string, string[]>) : buildMainSubs(maps['mens-clothes'], ['نوع المنتج', 'ملابس', 'category'], ['sub', 'فرعي', 'مقاس', 'size']));
-        setWATCHES_JEWELRY_MAIN_SUBS(Object.keys(mainSubs['watches-jewelry'] ?? {}).length ? (mainSubs['watches-jewelry'] as Record<string, string[]>) : buildMainSubs(maps['watches-jewelry'], ['نوع المنتج', 'ساعات', 'مجوهرات', 'category'], ['sub', 'فرعي']));
-        setFREELANCE_SERVICES_MAIN_SUBS(Object.keys(mainSubs['free-professions'] ?? {}).length ? (mainSubs['free-professions'] as Record<string, string[]>) : buildMainSubs(maps['free-professions'], ['نوع المهنة', 'مهن', 'category'], ['sub', 'فرعي']));
-        setCAR_SERVICES_MAIN_SUBS(Object.keys(mainSubs['car-services'] ?? {}).length ? (mainSubs['car-services'] as Record<string, string[]>) : buildMainSubs(maps['car-services'], ['نوع الخدمة', 'service', 'نوع', 'category'], ['sub', 'فرعي', 'سيارة', 'car']));
-        setGENERAL_MAINTENANCE_MAIN_SUBS(Object.keys(mainSubs['maintenance'] ?? {}).length ? (mainSubs['maintenance'] as Record<string, string[]>) : buildMainSubs(maps['maintenance'], ['نوع الصيانة', 'maintenance', 'نوع', 'category'], ['sub', 'فرعي']));
-        setCONSTRUCTION_TOOLS_MAIN_SUBS(Object.keys(mainSubs['construction'] ?? {}).length ? (mainSubs['construction'] as Record<string, string[]>) : buildMainSubs(maps['construction'], ['أدوات', 'construction', 'نوع', 'category'], ['sub', 'فرعي']));
-        setGYMS_MAIN_SUBS(Object.keys(mainSubs['gym'] ?? {}).length ? (mainSubs['gym'] as Record<string, string[]>) : buildMainSubs(maps['gym'], ['نوع العضوية', 'gym', 'نوع', 'category'], ['sub', 'فرعي']));
-        setBIKES_LIGHT_VEHICLES_MAIN_SUBS(Object.keys(mainSubs['light-vehicles'] ?? {}).length ? (mainSubs['light-vehicles'] as Record<string, string[]>) : buildMainSubs(maps['light-vehicles'], ['نوع المركبة', 'vehicle', 'نوع', 'category'], ['sub', 'فرعي']));
-        setMATERIALS_PRODUCTION_LINES_MAIN_SUBS(Object.keys(mainSubs['production-lines'] ?? {}).length ? (mainSubs['production-lines'] as Record<string, string[]>) : buildMainSubs(maps['production-lines'], ['خط', 'line', 'مادة', 'material', 'category'], ['sub', 'فرعي']));
-        setFARMS_FACTORIES_PRODUCTS_MAIN_SUBS(Object.keys(mainSubs['farm-products'] ?? {}).length ? (mainSubs['farm-products'] as Record<string, string[]>) : buildMainSubs(maps['farm-products'], ['نوع المنتج', 'product', 'category'], ['sub', 'فرعي']));
-        setLIGHTING_DECOR_MAIN_SUBS(Object.keys(mainSubs['lighting-decor'] ?? {}).length ? (mainSubs['lighting-decor'] as Record<string, string[]>) : buildMainSubs(maps['lighting-decor'], ['نوع المنتج', 'إضاءة', 'ديكور', 'category'], ['sub', 'فرعي']));
-        setMISSING_MAIN_SUBS(Object.keys(mainSubs['missing'] ?? {}).length ? (mainSubs['missing'] as Record<string, string[]>) : buildMainSubs(maps['missing'], ['نوع المفقود', 'missing', 'category'], ['sub', 'فرعي', 'تاريخ', 'date']));
-        setTOOLS_SUPPLIES_MAIN_SUBS(Object.keys(mainSubs['tools'] ?? {}).length ? (mainSubs['tools'] as Record<string, string[]>) : buildMainSubs(maps['tools'], ['نوع العدة', 'tools', 'نوع', 'category'], ['sub', 'فرعي']));
-        setWHOLESALE_MAIN_SUBS(Object.keys(mainSubs['wholesale'] ?? {}).length ? (mainSubs['wholesale'] as Record<string, string[]>) : buildMainSubs(maps['wholesale'], ['نوع المنتج', 'wholesale', 'category'], ['sub', 'فرعي']));
-        setHEAVY_EQUIPMENT_MAIN_SUBS(Object.keys(mainSubs['heavy-transport'] ?? {}).length ? (mainSubs['heavy-transport'] as Record<string, string[]>) : buildMainSubs(maps['heavy-transport'], ['نوع المعدة', 'equipment', 'نوع', 'category'], ['sub', 'فرعي']));
+        setHOME_SERVICES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['home-services'] ?? {}).length ? (mainSubs['home-services'] as Record<string, string[]>) : buildMainSubs(maps['home-services'], ['نوع الخدمة', 'service', 'نوع', 'category'], ['sub', 'فرعي'])));
+        setFURNITURE_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['furniture'] ?? {}).length ? (mainSubs['furniture'] as Record<string, string[]>) : buildMainSubs(maps['furniture'], ['نوع الأثاث', 'furniture', 'نوع', 'category'], ['sub', 'فرعي', 'مادة', 'material'])));
+        setHOUSEHOLD_TOOLS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['home-tools'] ?? {}).length ? (mainSubs['home-tools'] as Record<string, string[]>) : buildMainSubs(maps['home-tools'], ['نوع الأداة', 'tool', 'نوع', 'category'], ['sub', 'فرعي'])));
+        setHOME_APPLIANCES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['home-appliances'] ?? {}).length ? (mainSubs['home-appliances'] as Record<string, string[]>) : buildMainSubs(maps['home-appliances'], ['نوع الجهاز', 'appliance', 'نوع', 'category'], ['sub', 'فرعي', 'موديل', 'model'])));
+        setELECTRONICS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['electronics'] ?? {}).length ? (mainSubs['electronics'] as Record<string, string[]>) : buildMainSubs(maps['electronics'], ['نوع الجهاز', 'device', 'نوع', 'category'], ['sub', 'فرعي', 'موديل', 'model'])));
+        setHEALTH_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['health'] ?? {}).length ? (mainSubs['health'] as Record<string, string[]>) : buildMainSubs(maps['health'], ['نوع الخدمة', 'خدمة', 'category'], ['sub', 'فرعي', 'تخصص', 'specialty'])));
+        setEDUCATION_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['education'] ?? {}).length ? (mainSubs['education'] as Record<string, string[]>) : buildMainSubs(maps['education'], ['مرحلة', 'المرحلة', 'education', 'category'], ['مادة', 'subject', 'sub', 'فرعي'])));
+        setSHIPPING_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['shipping'] ?? {}).length ? (mainSubs['shipping'] as Record<string, string[]>) : buildMainSubs(maps['shipping'], ['نوع الشحن', 'shipping', 'نوع', 'category'], ['sub', 'فرعي'])));
+        setMENS_CLOTHING_SHOES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['mens-clothes'] ?? {}).length ? (mainSubs['mens-clothes'] as Record<string, string[]>) : buildMainSubs(maps['mens-clothes'], ['نوع المنتج', 'ملابس', 'category'], ['sub', 'فرعي', 'مقاس', 'size'])));
+        setWATCHES_JEWELRY_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['watches-jewelry'] ?? {}).length ? (mainSubs['watches-jewelry'] as Record<string, string[]>) : buildMainSubs(maps['watches-jewelry'], ['نوع المنتج', 'ساعات', 'مجوهرات', 'category'], ['sub', 'فرعي'])));
+        setFREELANCE_SERVICES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['free-professions'] ?? {}).length ? (mainSubs['free-professions'] as Record<string, string[]>) : buildMainSubs(maps['free-professions'], ['نوع المهنة', 'مهن', 'category'], ['sub', 'فرعي'])));
+        setCAR_SERVICES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['car-services'] ?? {}).length ? (mainSubs['car-services'] as Record<string, string[]>) : buildMainSubs(maps['car-services'], ['نوع الخدمة', 'service', 'نوع', 'category'], ['sub', 'فرعي', 'سيارة', 'car'])));
+        setGENERAL_MAINTENANCE_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['maintenance'] ?? {}).length ? (mainSubs['maintenance'] as Record<string, string[]>) : buildMainSubs(maps['maintenance'], ['نوع الصيانة', 'maintenance', 'نوع', 'category'], ['sub', 'فرعي'])));
+        setCONSTRUCTION_TOOLS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['construction'] ?? {}).length ? (mainSubs['construction'] as Record<string, string[]>) : buildMainSubs(maps['construction'], ['أدوات', 'construction', 'نوع', 'category'], ['sub', 'فرعي'])));
+        setGYMS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['gym'] ?? {}).length ? (mainSubs['gym'] as Record<string, string[]>) : buildMainSubs(maps['gym'], ['نوع العضوية', 'gym', 'نوع', 'category'], ['sub', 'فرعي'])));
+        setBIKES_LIGHT_VEHICLES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['light-vehicles'] ?? {}).length ? (mainSubs['light-vehicles'] as Record<string, string[]>) : buildMainSubs(maps['light-vehicles'], ['نوع المركبة', 'vehicle', 'نوع', 'category'], ['sub', 'فرعي'])));
+        setMATERIALS_PRODUCTION_LINES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['production-lines'] ?? {}).length ? (mainSubs['production-lines'] as Record<string, string[]>) : buildMainSubs(maps['production-lines'], ['خط', 'line', 'مادة', 'material', 'category'], ['sub', 'فرعي'])));
+        setFARMS_FACTORIES_PRODUCTS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['farm-products'] ?? {}).length ? (mainSubs['farm-products'] as Record<string, string[]>) : buildMainSubs(maps['farm-products'], ['نوع المنتج', 'product', 'category'], ['sub', 'فرعي'])));
+        setLIGHTING_DECOR_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['lighting-decor'] ?? {}).length ? (mainSubs['lighting-decor'] as Record<string, string[]>) : buildMainSubs(maps['lighting-decor'], ['نوع المنتج', 'إضاءة', 'ديكور', 'category'], ['sub', 'فرعي'])));
+        setMISSING_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['missing'] ?? {}).length ? (mainSubs['missing'] as Record<string, string[]>) : buildMainSubs(maps['missing'], ['نوع المفقود', 'missing', 'category'], ['sub', 'فرعي', 'تاريخ', 'date'])));
+        setTOOLS_SUPPLIES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['tools'] ?? {}).length ? (mainSubs['tools'] as Record<string, string[]>) : buildMainSubs(maps['tools'], ['نوع العدة', 'tools', 'نوع', 'category'], ['sub', 'فرعي'])));
+        setWHOLESALE_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['wholesale'] ?? {}).length ? (mainSubs['wholesale'] as Record<string, string[]>) : buildMainSubs(maps['wholesale'], ['نوع المنتج', 'wholesale', 'category'], ['sub', 'فرعي'])));
+        setHEAVY_EQUIPMENT_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['heavy-transport'] ?? {}).length ? (mainSubs['heavy-transport'] as Record<string, string[]>) : buildMainSubs(maps['heavy-transport'], ['نوع المعدة', 'equipment', 'نوع', 'category'], ['sub', 'فرعي'])));
         const parts = maps['spare-parts'];
         const brands = pick(parts, ['ماركة', 'brand', 'الشركة']);
         const models = pick(parts, ['موديل', 'model', 'طراز', 'type']);
@@ -1910,6 +1912,20 @@ export default function CategoriesPage() {
       showToast(msg, 'warning');
     }
   };
+  // دالة بسيطة لترتيب المفاتيح مع وضع "غير ذلك" في الآخر
+  const sortKeysWithOtherAtEnd = (obj: Record<string, any>): string[] => {
+    const keys = Object.keys(obj);
+    const otherKey = 'غير ذلك';
+    const filtered = keys.filter(k => k !== otherKey);
+    // ترتيب عكسي (من ي إلى أ)
+    filtered.sort((a, b) => b.localeCompare(a, 'ar'));
+    // إضافة "غير ذلك" في الآخر إذا كانت موجودة
+    if (keys.includes(otherKey)) {
+      filtered.push(otherKey);
+    }
+    return filtered;
+  };
+
   const models = selectedBrand ? BRANDS_MODELS[selectedBrand] ?? [] : [];
   const rentalModels = selectedRentalBrand ? RENTAL_BRANDS_MODELS[selectedRentalBrand] ?? [] : [];
   const partsModels = selectedPartsBrand ? PARTS_BRANDS_MODELS[selectedPartsBrand] ?? [] : [];
@@ -3870,7 +3886,7 @@ export default function CategoriesPage() {
             <div className="location-group">
               <label className="location-label">المحافظة</label>
               <ManagedSelect
-                options={Object.keys(GOVERNORATES_MAP)}
+                options={sortKeysWithOtherAtEnd(GOVERNORATES_MAP)}
                 value={selectedGovernorate}
                 onChange={(v) => { setSelectedGovernorate(v); setSelectedCity(''); }}
                 onDelete={(opt) => removeGovernorate(opt)}
@@ -4071,7 +4087,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">الماركة</label>
                             <ManagedSelect
-                              options={Object.keys(BRANDS_MODELS)}
+                              options={sortKeysWithOtherAtEnd(BRANDS_MODELS)}
                               value={selectedBrand}
                               onChange={(v) => { setSelectedBrand(v); setSelectedModel(''); }}
                               onDelete={(opt) => removeBrand(opt)}
@@ -4277,75 +4293,6 @@ export default function CategoriesPage() {
                               <button className="btn-add" onClick={addTeacherSpecialtyOption}>إضافة</button>
                             </div>
                           </div>
-                          <div className="location-group">
-                            <label className="location-label">الصورة الموحدة للقسم</label>
-                            {(() => {
-                              const defKey = getDefaultImageKey(category);
-                              if (!defKey) return null;
-                              const previewSrc = defaultImagePreview[defKey];
-                              const fullSrc = previewSrc || (defKey && systemSettings ? getImageSrc(systemSettings[defKey]) : null);
-                              return fullSrc ? (
-                                <div className="inline-actions">
-                                  <div
-                                    className="image-preview"
-                                    onClick={() => viewCategoryImage(fullSrc!)}
-                                    style={{ cursor: 'pointer' }}
-                                  >
-                                    <Image
-                                      src={fullSrc!}
-                                      alt="صورة القسم"
-                                      width={260}
-                                      height={188}
-                                    />
-                                  </div>
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => viewCategoryImage(fullSrc!)}
-                                  >
-                                    عرض
-                                  </button>
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => {
-                                      if (fileInputRef.current) {
-                                        fileInputRef.current.setAttribute('data-key', defKey);
-                                        fileInputRef.current.click();
-                                      }
-                                    }}
-                                    disabled={uploadingImage === defKey}
-                                  >
-                                    {uploadingImage === defKey ? 'جاري الرفع...' : 'استبدال'}
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="inline-actions">
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => {
-                                      if (fileInputRef.current) {
-                                        fileInputRef.current.setAttribute('data-key', defKey);
-                                        fileInputRef.current.click();
-                                      }
-                                    }}
-                                    disabled={uploadingImage === defKey}
-                                  >
-                                    {uploadingImage === defKey ? 'جاري الرفع...' : 'رفع صورة'}
-                                  </button>
-                                </div>
-                              );
-                            })()}
-                            <input
-                              id={`cat-img-${category.id}`}
-                              type="file"
-                              accept="image/*"
-                              style={{ display: 'none' }}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) uploadCategoryImage(category.id, f);
-                                e.currentTarget.value = '';
-                              }}
-                            />
-                          </div>
                         </div>
                       </div>
                     )}
@@ -4373,75 +4320,6 @@ export default function CategoriesPage() {
                               />
                               <button className="btn-add" onClick={addDoctorSpecialtyOption}>إضافة</button>
                             </div>
-                          </div>
-                          <div className="location-group">
-                            <label className="location-label">الصورة الموحدة للقسم</label>
-                            {(() => {
-                              const defKey = getDefaultImageKey(category);
-                              if (!defKey) return null;
-                              const previewSrc = defaultImagePreview[defKey];
-                              const fullSrc = previewSrc || (defKey && systemSettings ? getImageSrc(systemSettings[defKey]) : null);
-                              return fullSrc ? (
-                                <div className="inline-actions">
-                                  <div
-                                    className="image-preview"
-                                    onClick={() => viewCategoryImage(fullSrc!)}
-                                    style={{ cursor: 'pointer' }}
-                                  >
-                                    <Image
-                                      src={fullSrc!}
-                                      alt="صورة القسم"
-                                      width={260}
-                                      height={188}
-                                    />
-                                  </div>
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => viewCategoryImage(fullSrc!)}
-                                  >
-                                    عرض
-                                  </button>
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => {
-                                      if (fileInputRef.current) {
-                                        fileInputRef.current.setAttribute('data-key', defKey);
-                                        fileInputRef.current.click();
-                                      }
-                                    }}
-                                    disabled={uploadingImage === defKey}
-                                  >
-                                    {uploadingImage === defKey ? 'جاري الرفع...' : 'استبدال'}
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="inline-actions">
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => {
-                                      if (fileInputRef.current) {
-                                        fileInputRef.current.setAttribute('data-key', defKey);
-                                        fileInputRef.current.click();
-                                      }
-                                    }}
-                                    disabled={uploadingImage === defKey}
-                                  >
-                                    {uploadingImage === defKey ? 'جاري الرفع...' : 'رفع صورة'}
-                                  </button>
-                                </div>
-                              );
-                            })()}
-                            <input
-                              id={`cat-img-${category.id}`}
-                              type="file"
-                              accept="image/*"
-                              style={{ display: 'none' }}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) uploadCategoryImage(category.id, f);
-                                e.currentTarget.value = '';
-                              }}
-                            />
                           </div>
                         </div>
                       </div>
@@ -4492,75 +4370,6 @@ export default function CategoriesPage() {
                               <button className="btn-add" onClick={addJobSpecialtyOption}>إضافة</button>
                             </div>
                           </div>
-                          <div className="location-group">
-                            <label className="location-label">الصورة الموحدة للقسم</label>
-                            {(() => {
-                              const defKey = getDefaultImageKey(category);
-                              if (!defKey) return null;
-                              const previewSrc = defaultImagePreview[defKey];
-                              const fullSrc = previewSrc || (defKey && systemSettings ? getImageSrc(systemSettings[defKey]) : null);
-                              return fullSrc ? (
-                                <div className="inline-actions">
-                                  <div
-                                    className="image-preview"
-                                    onClick={() => viewCategoryImage(fullSrc!)}
-                                    style={{ cursor: 'pointer' }}
-                                  >
-                                    <Image
-                                      src={fullSrc!}
-                                      alt="صورة القسم"
-                                      width={260}
-                                      height={188}
-                                    />
-                                  </div>
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => viewCategoryImage(fullSrc!)}
-                                  >
-                                    عرض
-                                  </button>
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => {
-                                      if (fileInputRef.current) {
-                                        fileInputRef.current.setAttribute('data-key', defKey);
-                                        fileInputRef.current.click();
-                                      }
-                                    }}
-                                    disabled={uploadingImage === defKey}
-                                  >
-                                    {uploadingImage === defKey ? 'جاري الرفع...' : 'استبدال'}
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="inline-actions">
-                                  <button
-                                    className="btn-add"
-                                    onClick={() => {
-                                      if (fileInputRef.current) {
-                                        fileInputRef.current.setAttribute('data-key', defKey);
-                                        fileInputRef.current.click();
-                                      }
-                                    }}
-                                    disabled={uploadingImage === defKey}
-                                  >
-                                    {uploadingImage === defKey ? 'جاري الرفع...' : 'رفع صورة'}
-                                  </button>
-                                </div>
-                              );
-                            })()}
-                            <input
-                              id={`cat-img-${category.id}`}
-                              type="file"
-                              accept="image/*"
-                              style={{ display: 'none' }}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) uploadCategoryImage(category.id, f);
-                                e.currentTarget.value = '';
-                              }}
-                            />
-                          </div>
                         </div>
                       </div>
                     )}
@@ -4572,7 +4381,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(FOOD_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(FOOD_MAIN_SUBS)}
                               value={selectedFoodMain}
                               onChange={(v) => { setSelectedFoodMain(v); setSelectedFoodSub(''); }}
                               onDelete={(opt) => removeFoodMain(opt)}
@@ -4631,7 +4440,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(RESTAURANTS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(RESTAURANTS_MAIN_SUBS)}
                               value={selectedRestaurantMain}
                               onChange={(v) => { setSelectedRestaurantMain(v); setSelectedRestaurantSub(''); }}
                               onDelete={(opt) => removeRestaurantMain(opt)}
@@ -4690,7 +4499,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(STORES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(STORES_MAIN_SUBS)}
                               value={selectedStoreMain}
                               onChange={(v) => { setSelectedStoreMain(v); setSelectedStoreSub(''); }}
                               onDelete={(opt) => removeStoreMain(opt)}
@@ -4749,7 +4558,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(GROCERIES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(GROCERIES_MAIN_SUBS)}
                               value={selectedGroceryMain}
                               onChange={(v) => { setSelectedGroceryMain(v); setSelectedGrocerySub(''); }}
                               onDelete={(opt) => removeGroceryMain(opt)}
@@ -4808,7 +4617,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(HOME_SERVICES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(HOME_SERVICES_MAIN_SUBS)}
                               value={selectedHomeServiceMain}
                               onChange={(v) => { setSelectedHomeServiceMain(v); setSelectedHomeServiceSub(''); }}
                               onDelete={(opt) => removeHomeServiceMain(opt)}
@@ -4870,7 +4679,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(FURNITURE_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(FURNITURE_MAIN_SUBS)}
                               value={selectedFurnitureMain}
                               onChange={(v) => { setSelectedFurnitureMain(v); setSelectedFurnitureSub(''); }}
                               onDelete={(opt) => removeFurnitureMain(opt)}
@@ -4932,7 +4741,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(HOUSEHOLD_TOOLS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(HOUSEHOLD_TOOLS_MAIN_SUBS)}
                               value={selectedHouseholdToolMain}
                               onChange={(v) => { setSelectedHouseholdToolMain(v); setSelectedHouseholdToolSub(''); }}
                               onDelete={(opt) => removeHouseholdToolMain(opt)}
@@ -4994,7 +4803,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(HOME_APPLIANCES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(HOME_APPLIANCES_MAIN_SUBS)}
                               value={selectedHomeApplianceMain}
                               onChange={(v) => { setSelectedHomeApplianceMain(v); setSelectedHomeApplianceSub(''); }}
                               onDelete={(opt) => removeHomeApplianceMain(opt)}
@@ -5056,7 +4865,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(ELECTRONICS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(ELECTRONICS_MAIN_SUBS)}
                               value={selectedElectronicsMain}
                               onChange={(v) => { setSelectedElectronicsMain(v); setSelectedElectronicsSub(''); }}
                               onDelete={(opt) => removeElectronicsMain(opt)}
@@ -5118,7 +4927,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(HEALTH_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(HEALTH_MAIN_SUBS)}
                               value={selectedHealthMain}
                               onChange={(v) => { setSelectedHealthMain(v); setSelectedHealthSub(''); }}
                               onDelete={(opt) => removeHealthMain(opt)}
@@ -5180,7 +4989,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(EDUCATION_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(EDUCATION_MAIN_SUBS)}
                               value={selectedEducationMain}
                               onChange={(v) => { setSelectedEducationMain(v); setSelectedEducationSub(''); }}
                               onDelete={(opt) => removeEducationMain(opt)}
@@ -5231,7 +5040,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(SHIPPING_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(SHIPPING_MAIN_SUBS)}
                               value={selectedShippingMain}
                               onChange={(v) => { setSelectedShippingMain(v); setSelectedShippingSub(''); }}
                               onDelete={(opt) => removeShippingMain(opt)}
@@ -5275,7 +5084,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(MENS_CLOTHING_SHOES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(MENS_CLOTHING_SHOES_MAIN_SUBS)}
                               value={selectedMensClothingShoesMain}
                               onChange={(v) => { setSelectedMensClothingShoesMain(v); setSelectedMensClothingShoesSub(''); }}
                               onDelete={(opt) => removeMensClothingShoesMain(opt)}
@@ -5319,7 +5128,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(HEAVY_EQUIPMENT_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(HEAVY_EQUIPMENT_MAIN_SUBS)}
                               value={selectedHeavyEquipmentMain}
                               onChange={(v) => { setSelectedHeavyEquipmentMain(v); setSelectedHeavyEquipmentSub(''); }}
                               onDelete={(opt) => removeHeavyEquipmentMain(opt)}
@@ -5363,7 +5172,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(KIDS_SUPPLIES_TOYS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(KIDS_SUPPLIES_TOYS_MAIN_SUBS)}
                               value={selectedKidsSuppliesToysMain}
                               onChange={(v) => { setSelectedKidsSuppliesToysMain(v); setSelectedKidsSuppliesToysSub(''); }}
                               onDelete={(opt) => removeKidsSuppliesToysMain(opt)}
@@ -5407,7 +5216,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(FREELANCE_SERVICES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(FREELANCE_SERVICES_MAIN_SUBS)}
                               value={selectedFreelanceServicesMain}
                               onChange={(v) => { setSelectedFreelanceServicesMain(v); setSelectedFreelanceServicesSub(''); }}
                               onDelete={(opt) => removeFreelanceServicesMain(opt)}
@@ -5451,7 +5260,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(WATCHES_JEWELRY_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(WATCHES_JEWELRY_MAIN_SUBS)}
                               value={selectedWatchesJewelryMain}
                               onChange={(v) => { setSelectedWatchesJewelryMain(v); setSelectedWatchesJewelrySub(''); }}
                               onDelete={(opt) => removeWatchesJewelryMain(opt)}
@@ -5495,7 +5304,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(CAR_SERVICES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(CAR_SERVICES_MAIN_SUBS)}
                               value={selectedCarServicesMain}
                               onChange={(v) => { setSelectedCarServicesMain(v); setSelectedCarServicesSub(''); }}
                               onDelete={(opt) => removeCarServicesMain(opt)}
@@ -5539,7 +5348,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(GENERAL_MAINTENANCE_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(GENERAL_MAINTENANCE_MAIN_SUBS)}
                               value={selectedGeneralMaintenanceMain}
                               onChange={(v) => { setSelectedGeneralMaintenanceMain(v); setSelectedGeneralMaintenanceSub(''); }}
                               onDelete={(opt) => removeGeneralMaintenanceMain(opt)}
@@ -5583,7 +5392,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(CONSTRUCTION_TOOLS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(CONSTRUCTION_TOOLS_MAIN_SUBS)}
                               value={selectedConstructionToolsMain}
                               onChange={(v) => { setSelectedConstructionToolsMain(v); setSelectedConstructionToolsSub(''); }}
                               onDelete={(opt) => removeConstructionToolsMain(opt)}
@@ -5627,7 +5436,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(GYMS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(GYMS_MAIN_SUBS)}
                               value={selectedGymsMain}
                               onChange={(v) => { setSelectedGymsMain(v); setSelectedGymsSub(''); }}
                               onDelete={(opt) => removeGymsMain(opt)}
@@ -5671,7 +5480,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(BIKES_LIGHT_VEHICLES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(BIKES_LIGHT_VEHICLES_MAIN_SUBS)}
                               value={selectedBikesLightVehiclesMain}
                               onChange={(v) => { setSelectedBikesLightVehiclesMain(v); setSelectedBikesLightVehiclesSub(''); }}
                               onDelete={(opt) => removeBikesLightVehiclesMain(opt)}
@@ -5715,7 +5524,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(MATERIALS_PRODUCTION_LINES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(MATERIALS_PRODUCTION_LINES_MAIN_SUBS)}
                               value={selectedMaterialsProductionLinesMain}
                               onChange={(v) => { setSelectedMaterialsProductionLinesMain(v); setSelectedMaterialsProductionLinesSub(''); }}
                               onDelete={(opt) => removeMaterialsProductionLinesMain(opt)}
@@ -5759,7 +5568,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(FARMS_FACTORIES_PRODUCTS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(FARMS_FACTORIES_PRODUCTS_MAIN_SUBS)}
                               value={selectedFarmsFactoriesProductsMain}
                               onChange={(v) => { setSelectedFarmsFactoriesProductsMain(v); setSelectedFarmsFactoriesProductsSub(''); }}
                               onDelete={(opt) => removeFarmsFactoriesProductsMain(opt)}
@@ -5803,7 +5612,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(LIGHTING_DECOR_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(LIGHTING_DECOR_MAIN_SUBS)}
                               value={selectedLightingDecorMain}
                               onChange={(v) => { setSelectedLightingDecorMain(v); setSelectedLightingDecorSub(''); }}
                               onDelete={(opt) => removeLightingDecorMain(opt)}
@@ -5847,7 +5656,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(MISSING_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(MISSING_MAIN_SUBS)}
                               value={selectedMissingMain}
                               onChange={(v) => { setSelectedMissingMain(v); setSelectedMissingSub(''); }}
                               onDelete={(opt) => removeMissingMain(opt)}
@@ -5891,7 +5700,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(TOOLS_SUPPLIES_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(TOOLS_SUPPLIES_MAIN_SUBS)}
                               value={selectedToolsSuppliesMain}
                               onChange={(v) => { setSelectedToolsSuppliesMain(v); setSelectedToolsSuppliesSub(''); }}
                               onDelete={(opt) => removeToolsSuppliesMain(opt)}
@@ -5935,7 +5744,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(WHOLESALE_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(WHOLESALE_MAIN_SUBS)}
                               value={selectedWholesaleMain}
                               onChange={(v) => { setSelectedWholesaleMain(v); setSelectedWholesaleSub(''); }}
                               onDelete={(opt) => removeWholesaleMain(opt)}
@@ -5979,7 +5788,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">الماركة</label>
                             <ManagedSelect
-                              options={Object.keys(PARTS_BRANDS_MODELS)}
+                              options={sortKeysWithOtherAtEnd(PARTS_BRANDS_MODELS)}
                               value={selectedPartsBrand}
                               onChange={(v) => { setSelectedPartsBrand(v); setSelectedPartsModel(''); }}
                               onDelete={(opt) => removePartsBrand(opt)}
@@ -6034,7 +5843,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(PARTS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(PARTS_MAIN_SUBS)}
                               value={selectedPartsMain}
                               onChange={(v) => { setSelectedPartsMain(v); setSelectedPartsSub(''); }}
                               onDelete={(opt) => removePartsMain(opt)}
@@ -6096,7 +5905,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">الماركة</label>
                             <ManagedSelect
-                              options={Object.keys(RENTAL_BRANDS_MODELS)}
+                              options={sortKeysWithOtherAtEnd(RENTAL_BRANDS_MODELS)}
                               value={selectedRentalBrand}
                               onChange={(v) => { setSelectedRentalBrand(v); setSelectedRentalModel(''); }}
                               onDelete={(opt) => removeRentalBrand(opt)}
@@ -6249,7 +6058,7 @@ export default function CategoriesPage() {
                           <div className="location-group">
                             <label className="location-label">رئيسي</label>
                             <ManagedSelect
-                              options={Object.keys(ANIMALS_MAIN_SUBS)}
+                              options={sortKeysWithOtherAtEnd(ANIMALS_MAIN_SUBS)}
                               value={selectedAnimalMain}
                               onChange={(v) => { setSelectedAnimalMain(v); setSelectedAnimalSub(''); }}
                               onDelete={(opt) => removeAnimalMain(opt)}

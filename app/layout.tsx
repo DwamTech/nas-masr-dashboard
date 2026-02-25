@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
+import AuthGuard from "../components/auth/AuthGuard";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -50,11 +51,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
         {(isHomeIntro || isNewLanding || isLegalPage) ? (
           <main>{children}</main>
         ) : (
-          <div className="dashboard-layout">
-            <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
-            <Header onToggleSidebar={toggleSidebar} />
-            <main className="content">{children}</main>
-          </div>
+          <AuthGuard>
+            <div className="dashboard-layout">
+              <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+              <Header onToggleSidebar={toggleSidebar} />
+              <main className="content">{children}</main>
+            </div>
+          </AuthGuard>
         )}
       </body>
     </html>

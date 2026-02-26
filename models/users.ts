@@ -218,3 +218,22 @@ export interface GetUserPackageResponse {
   message: string;
   data: GetUserPackageData | null;
 }
+
+export interface FeaturedCategoryItem {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface FeaturedAdvertiserData {
+  id: number;
+  user_id: number;
+  category_ids: number[];
+  is_active: boolean;
+  categories: FeaturedCategoryItem[];
+}
+
+export interface FetchUserFeaturedCategoriesResponse {
+  data: FeaturedAdvertiserData | null;
+  message?: string;
+}

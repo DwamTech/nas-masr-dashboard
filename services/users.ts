@@ -1,4 +1,4 @@
-import { UsersSummaryResponse, UpdateUserPayload, UpdateUserResponse, BlockUserResponse, DeleteUserResponse, CreateUserPayload, CreateUserResponse, ChangePasswordResponse, CreateOtpResponse, SingleUserListingsResponse, CategoriesResponse, AssignUserPackagePayload, AssignUserPackageResponse, SetFeaturedPayload, SetFeaturedResponse, DisableFeaturedResponse, DelegateClientsResponse, GetUserPackageResponse } from '@/models/users';
+import { UsersSummaryResponse, UpdateUserPayload, UpdateUserResponse, BlockUserResponse, DeleteUserResponse, CreateUserPayload, CreateUserResponse, ChangePasswordResponse, CreateOtpResponse, SingleUserListingsResponse, CategoriesResponse, AssignUserPackagePayload, AssignUserPackageResponse, SetFeaturedPayload, SetFeaturedResponse, DisableFeaturedResponse, DelegateClientsResponse, GetUserPackageResponse, FetchUserFeaturedCategoriesResponse } from '@/models/users';
 
 
 export async function fetchUsersSummary(token?: string): Promise<UsersSummaryResponse> {
@@ -298,5 +298,44 @@ export async function fetchUserPackage(userId: number | string, token?: string):
     throw new Error(message);
   }
   return data;
+}
+
+export async function fetchUserFeaturedCategories(userId: number | string, token?: string): Promise<FetchUserFeaturedCategoriesResponse> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  try {
+    const res = await fetch(`https://back.nasmasr.app/api/admin/featured/${userId}`, {
+      method: 'GET',
+      headers,
+    });
+
+    const raw = (await res.json().catch(() => null)) as unknown;
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        // المستخدم ليس معلناً مميزاً
+        return { data: null, message: 'Best advertiser not found' };
+      }
+
+      const err = raw as { error?: string; message?: string } | null;
+      const message = (err?.error || err?.message || 'تعذر جلب بيانات المعلن المميز');
+      throw new Error(message);
+    }
+
+    const data = raw as FetchUserFeaturedCategoriesResponse | null;
+    if (!data) {
+      throw new Error('تعذر جلب بيانات المعلن المميز');
+    }
+
+    return data;
+  } catch (error) {
+    // في حالة فشل الاتصال أو أي خطأ آخر
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('تعذر جلب بيانات المعلن المميز');
+  }
 }
 

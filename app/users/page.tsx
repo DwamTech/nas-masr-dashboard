@@ -5,7 +5,7 @@ import Image from 'next/image';
 import ManagedSelect from '@/components/ManagedSelect';
 import { CATEGORY_LABELS_AR } from '@/constants/categories';
 import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Search, RefreshCw, Calendar } from 'lucide-react';
-import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, fetchCategories, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage } from '@/services/users';
+import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, fetchCategories, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage, fetchUserFeaturedCategories } from '@/services/users';
 import { CATEGORY_SLUGS, CategorySlug } from '@/models/makes';
 import { UsersMeta, AssignUserPackagePayload, UsersSummaryResponse, DelegateClient } from '@/models/users';
 
@@ -991,6 +991,8 @@ export default function UsersPage() {
   const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
   const [selectedUserForFavorites, setSelectedUserForFavorites] = useState<User | null>(null);
   const [favoriteSlugs, setFavoriteSlugs] = useState<string[]>([]);
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
+  const [favoritesError, setFavoritesError] = useState<string | null>(null);
 
   // Delegate Clients modal state
   const [isDelegateClientsModalOpen, setIsDelegateClientsModalOpen] = useState(false);
@@ -1078,16 +1080,46 @@ export default function UsersPage() {
     }
   };
 
-  const openFavoritesModal = (user: User) => {
+  const openFavoritesModal = async (user: User) => {
     setSelectedUserForFavorites(user);
-    try {
-      const raw = localStorage.getItem(FAV_LS_PREFIX + user.id);
-      const arr = raw ? JSON.parse(raw) as string[] : [];
-      setFavoriteSlugs(Array.isArray(arr) ? arr.filter(Boolean) : []);
-    } catch {
-      setFavoriteSlugs([]);
-    }
     setIsFavoritesModalOpen(true);
+    setIsLoadingFavorites(true);
+    setFavoritesError(null);
+    
+    try {
+      // جلب البيانات من API
+      const response = await fetchUserFeaturedCategories(user.id);
+      
+      if (response.data && response.data.categories) {
+        // تحويل الأقسام إلى slugs
+        const slugs = response.data.categories.map(cat => cat.slug);
+        setFavoriteSlugs(slugs);
+        
+        // تحديث localStorage ليتطابق مع البيانات من API
+        localStorage.setItem(FAV_LS_PREFIX + user.id, JSON.stringify(slugs));
+        if (response.data.id) {
+          localStorage.setItem(FAV_RECORD_PREFIX + user.id, String(response.data.id));
+        }
+      } else {
+        // المستخدم ليس معلناً مميزاً
+        setFavoriteSlugs([]);
+        localStorage.setItem(FAV_LS_PREFIX + user.id, JSON.stringify([]));
+      }
+    } catch (error) {
+      // في حالة فشل API، استخدم localStorage كـ fallback
+      console.error('فشل جلب بيانات المعلن المميز من API:', error);
+      setFavoritesError('تعذر جلب البيانات من الخادم، يتم عرض البيانات المحلية');
+      
+      try {
+        const raw = localStorage.getItem(FAV_LS_PREFIX + user.id);
+        const arr = raw ? JSON.parse(raw) as string[] : [];
+        setFavoriteSlugs(Array.isArray(arr) ? arr.filter(Boolean) : []);
+      } catch {
+        setFavoriteSlugs([]);
+      }
+    } finally {
+      setIsLoadingFavorites(false);
+    }
   };
   const closeFavoritesModal = () => {
     setIsFavoritesModalOpen(false);
@@ -3251,30 +3283,52 @@ export default function UsersPage() {
               <button className="modal-close" onClick={closeFavoritesModal}>✕</button>
             </div>
             <div className="modal-content">
-              <div className="favorites-grid">
-                {categories.filter(c => c !== 'all').map((slug) => {
-                  const categoryObj = dynamicCategories.find(cat => cat.slug === slug);
-                  const label = categoryObj?.nameAr ?? slug;
-                  const checked = favoriteSlugs.includes(slug);
-                  return (
-                    <div key={slug} className="favorite-item">
-                      <div className="favorite-label">{label}</div>
-                      <label className="toggle-label compact">
-                        <div className="toggle-switch-container">
-                          <input
-                            type="checkbox"
-                            className="toggle-input"
-                            checked={checked}
-                            onChange={(e) => toggleFavoriteSlug(slug, e.target.checked)}
-                          />
-                          <span className="toggle-slider"></span>
-                          <span className="toggle-status">{checked ? 'مفضل' : 'غير مفضل'}</span>
-                        </div>
-                      </label>
+              {isLoadingFavorites ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <div className="spinner" style={{ margin: '0 auto' }}></div>
+                  <p style={{ marginTop: '1rem', color: '#666' }}>جاري تحميل البيانات...</p>
+                </div>
+              ) : (
+                <>
+                  {favoritesError && (
+                    <div style={{ 
+                      padding: '0.75rem', 
+                      marginBottom: '1rem', 
+                      backgroundColor: '#fff3cd', 
+                      border: '1px solid #ffc107',
+                      borderRadius: '8px',
+                      color: '#856404',
+                      fontSize: '0.9rem'
+                    }}>
+                      ⚠️ {favoritesError}
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                  <div className="favorites-grid">
+                    {categories.filter(c => c !== 'all').map((slug) => {
+                      const categoryObj = dynamicCategories.find(cat => cat.slug === slug);
+                      const label = categoryObj?.nameAr ?? slug;
+                      const checked = favoriteSlugs.includes(slug);
+                      return (
+                        <div key={slug} className="favorite-item">
+                          <div className="favorite-label">{label}</div>
+                          <label className="toggle-label compact">
+                            <div className="toggle-switch-container">
+                              <input
+                                type="checkbox"
+                                className="toggle-input"
+                                checked={checked}
+                                onChange={(e) => toggleFavoriteSlug(slug, e.target.checked)}
+                              />
+                              <span className="toggle-slider"></span>
+                              <span className="toggle-status">{checked ? 'مفضل' : 'غير مفضل'}</span>
+                            </div>
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn-cancel" onClick={clearFavoritesForUser}>إلغاء التفضيل للجميع</button>

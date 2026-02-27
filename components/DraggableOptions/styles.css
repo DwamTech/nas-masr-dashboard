@@ -1,76 +1,140 @@
-/* Drag Handle Styles */
-.drag-handle {
-    cursor: grab;
-    padding: 0 8px;
-    color: #999;
-    user-select: none;
-    display: inline-flex;
-    align-items: center;
-    font-size: 16px;
-    line-height: 1;
-    transition: color 0.2s ease;
-}
+/* ===================================
+   Drag & Drop Styles - Enhanced UX
+   =================================== */
 
-.drag-handle:hover {
-    color: #666;
-}
-
-.drag-handle:active {
-    cursor: grabbing;
-    color: #333;
-}
-
-/* RTL Support */
-[dir="rtl"] .drag-handle {
-    margin-left: 8px;
-    margin-right: 0;
-}
-
-[dir="ltr"] .drag-handle {
-    margin-right: 8px;
-    margin-left: 0;
+/* Container */
+.models-list {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: #fafafa;
+    border-radius: 8px;
+    min-height: 60px;
 }
 
 /* Draggable Option Container */
 .draggable-option {
     display: inline-flex;
     align-items: center;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    position: relative;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    /* Force GPU acceleration */
+    backface-visibility: hidden;
 }
 
-/* Dragging State */
+/* Disable transitions during drag for smoother movement */
 .draggable-option.dragging {
-    opacity: 0.5;
+    transition: none !important;
+}
+
+/* Drag Handle */
+.drag-handle {
+    cursor: grab;
+    padding: 8px 12px;
+    color: #bbb;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.drag-handle:hover {
+    color: #4CAF50;
+    background: rgba(76, 175, 80, 0.08);
+}
+
+.drag-handle:active {
     cursor: grabbing;
+    color: #388E3C;
+    background: rgba(76, 175, 80, 0.15);
 }
 
+/* RTL Support */
+[dir="rtl"] .drag-handle {
+    margin-left: 0;
+    margin-right: 8px;
+}
+
+/* Dragging State - More visible */
+.draggable-option.dragging {
+    opacity: 0.4;
+    transform: scale(0.98);
+}
+
+/* Drop Zone Indicator - Clear visual feedback */
 .draggable-option.over {
-    background-color: rgba(76, 175, 80, 0.1);
+    background: linear-gradient(to bottom,
+            rgba(76, 175, 80, 0.15) 0%,
+            rgba(76, 175, 80, 0.05) 100%);
+    border-radius: 6px;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
 }
 
-/* Drag Overlay */
+/* Drag Overlay - Enhanced */
 .drag-overlay {
     background: white;
     border: 2px solid #4CAF50;
-    border-radius: 4px;
-    padding: 4px 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 6px 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     cursor: grabbing;
+    transform: rotate(2deg);
+    opacity: 0.95;
 }
 
-/* Drop Indicator */
+/* Drop Indicator Line */
 .drop-indicator {
-    height: 2px;
-    background: #4CAF50;
-    margin: 4px 0;
-    transition: all 0.2s ease;
-    border-radius: 1px;
+    height: 3px;
+    background: linear-gradient(to right,
+            transparent 0%,
+            #4CAF50 20%,
+            #4CAF50 80%,
+            transparent 100%);
+    margin: 6px 0;
+    border-radius: 2px;
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
-/* Saving State */
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Saving State - Better feedback */
 .models-list.saving {
-    opacity: 0.7;
+    opacity: 0.6;
     pointer-events: none;
+    position: relative;
+}
+
+.models-list.saving::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(2px);
+    border-radius: 8px;
+    z-index: 10;
 }
 
 .models-list.saving::after {
@@ -79,21 +143,113 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.9);
-    padding: 8px 16px;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     font-size: 14px;
-    color: #666;
+    font-weight: 500;
+    color: #4CAF50;
+    z-index: 11;
+    animation: fadeIn 0.3s ease;
 }
 
-/* Hover Effects */
-.model-tag:has(.drag-handle):hover {
-    background-color: rgba(0, 0, 0, 0.02);
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* Model Tag Enhancement */
+.model-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 0;
+}
+
+.draggable-option:hover .model-tag {
+    border-color: #4CAF50;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
+}
+
+/* Tag Remove Button */
+.tag-remove {
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.tag-remove:hover {
+    background: #ffebee;
+    color: #f44336;
 }
 
 /* Disabled State */
-.drag-handle[disabled] {
+.drag-handle[disabled],
+.draggable-option.disabled .drag-handle {
     cursor: not-allowed;
-    opacity: 0.5;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Empty State */
+.models-list:empty::before {
+    content: "لا توجد عناصر";
+    display: block;
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-size: 14px;
+}
+
+/* Smooth Transitions */
+.draggable-option,
+.model-tag,
+.drag-handle {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus Styles for Accessibility */
+.drag-handle:focus-visible {
+    outline: 2px solid #4CAF50;
+    outline-offset: 2px;
+}
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+    .drag-handle {
+        padding: 10px 14px;
+        font-size: 20px;
+    }
+
+    .model-tag {
+        padding: 10px 14px;
+        font-size: 15px;
+    }
+
+    .models-list {
+        gap: 10px;
+        padding: 14px;
+    }
 }

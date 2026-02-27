@@ -24,22 +24,22 @@ export function useDragAndDrop({
 }: UseDragAndDropOptions) {
     const [activeId, setActiveId] = useState<string | null>(null);
 
-    // Setup sensors for mouse, touch, and keyboard
+    // Setup sensors with better activation constraints for smoother UX
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8, // 8px movement required before drag starts
+                distance: 5, // Reduced from 8px for more responsive feel
             },
         }),
         useSensor(MouseSensor, {
             activationConstraint: {
-                distance: 8,
+                distance: 5,
             },
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 200,
-                tolerance: 5,
+                delay: 150, // Reduced from 200ms for faster response
+                tolerance: 8, // Increased tolerance for better mobile UX
             },
         }),
         useSensor(KeyboardSensor, {

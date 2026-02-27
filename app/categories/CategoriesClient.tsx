@@ -304,6 +304,84 @@ export default function CategoriesPage() {
   const [selectedModel, setSelectedModel] = useState('');
   const [newBrand, setNewBrand] = useState('');
   const [newModelsBulk, setNewModelsBulk] = useState('');
+
+  // Collapsible state for drag & drop lists
+  const [showBrandsReorder, setShowBrandsReorder] = useState(false);
+  const [showModelsReorder, setShowModelsReorder] = useState(false);
+  const [showYearReorder, setShowYearReorder] = useState(false);
+  const [showKmReorder, setShowKmReorder] = useState(false);
+  const [showCarTypeReorder, setShowCarTypeReorder] = useState(false);
+  const [showExteriorColorReorder, setShowExteriorColorReorder] = useState(false);
+  const [showTransmissionReorder, setShowTransmissionReorder] = useState(false);
+  const [showFuelReorder, setShowFuelReorder] = useState(false);
+  const [showTeacherSpecialtyReorder, setShowTeacherSpecialtyReorder] = useState(false);
+  const [showDoctorSpecialtyReorder, setShowDoctorSpecialtyReorder] = useState(false);
+  const [showJobCategoryReorder, setShowJobCategoryReorder] = useState(false);
+  const [showJobSpecialtyReorder, setShowJobSpecialtyReorder] = useState(false);
+  const [showFoodMainReorder, setShowFoodMainReorder] = useState(false);
+  const [showFoodSubReorder, setShowFoodSubReorder] = useState(false);
+  const [showPropertyTypeReorder, setShowPropertyTypeReorder] = useState(false);
+  const [showContractTypeReorder, setShowContractTypeReorder] = useState(false);
+
+  // Hierarchical menus collapsible state
+  const [showPartsMainReorder, setShowPartsMainReorder] = useState(false);
+  const [showPartsSubReorder, setShowPartsSubReorder] = useState(false);
+  const [showAnimalsMainReorder, setShowAnimalsMainReorder] = useState(false);
+  const [showAnimalsSubReorder, setShowAnimalsSubReorder] = useState(false);
+  const [showRestaurantsMainReorder, setShowRestaurantsMainReorder] = useState(false);
+  const [showRestaurantsSubReorder, setShowRestaurantsSubReorder] = useState(false);
+  const [showStoresMainReorder, setShowStoresMainReorder] = useState(false);
+  const [showStoresSubReorder, setShowStoresSubReorder] = useState(false);
+  const [showGroceriesMainReorder, setShowGroceriesMainReorder] = useState(false);
+  const [showGroceriesSubReorder, setShowGroceriesSubReorder] = useState(false);
+  const [showKidsToysMainReorder, setShowKidsToysMainReorder] = useState(false);
+  const [showKidsToysSubReorder, setShowKidsToysSubReorder] = useState(false);
+  const [showHomeServicesMainReorder, setShowHomeServicesMainReorder] = useState(false);
+  const [showHomeServicesSubReorder, setShowHomeServicesSubReorder] = useState(false);
+  const [showFurnitureMainReorder, setShowFurnitureMainReorder] = useState(false);
+  const [showFurnitureSubReorder, setShowFurnitureSubReorder] = useState(false);
+  const [showHouseholdToolsMainReorder, setShowHouseholdToolsMainReorder] = useState(false);
+  const [showHouseholdToolsSubReorder, setShowHouseholdToolsSubReorder] = useState(false);
+  const [showHomeAppliancesMainReorder, setShowHomeAppliancesMainReorder] = useState(false);
+  const [showHomeAppliancesSubReorder, setShowHomeAppliancesSubReorder] = useState(false);
+  const [showElectronicsMainReorder, setShowElectronicsMainReorder] = useState(false);
+  const [showElectronicsSubReorder, setShowElectronicsSubReorder] = useState(false);
+  const [showHealthMainReorder, setShowHealthMainReorder] = useState(false);
+  const [showHealthSubReorder, setShowHealthSubReorder] = useState(false);
+  const [showEducationMainReorder, setShowEducationMainReorder] = useState(false);
+  const [showEducationSubReorder, setShowEducationSubReorder] = useState(false);
+  const [showShippingMainReorder, setShowShippingMainReorder] = useState(false);
+  const [showShippingSubReorder, setShowShippingSubReorder] = useState(false);
+  const [showMensClothingMainReorder, setShowMensClothingMainReorder] = useState(false);
+  const [showMensClothingSubReorder, setShowMensClothingSubReorder] = useState(false);
+  const [showWatchesJewelryMainReorder, setShowWatchesJewelryMainReorder] = useState(false);
+  const [showWatchesJewelrySubReorder, setShowWatchesJewelrySubReorder] = useState(false);
+  const [showFreelanceMainReorder, setShowFreelanceMainReorder] = useState(false);
+  const [showFreelanceSubReorder, setShowFreelanceSubReorder] = useState(false);
+  const [showCarServicesMainReorder, setShowCarServicesMainReorder] = useState(false);
+  const [showCarServicesSubReorder, setShowCarServicesSubReorder] = useState(false);
+  const [showMaintenanceMainReorder, setShowMaintenanceMainReorder] = useState(false);
+  const [showMaintenanceSubReorder, setShowMaintenanceSubReorder] = useState(false);
+  const [showConstructionMainReorder, setShowConstructionMainReorder] = useState(false);
+  const [showConstructionSubReorder, setShowConstructionSubReorder] = useState(false);
+  const [showGymsMainReorder, setShowGymsMainReorder] = useState(false);
+  const [showGymsSubReorder, setShowGymsSubReorder] = useState(false);
+  const [showLightVehiclesMainReorder, setShowLightVehiclesMainReorder] = useState(false);
+  const [showLightVehiclesSubReorder, setShowLightVehiclesSubReorder] = useState(false);
+  const [showProductionLinesMainReorder, setShowProductionLinesMainReorder] = useState(false);
+  const [showProductionLinesSubReorder, setShowProductionLinesSubReorder] = useState(false);
+  const [showFarmProductsMainReorder, setShowFarmProductsMainReorder] = useState(false);
+  const [showFarmProductsSubReorder, setShowFarmProductsSubReorder] = useState(false);
+  const [showLightingDecorMainReorder, setShowLightingDecorMainReorder] = useState(false);
+  const [showLightingDecorSubReorder, setShowLightingDecorSubReorder] = useState(false);
+  const [showMissingMainReorder, setShowMissingMainReorder] = useState(false);
+  const [showMissingSubReorder, setShowMissingSubReorder] = useState(false);
+  const [showToolsMainReorder, setShowToolsMainReorder] = useState(false);
+  const [showToolsSubReorder, setShowToolsSubReorder] = useState(false);
+  const [showWholesaleMainReorder, setShowWholesaleMainReorder] = useState(false);
+  const [showWholesaleSubReorder, setShowWholesaleSubReorder] = useState(false);
+  const [showHeavyEquipmentMainReorder, setShowHeavyEquipmentMainReorder] = useState(false);
+  const [showHeavyEquipmentSubReorder, setShowHeavyEquipmentSubReorder] = useState(false);
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined;
     Promise.all([
@@ -2206,6 +2284,111 @@ export default function CategoriesPage() {
     try {
       await updateOptionRanksWithRetry(category.slug, 'model', reorderedModels);
       showToast('تم حفظ الترتيب', 'success');
+    } catch (err) {
+      const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+      showToast(msg, 'error');
+      throw err;
+    }
+  };
+
+  // Save handlers for all option types
+  const handleSaveTeacherSpecialtyRanks = async (reordered: string[]) => {
+    const category = categories.find(c => c.slug === 'teachers');
+    if (!category?.slug) return;
+    try {
+      await updateOptionRanksWithRetry(category.slug, teacherSpecialtyKey, reordered);
+      showToast('تم حفظ ترتيب التخصصات', 'success');
+    } catch (err) {
+      const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+      showToast(msg, 'error');
+      throw err;
+    }
+  };
+
+  const handleSaveDoctorSpecialtyRanks = async (reordered: string[]) => {
+    const category = categories.find(c => c.slug === 'doctors');
+    if (!category?.slug) return;
+    try {
+      await updateOptionRanksWithRetry(category.slug, doctorSpecialtyKey, reordered);
+      showToast('تم حفظ ترتيب التخصصات', 'success');
+    } catch (err) {
+      const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+      showToast(msg, 'error');
+      throw err;
+    }
+  };
+
+  const handleSaveYearRanks = async (reordered: string[]) => {
+    const category = categories.find(c => c.slug === 'cars');
+    if (!category?.slug) return;
+    try {
+      await updateOptionRanksWithRetry(category.slug, carsYearKey, reordered);
+      showToast('تم حفظ ترتيب السنوات', 'success');
+    } catch (err) {
+      const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+      showToast(msg, 'error');
+      throw err;
+    }
+  };
+
+  const handleSaveKmRanks = async (reordered: string[]) => {
+    const category = categories.find(c => c.slug === 'cars');
+    if (!category?.slug) return;
+    try {
+      await updateOptionRanksWithRetry(category.slug, carsKmKey, reordered);
+      showToast('تم حفظ ترتيب الكيلومترات', 'success');
+    } catch (err) {
+      const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+      showToast(msg, 'error');
+      throw err;
+    }
+  };
+
+  const handleSaveCarTypeRanks = async (reordered: string[]) => {
+    const category = categories.find(c => c.slug === 'cars');
+    if (!category?.slug) return;
+    try {
+      await updateOptionRanksWithRetry(category.slug, carsTypeKey, reordered);
+      showToast('تم حفظ ترتيب الأنواع', 'success');
+    } catch (err) {
+      const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+      showToast(msg, 'error');
+      throw err;
+    }
+  };
+
+  const handleSaveExteriorColorRanks = async (reordered: string[]) => {
+    const category = categories.find(c => c.slug === 'cars');
+    if (!category?.slug) return;
+    try {
+      await updateOptionRanksWithRetry(category.slug, carsExteriorColorKey, reordered);
+      showToast('تم حفظ ترتيب الألوان', 'success');
+    } catch (err) {
+      const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+      showToast(msg, 'error');
+      throw err;
+    }
+  };
+
+  const handleSaveTransmissionRanks = async (reordered: string[]) => {
+    const category = categories.find(c => c.slug === 'cars');
+    if (!category?.slug) return;
+    try {
+      await updateOptionRanksWithRetry(category.slug, carsTransmissionKey, reordered);
+      showToast('تم حفظ ترتيب الفتيس', 'success');
+    } catch (err) {
+      const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+      showToast(msg, 'error');
+      throw err;
+    }
+  };
+
+  const handleSaveFuelRanks = async (reordered: string[]) => {
+    const category = categories.find(c => c.slug === 'cars');
+    if (!category?.slug) return;
+    try {
+      await updateOptionRanksWithRetry(category.slug, carsFuelKey, reordered);
+      showToast('تم حفظ ترتيب أنواع الوقود', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
       showToast(msg, 'error');
@@ -4121,40 +4304,46 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewBrand(e.target.value)}
                               />
                               <button className="btn-add" onClick={addBrand}>إضافة</button>
-                              {/* {selectedBrand && (
-                                <button className="btn-delete" onClick={() => removeBrand(selectedBrand)}>حذف الماركة</button>
-                              )} */}
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowBrandsReorder(!showBrandsReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showBrandsReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
-                            <DraggableOptionsList
-                              options={sortKeysWithOtherAtEnd(BRANDS_MODELS)}
-                              onReorder={(reordered) => {
-                                // Reorder brands while maintaining their models
-                                const newBrandsModels: Record<string, string[]> = {};
-                                reordered.forEach(brand => {
-                                  newBrandsModels[brand] = BRANDS_MODELS[brand] ?? [];
-                                });
-                                setBRANDS_MODELS(newBrandsModels);
-                              }}
-                              onSave={async (reorderedBrands) => {
-                                const category = categories.find(c => c.slug === 'cars');
-                                if (!category?.slug) return;
-                                try {
-                                  await updateOptionRanksWithRetry(category.slug, 'brand', reorderedBrands);
-                                  showToast('تم حفظ ترتيب الماركات', 'success');
-                                } catch (err) {
-                                  const msg = getErrMsg(err, 'حدث خطأ في حفظ ترتيب الماركات');
-                                  showToast(msg, 'error');
-                                  throw err;
-                                }
-                              }}
-                              otherOptionLabel="غير ذلك"
-                              renderOption={(brand) => (
-                                <span className="model-tag">
-                                  {brand}
-                                  <button className="tag-remove" onClick={() => removeBrand(brand)} title="حذف">✕</button>
-                                </span>
-                              )}
-                            />
+                            {showBrandsReorder && (
+                              <DraggableOptionsList
+                                options={sortKeysWithOtherAtEnd(BRANDS_MODELS)}
+                                onReorder={(reordered) => {
+                                  // Reorder brands while maintaining their models
+                                  const newBrandsModels: Record<string, string[]> = {};
+                                  reordered.forEach(brand => {
+                                    newBrandsModels[brand] = BRANDS_MODELS[brand] ?? [];
+                                  });
+                                  setBRANDS_MODELS(newBrandsModels);
+                                }}
+                                onSave={async (reorderedBrands) => {
+                                  const category = categories.find(c => c.slug === 'cars');
+                                  if (!category?.slug) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, 'brand', reorderedBrands);
+                                    showToast('تم حفظ ترتيب الماركات', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ ترتيب الماركات');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(brand) => (
+                                  <span className="model-tag">
+                                    {brand}
+                                    <button className="tag-remove" onClick={() => removeBrand(brand)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">الموديل</label>
@@ -4177,23 +4366,33 @@ export default function CategoriesPage() {
                                 rows={1}
                               />
                               <button className="btn-add" onClick={addModelsBulk} disabled={!selectedBrand}>تسليم الموديلات</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowModelsReorder(!showModelsReorder)}
+                                disabled={!selectedBrand}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showModelsReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
-                            <DraggableOptionsList
-                              options={models}
-                              onReorder={(reordered) => {
-                                if (selectedBrand) {
-                                  setBRANDS_MODELS(prev => ({ ...prev, [selectedBrand]: reordered }));
-                                }
-                              }}
-                              onSave={handleSaveModelsRanks}
-                              otherOptionLabel="غير ذلك"
-                              renderOption={(m) => (
-                                <span className="model-tag">
-                                  {m}
-                                  <button className="tag-remove" onClick={() => removeModel(m)} title="حذف">✕</button>
-                                </span>
-                              )}
-                            />
+                            {showModelsReorder && selectedBrand && (
+                              <DraggableOptionsList
+                                options={models}
+                                onReorder={(reordered) => {
+                                  if (selectedBrand) {
+                                    setBRANDS_MODELS(prev => ({ ...prev, [selectedBrand]: reordered }));
+                                  }
+                                }}
+                                onSave={handleSaveModelsRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(m) => (
+                                  <span className="model-tag">
+                                    {m}
+                                    <button className="tag-remove" onClick={() => removeModel(m)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">سنة التصنيع</label>
@@ -4214,7 +4413,28 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewYear(e.target.value)}
                               />
                               <button className="btn-add" onClick={addYearOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowYearReorder(!showYearReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showYearReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showYearReorder && (
+                              <DraggableOptionsList
+                                options={yearOptions}
+                                onReorder={setYearOptions}
+                                onSave={handleSaveYearRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteYearOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">الكيلو متر</label>
@@ -4235,7 +4455,28 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewKm(e.target.value)}
                               />
                               <button className="btn-add" onClick={addKmOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowKmReorder(!showKmReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showKmReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showKmReorder && (
+                              <DraggableOptionsList
+                                options={kmOptions}
+                                onReorder={setKmOptions}
+                                onSave={handleSaveKmRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteKmOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">النوع</label>
@@ -4256,7 +4497,28 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewCarTypeVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addCarTypeOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowCarTypeReorder(!showCarTypeReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showCarTypeReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showCarTypeReorder && (
+                              <DraggableOptionsList
+                                options={carTypeOptions}
+                                onReorder={setCarTypeOptions}
+                                onSave={handleSaveCarTypeRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteCarTypeOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">اللون الخارجي</label>
@@ -4277,7 +4539,28 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewExteriorColorVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addExteriorColorOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowExteriorColorReorder(!showExteriorColorReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showExteriorColorReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showExteriorColorReorder && (
+                              <DraggableOptionsList
+                                options={exteriorColorOptions}
+                                onReorder={setExteriorColorOptions}
+                                onSave={handleSaveExteriorColorRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteExteriorColorOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">الفتيس</label>
@@ -4298,7 +4581,28 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewTransmissionVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addTransmissionOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowTransmissionReorder(!showTransmissionReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showTransmissionReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showTransmissionReorder && (
+                              <DraggableOptionsList
+                                options={transmissionOptions}
+                                onReorder={setTransmissionOptions}
+                                onSave={handleSaveTransmissionRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteTransmissionOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">نوع الوقود</label>
@@ -4319,7 +4623,28 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewFuelVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addFuelOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowFuelReorder(!showFuelReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showFuelReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showFuelReorder && (
+                              <DraggableOptionsList
+                                options={fuelOptions}
+                                onReorder={setFuelOptions}
+                                onSave={handleSaveFuelRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteFuelOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -4347,7 +4672,28 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewTeacherSpecialtyVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addTeacherSpecialtyOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowTeacherSpecialtyReorder(!showTeacherSpecialtyReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showTeacherSpecialtyReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showTeacherSpecialtyReorder && (
+                              <DraggableOptionsList
+                                options={teacherSpecialtyOptions}
+                                onReorder={setTeacherSpecialtyOptions}
+                                onSave={handleSaveTeacherSpecialtyRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteTeacherSpecialtyOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -4375,7 +4721,28 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewDoctorSpecialtyVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addDoctorSpecialtyOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowDoctorSpecialtyReorder(!showDoctorSpecialtyReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showDoctorSpecialtyReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showDoctorSpecialtyReorder && (
+                              <DraggableOptionsList
+                                options={doctorSpecialtyOptions}
+                                onReorder={setDoctorSpecialtyOptions}
+                                onSave={handleSaveDoctorSpecialtyRanks}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteDoctorSpecialtyOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -4403,30 +4770,39 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewJobCategoryVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addJobCategoryOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowJobCategoryReorder(!showJobCategoryReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showJobCategoryReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
-                            <DraggableOptionsList
-                              options={jobCategoryOptions}
-                              onReorder={setJobCategoryOptions}
-                              onSave={async (reordered) => {
-                                const category = categories.find(c => c.slug === 'jobs');
-                                if (!category?.slug) return;
-                                try {
-                                  await updateOptionRanksWithRetry(category.slug, jobCategoryKey, reordered);
-                                  showToast('تم حفظ ترتيب التصنيفات', 'success');
-                                } catch (err) {
-                                  const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
-                                  showToast(msg, 'error');
-                                  throw err;
-                                }
-                              }}
-                              otherOptionLabel="غير ذلك"
-                              renderOption={(opt) => (
-                                <span className="model-tag">
-                                  {opt}
-                                  <button className="tag-remove" onClick={() => deleteJobCategoryOption(opt)} title="حذف">✕</button>
-                                </span>
-                              )}
-                            />
+                            {showJobCategoryReorder && (
+                              <DraggableOptionsList
+                                options={jobCategoryOptions}
+                                onReorder={setJobCategoryOptions}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'jobs');
+                                  if (!category?.slug) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, jobCategoryKey, reordered);
+                                    showToast('تم حفظ ترتيب التصنيفات', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteJobCategoryOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">التخصص</label>
@@ -4447,30 +4823,39 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewJobSpecialtyVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addJobSpecialtyOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowJobSpecialtyReorder(!showJobSpecialtyReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showJobSpecialtyReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
-                            <DraggableOptionsList
-                              options={jobSpecialtyOptions}
-                              onReorder={setJobSpecialtyOptions}
-                              onSave={async (reordered) => {
-                                const category = categories.find(c => c.slug === 'jobs');
-                                if (!category?.slug) return;
-                                try {
-                                  await updateOptionRanksWithRetry(category.slug, jobSpecialtyKey, reordered);
-                                  showToast('تم حفظ ترتيب التخصصات', 'success');
-                                } catch (err) {
-                                  const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
-                                  showToast(msg, 'error');
-                                  throw err;
-                                }
-                              }}
-                              otherOptionLabel="غير ذلك"
-                              renderOption={(opt) => (
-                                <span className="model-tag">
-                                  {opt}
-                                  <button className="tag-remove" onClick={() => deleteJobSpecialtyOption(opt)} title="حذف">✕</button>
-                                </span>
-                              )}
-                            />
+                            {showJobSpecialtyReorder && (
+                              <DraggableOptionsList
+                                options={jobSpecialtyOptions}
+                                onReorder={setJobSpecialtyOptions}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'jobs');
+                                  if (!category?.slug) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, jobSpecialtyKey, reordered);
+                                    showToast('تم حفظ ترتيب التخصصات', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteJobSpecialtyOption(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -4499,36 +4884,45 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewFoodMain(e.target.value)}
                               />
                               <button className="btn-add" onClick={addFoodMain}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowFoodMainReorder(!showFoodMainReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showFoodMainReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
-                            <DraggableOptionsList
-                              options={sortKeysWithOtherAtEnd(FOOD_MAIN_SUBS)}
-                              onReorder={(reordered) => {
-                                const newMap: Record<string, string[]> = {};
-                                reordered.forEach(main => {
-                                  newMap[main] = FOOD_MAIN_SUBS[main] ?? [];
-                                });
-                                setFOOD_MAIN_SUBS(newMap);
-                              }}
-                              onSave={async (reordered) => {
-                                const category = categories.find(c => c.slug === 'food-products');
-                                if (!category?.slug) return;
-                                try {
-                                  await updateOptionRanksWithRetry(category.slug, foodMainKey, reordered);
-                                  showToast('تم حفظ ترتيب الفئات الرئيسية', 'success');
-                                } catch (err) {
-                                  const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
-                                  showToast(msg, 'error');
-                                  throw err;
-                                }
-                              }}
-                              otherOptionLabel="غير ذلك"
-                              renderOption={(main) => (
-                                <span className="model-tag">
-                                  {main}
-                                  <button className="tag-remove" onClick={() => removeFoodMain(main)} title="حذف">✕</button>
-                                </span>
-                              )}
-                            />
+                            {showFoodMainReorder && (
+                              <DraggableOptionsList
+                                options={sortKeysWithOtherAtEnd(FOOD_MAIN_SUBS)}
+                                onReorder={(reordered) => {
+                                  const newMap: Record<string, string[]> = {};
+                                  reordered.forEach(main => {
+                                    newMap[main] = FOOD_MAIN_SUBS[main] ?? [];
+                                  });
+                                  setFOOD_MAIN_SUBS(newMap);
+                                }}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'food-products');
+                                  if (!category?.slug) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, foodMainKey, reordered);
+                                    showToast('تم حفظ ترتيب الفئات الرئيسية', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(main) => (
+                                  <span className="model-tag">
+                                    {main}
+                                    <button className="tag-remove" onClick={() => removeFoodMain(main)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">فرعي</label>
@@ -4551,34 +4945,44 @@ export default function CategoriesPage() {
                                 rows={3}
                               />
                               <button className="btn-add" onClick={addFoodSubsBulk} disabled={!selectedFoodMain}>تسليم الفرعيات</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowFoodSubReorder(!showFoodSubReorder)}
+                                disabled={!selectedFoodMain}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showFoodSubReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
-                            <DraggableOptionsList
-                              options={foodSubs}
-                              onReorder={(reordered) => {
-                                if (selectedFoodMain) {
-                                  setFOOD_MAIN_SUBS(prev => ({ ...prev, [selectedFoodMain]: reordered }));
-                                }
-                              }}
-                              onSave={async (reordered) => {
-                                const category = categories.find(c => c.slug === 'food-products');
-                                if (!category?.slug || !selectedFoodMain) return;
-                                try {
-                                  await updateOptionRanksWithRetry(category.slug, foodSubKey, reordered);
-                                  showToast('تم حفظ ترتيب الفرعيات', 'success');
-                                } catch (err) {
-                                  const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
-                                  showToast(msg, 'error');
-                                  throw err;
-                                }
-                              }}
-                              otherOptionLabel="غير ذلك"
-                              renderOption={(s) => (
-                                <span className="model-tag">
-                                  {s}
-                                  <button className="tag-remove" onClick={() => removeFoodSub(s)} title="حذف">✕</button>
-                                </span>
-                              )}
-                            />
+                            {showFoodSubReorder && selectedFoodMain && (
+                              <DraggableOptionsList
+                                options={foodSubs}
+                                onReorder={(reordered) => {
+                                  if (selectedFoodMain) {
+                                    setFOOD_MAIN_SUBS(prev => ({ ...prev, [selectedFoodMain]: reordered }));
+                                  }
+                                }}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'food-products');
+                                  if (!category?.slug || !selectedFoodMain) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, foodSubKey, reordered);
+                                    showToast('تم حفظ ترتيب الفرعيات', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(s) => (
+                                  <span className="model-tag">
+                                    {s}
+                                    <button className="tag-remove" onClick={() => removeFoodSub(s)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -4606,7 +5010,45 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewRestaurantMain(e.target.value)}
                               />
                               <button className="btn-add" onClick={addRestaurantMain}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowRestaurantsMainReorder(!showRestaurantsMainReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showRestaurantsMainReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showRestaurantsMainReorder && (
+                              <DraggableOptionsList
+                                options={sortKeysWithOtherAtEnd(RESTAURANTS_MAIN_SUBS)}
+                                onReorder={(reordered) => {
+                                  const newMap: Record<string, string[]> = {};
+                                  reordered.forEach(main => {
+                                    newMap[main] = RESTAURANTS_MAIN_SUBS[main] ?? [];
+                                  });
+                                  setRESTAURANTS_MAIN_SUBS(newMap);
+                                }}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'restaurants');
+                                  if (!category?.slug) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, restaurantsMainKey, reordered);
+                                    showToast('تم حفظ ترتيب الفئات الرئيسية', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(main) => (
+                                  <span className="model-tag">
+                                    {main}
+                                    <button className="tag-remove" onClick={() => removeRestaurantMain(main)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">فرعي</label>
@@ -4629,7 +5071,44 @@ export default function CategoriesPage() {
                                 rows={3}
                               />
                               <button className="btn-add" onClick={addRestaurantSubsBulk} disabled={!selectedRestaurantMain}>تسليم الفرعيات</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowRestaurantsSubReorder(!showRestaurantsSubReorder)}
+                                disabled={!selectedRestaurantMain}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showRestaurantsSubReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showRestaurantsSubReorder && selectedRestaurantMain && (
+                              <DraggableOptionsList
+                                options={restaurantSubs}
+                                onReorder={(reordered) => {
+                                  if (selectedRestaurantMain) {
+                                    setRESTAURANTS_MAIN_SUBS(prev => ({ ...prev, [selectedRestaurantMain]: reordered }));
+                                  }
+                                }}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'restaurants');
+                                  if (!category?.slug || !selectedRestaurantMain) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, restaurantsSubKey, reordered);
+                                    showToast('تم حفظ ترتيب الفرعيات', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(s) => (
+                                  <span className="model-tag">
+                                    {s}
+                                    <button className="tag-remove" onClick={() => removeRestaurantSub(s)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                             <div className="models-list">
                               {restaurantSubs.map(s => (
                                 <span key={s} className="model-tag">
@@ -4665,7 +5144,45 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewStoreMain(e.target.value)}
                               />
                               <button className="btn-add" onClick={addStoreMain}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowStoresMainReorder(!showStoresMainReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showStoresMainReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showStoresMainReorder && (
+                              <DraggableOptionsList
+                                options={sortKeysWithOtherAtEnd(STORES_MAIN_SUBS)}
+                                onReorder={(reordered) => {
+                                  const newMap: Record<string, string[]> = {};
+                                  reordered.forEach(main => {
+                                    newMap[main] = STORES_MAIN_SUBS[main] ?? [];
+                                  });
+                                  setSTORES_MAIN_SUBS(newMap);
+                                }}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'stores');
+                                  if (!category?.slug) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, storesMainKey, reordered);
+                                    showToast('تم حفظ ترتيب الفئات الرئيسية', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(main) => (
+                                  <span className="model-tag">
+                                    {main}
+                                    <button className="tag-remove" onClick={() => removeStoreMain(main)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">فرعي</label>
@@ -4688,7 +5205,44 @@ export default function CategoriesPage() {
                                 rows={3}
                               />
                               <button className="btn-add" onClick={addStoreSubsBulk} disabled={!selectedStoreMain}>تسليم الفرعيات</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowStoresSubReorder(!showStoresSubReorder)}
+                                disabled={!selectedStoreMain}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showStoresSubReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showStoresSubReorder && selectedStoreMain && (
+                              <DraggableOptionsList
+                                options={storeSubs}
+                                onReorder={(reordered) => {
+                                  if (selectedStoreMain) {
+                                    setSTORES_MAIN_SUBS(prev => ({ ...prev, [selectedStoreMain]: reordered }));
+                                  }
+                                }}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'stores');
+                                  if (!category?.slug || !selectedStoreMain) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, storesSubKey, reordered);
+                                    showToast('تم حفظ ترتيب الفرعيات', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(s) => (
+                                  <span className="model-tag">
+                                    {s}
+                                    <button className="tag-remove" onClick={() => removeStoreSub(s)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                             <div className="models-list">
                               {storeSubs.map(s => (
                                 <span key={s} className="model-tag">
@@ -6175,7 +6729,39 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewPropertyTypeVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addPropertyTypeOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowPropertyTypeReorder(!showPropertyTypeReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showPropertyTypeReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showPropertyTypeReorder && (
+                              <DraggableOptionsList
+                                options={propertyTypeOptions}
+                                onReorder={setPropertyTypeOptions}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'real_estate');
+                                  if (!category?.slug) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, realPropertyKey, reordered);
+                                    showToast('تم حفظ ترتيب أنواع العقارات', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deletePropertyTypeOptionDirect(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                           <div className="location-group">
                             <label className="location-label">نوع العقد</label>
@@ -6196,7 +6782,39 @@ export default function CategoriesPage() {
                                 onChange={(e) => setNewContractTypeVal(e.target.value)}
                               />
                               <button className="btn-add" onClick={addContractTypeOption}>إضافة</button>
+                              <button
+                                className="btn-add"
+                                onClick={() => setShowContractTypeReorder(!showContractTypeReorder)}
+                                style={{ marginInlineStart: '8px' }}
+                              >
+                                {showContractTypeReorder ? 'إخفاء الترتيب' : 'إعادة الترتيب'}
+                              </button>
                             </div>
+                            {showContractTypeReorder && (
+                              <DraggableOptionsList
+                                options={contractTypeOptions}
+                                onReorder={setContractTypeOptions}
+                                onSave={async (reordered) => {
+                                  const category = categories.find(c => c.slug === 'real_estate');
+                                  if (!category?.slug) return;
+                                  try {
+                                    await updateOptionRanksWithRetry(category.slug, realContractKey, reordered);
+                                    showToast('تم حفظ ترتيب أنواع العقود', 'success');
+                                  } catch (err) {
+                                    const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
+                                    showToast(msg, 'error');
+                                    throw err;
+                                  }
+                                }}
+                                otherOptionLabel="غير ذلك"
+                                renderOption={(opt) => (
+                                  <span className="model-tag">
+                                    {opt}
+                                    <button className="tag-remove" onClick={() => deleteContractTypeOptionDirect(opt)} title="حذف">✕</button>
+                                  </span>
+                                )}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>

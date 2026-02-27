@@ -32,16 +32,15 @@ export function DraggableOption({
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-        cursor: isDraggable ? 'grab' : 'default',
+        transition: transition || 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+        zIndex: isDragging ? 1000 : 'auto',
     };
 
     return (
         <div
             ref={setNodeRef}
             style={style}
-            className={`draggable-option ${isDragging ? 'dragging' : ''} ${isOver ? 'over' : ''}`}
+            className={`draggable-option ${isDragging ? 'dragging' : ''} ${isOver ? 'over' : ''} ${!isDraggable ? 'disabled' : ''}`}
         >
             {isDraggable && (
                 <span
@@ -49,6 +48,9 @@ export function DraggableOption({
                     {...listeners}
                     className="drag-handle"
                     title="اسحب لإعادة الترتيب"
+                    role="button"
+                    aria-label="اسحب لإعادة الترتيب"
+                    tabIndex={0}
                 >
                     ⋮⋮
                 </span>

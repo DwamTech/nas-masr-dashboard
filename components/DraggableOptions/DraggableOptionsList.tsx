@@ -5,6 +5,8 @@ import {
     DndContext,
     closestCenter,
     DragOverlay,
+    pointerWithin,
+    rectIntersection,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -22,6 +24,24 @@ interface DraggableOptionsListProps {
     otherOptionLabel?: string;
     disabled?: boolean;
 }
+
+// Custom collision detection for better UX
+const customCollisionDetection = (args: any) => {
+    // First, try pointer-based detection for more precise feedback
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+        return pointerCollisions;
+    }
+
+    // Fallback to rectangle intersection
+    const rectCollisions = rectIntersection(args);
+    if (rectCollisions.length > 0) {
+        return rectCollisions;
+    }
+
+    // Final fallback to closest center
+    return closestCenter(args);
+};
 
 export function DraggableOptionsList({
     options,
@@ -91,7 +111,7 @@ export function DraggableOptionsList({
     return (
         <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={customCollisionDetection}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
@@ -114,7 +134,10 @@ export function DraggableOptionsList({
                 </div>
             </SortableContext>
 
-            <DragOverlay>
+            <DragOverlay dropAnimation={{
+                duration: 200,
+                easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            }}>
                 {activeId ? (
                     <div className="drag-overlay">
                         {renderOption(activeId as string)}

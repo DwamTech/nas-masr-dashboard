@@ -1,0 +1,99 @@
+/* Drag Handle Styles */
+.drag-handle {
+    cursor: grab;
+    padding: 0 8px;
+    color: #999;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    font-size: 16px;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.drag-handle:hover {
+    color: #666;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+    color: #333;
+}
+
+/* RTL Support */
+[dir="rtl"] .drag-handle {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+[dir="ltr"] .drag-handle {
+    margin-right: 8px;
+    margin-left: 0;
+}
+
+/* Draggable Option Container */
+.draggable-option {
+    display: inline-flex;
+    align-items: center;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Dragging State */
+.draggable-option.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.draggable-option.over {
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+/* Drag Overlay */
+.drag-overlay {
+    background: white;
+    border: 2px solid #4CAF50;
+    border-radius: 4px;
+    padding: 4px 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    cursor: grabbing;
+}
+
+/* Drop Indicator */
+.drop-indicator {
+    height: 2px;
+    background: #4CAF50;
+    margin: 4px 0;
+    transition: all 0.2s ease;
+    border-radius: 1px;
+}
+
+/* Saving State */
+.models-list.saving {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.models-list.saving::after {
+    content: "جاري الحفظ...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 8px 16px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    font-size: 14px;
+    color: #666;
+}
+
+/* Hover Effects */
+.model-tag:has(.drag-handle):hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Disabled State */
+.drag-handle[disabled] {
+    cursor: not-allowed;
+    opacity: 0.5;
+}

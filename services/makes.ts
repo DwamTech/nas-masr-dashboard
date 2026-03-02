@@ -1058,7 +1058,10 @@ export async function fetchAdminCategories(token?: string): Promise<AdminCategor
     const homepage_image = pickImage(o);
     const cards_count = typeof o['cards_count'] === 'number' ? (o['cards_count'] as number) : undefined;
     const fields = pickFields(o);
-    return { id, slug, name, icon, is_active, sort_order, show_on_homepage, homepage_image, cards_count, fields };
+    const is_global_image_active = typeof o['is_global_image_active'] === 'boolean' ? (o['is_global_image_active'] as boolean) : false;
+    const global_image_url = typeof o['global_image_url'] === 'string' ? (o['global_image_url'] as string) : undefined;
+    const global_image_full_url = typeof o['global_image_full_url'] === 'string' ? (o['global_image_full_url'] as string) : undefined;
+    return { id, slug, name, icon, is_active, sort_order, show_on_homepage, homepage_image, cards_count, fields, is_global_image_active, global_image_url, global_image_full_url };
   };
   const out: AdminCategoryListItem[] = [];
   if (Array.isArray(raw)) {
@@ -1752,3 +1755,102 @@ export async function fetchCategoriesUsageReport(token?: string): Promise<import
   return out;
 }
 
+
+// ===========================
+// Unified Category Images Management API
+// ===========================
+
+export async function toggleCategoryGlobalImage(
+  categoryId: number,
+  isActive: boolean,
+  token?: string
+): Promise<void> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/toggle-global-image`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ is_global_image_active: isActive }),
+  });
+
+  if (!res.ok) {
+    const raw = (await res.json().catch(() => null)) as unknown;
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'فشل تحديث حالة الصورة الموحدة';
+    throw new Error(message);
+  }
+}
+
+export async function uploadCategoryGlobalImage(
+  categoryId: number,
+  file: File,
+  token?: string
+): Promise<AdminCategoryListItem> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/upload-global-image`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const raw = (await res.json().catch(() => null)) as unknown;
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'فشل رفع الصورة';
+    throw new Error(message);
+  }
+
+  const raw = (await res.json().catch(() => null)) as unknown;
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('استجابة غير صالحة من الخادم');
+  }
+
+  const data = raw as Record<string, unknown>;
+  const id = typeof data['id'] === 'number' ? data['id'] : categoryId;
+  const global_image_url = typeof data['global_image_url'] === 'string' ? data['global_image_url'] : undefined;
+  const global_image_full_url = typeof data['global_image_full_url'] === 'string' ? data['global_image_full_url'] : undefined;
+  const is_global_image_active = typeof data['is_global_image_active'] === 'boolean' ? data['is_global_image_active'] : true;
+
+  return {
+    id,
+    name: '',
+    global_image_url,
+    global_image_full_url,
+    is_global_image_active,
+  };
+}
+
+export async function deleteCategoryGlobalImage(
+  categoryId: number,
+  token?: string
+): Promise<void> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/global-image`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!res.ok) {
+    const raw = (await res.json().catch(() => null)) as unknown;
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'فشل حذف الصورة';
+    throw new Error(message);
+  }
+}

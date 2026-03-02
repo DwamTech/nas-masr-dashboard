@@ -875,8 +875,13 @@ export default function CategoriesPage() {
         setFoodMainKey(findKey(maps['food-products'], ['نوع', 'food', 'منتج', 'category']));
         setFoodSubKey(findKey(maps['food-products'], ['sub', 'فرعي', 'فئة', 'تصنيف']));
         setRESTAURANTS_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['restaurants'] ?? {}).length ? (mainSubs['restaurants'] as Record<string, string[]>) : buildMainSubs(maps['restaurants'], ['مطبخ', 'cuisine', 'نوع', 'category'], ['sub', 'فرعي', 'قائمة', 'menu'])));
-        setRestaurantsMainKey(findKey(maps['restaurants'], ['مطبخ', 'cuisine', 'نوع', 'category']));
-        setRestaurantsSubKey(findKey(maps['restaurants'], ['sub', 'فرعي', 'قائمة', 'menu']));
+        const restaurantsMainKeyFound = findKey(maps['restaurants'], ['مطبخ', 'cuisine', 'نوع', 'category']);
+        console.log('Restaurants fields available:', maps['restaurants'] ? Object.keys(maps['restaurants']) : 'No maps found');
+        console.log('Restaurants Main Key found:', restaurantsMainKeyFound);
+        setRestaurantsMainKey(restaurantsMainKeyFound);
+        const restaurantsSubKeyFound = findKey(maps['restaurants'], ['sub', 'فرعي', 'قائمة', 'menu']);
+        console.log('Restaurants Sub Key found:', restaurantsSubKeyFound);
+        setRestaurantsSubKey(restaurantsSubKeyFound);
         setSTORES_MAIN_SUBS(processHierarchicalOptions(Object.keys(mainSubs['stores'] ?? {}).length ? (mainSubs['stores'] as Record<string, string[]>) : buildMainSubs(maps['stores'], ['نوع المتجر', 'store', 'نوع', 'category'], ['sub', 'فرعي'])));
         setStoresMainKey(findKey(maps['stores'], ['نوع المتجر', 'store', 'نوع', 'category']));
         setStoresSubKey(findKey(maps['stores'], ['sub', 'فرعي']));
@@ -1998,8 +2003,7 @@ export default function CategoriesPage() {
     const keys = Object.keys(obj);
     const otherKey = 'غير ذلك';
     const filtered = keys.filter(k => k !== otherKey);
-    // ترتيب عكسي (من ي إلى أ)
-    filtered.sort((a, b) => b.localeCompare(a, 'ar'));
+    // لا نعيد الترتيب - نحافظ على ترتيب الـ object keys (insertion order)
     // إضافة "غير ذلك" في الآخر إذا كانت موجودة
     if (keys.includes(otherKey)) {
       filtered.push(otherKey);
@@ -2276,13 +2280,13 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSaveModelsRanks = async (reorderedModels: string[]) => {
+  const handleSaveModelsRanks = async (ranks: { option: string; rank: number }[]) => {
     if (!selectedBrand) return;
     const category = categories.find(c => c.slug === 'cars');
     if (!category?.slug) return;
 
     try {
-      await updateOptionRanksWithRetry(category.slug, 'model', reorderedModels);
+      await updateOptionRanksWithRetry(category.slug, 'model', ranks);
       showToast('تم حفظ الترتيب', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -2292,11 +2296,11 @@ export default function CategoriesPage() {
   };
 
   // Save handlers for all option types
-  const handleSaveTeacherSpecialtyRanks = async (reordered: string[]) => {
+  const handleSaveTeacherSpecialtyRanks = async (ranks: { option: string; rank: number }[]) => {
     const category = categories.find(c => c.slug === 'teachers');
     if (!category?.slug) return;
     try {
-      await updateOptionRanksWithRetry(category.slug, teacherSpecialtyKey, reordered);
+      await updateOptionRanksWithRetry(category.slug, teacherSpecialtyKey, ranks);
       showToast('تم حفظ ترتيب التخصصات', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -2305,11 +2309,11 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSaveDoctorSpecialtyRanks = async (reordered: string[]) => {
+  const handleSaveDoctorSpecialtyRanks = async (ranks: { option: string; rank: number }[]) => {
     const category = categories.find(c => c.slug === 'doctors');
     if (!category?.slug) return;
     try {
-      await updateOptionRanksWithRetry(category.slug, doctorSpecialtyKey, reordered);
+      await updateOptionRanksWithRetry(category.slug, doctorSpecialtyKey, ranks);
       showToast('تم حفظ ترتيب التخصصات', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -2318,11 +2322,11 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSaveYearRanks = async (reordered: string[]) => {
+  const handleSaveYearRanks = async (ranks: { option: string; rank: number }[]) => {
     const category = categories.find(c => c.slug === 'cars');
     if (!category?.slug) return;
     try {
-      await updateOptionRanksWithRetry(category.slug, carsYearKey, reordered);
+      await updateOptionRanksWithRetry(category.slug, carsYearKey, ranks);
       showToast('تم حفظ ترتيب السنوات', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -2331,11 +2335,11 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSaveKmRanks = async (reordered: string[]) => {
+  const handleSaveKmRanks = async (ranks: { option: string; rank: number }[]) => {
     const category = categories.find(c => c.slug === 'cars');
     if (!category?.slug) return;
     try {
-      await updateOptionRanksWithRetry(category.slug, carsKmKey, reordered);
+      await updateOptionRanksWithRetry(category.slug, carsKmKey, ranks);
       showToast('تم حفظ ترتيب الكيلومترات', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -2344,11 +2348,11 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSaveCarTypeRanks = async (reordered: string[]) => {
+  const handleSaveCarTypeRanks = async (ranks: { option: string; rank: number }[]) => {
     const category = categories.find(c => c.slug === 'cars');
     if (!category?.slug) return;
     try {
-      await updateOptionRanksWithRetry(category.slug, carsTypeKey, reordered);
+      await updateOptionRanksWithRetry(category.slug, carsTypeKey, ranks);
       showToast('تم حفظ ترتيب الأنواع', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -2357,11 +2361,11 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSaveExteriorColorRanks = async (reordered: string[]) => {
+  const handleSaveExteriorColorRanks = async (ranks: { option: string; rank: number }[]) => {
     const category = categories.find(c => c.slug === 'cars');
     if (!category?.slug) return;
     try {
-      await updateOptionRanksWithRetry(category.slug, carsExteriorColorKey, reordered);
+      await updateOptionRanksWithRetry(category.slug, carsExteriorColorKey, ranks);
       showToast('تم حفظ ترتيب الألوان', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -2370,11 +2374,11 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSaveTransmissionRanks = async (reordered: string[]) => {
+  const handleSaveTransmissionRanks = async (ranks: { option: string; rank: number }[]) => {
     const category = categories.find(c => c.slug === 'cars');
     if (!category?.slug) return;
     try {
-      await updateOptionRanksWithRetry(category.slug, carsTransmissionKey, reordered);
+      await updateOptionRanksWithRetry(category.slug, carsTransmissionKey, ranks);
       showToast('تم حفظ ترتيب الفتيس', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -2383,11 +2387,11 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSaveFuelRanks = async (reordered: string[]) => {
+  const handleSaveFuelRanks = async (ranks: { option: string; rank: number }[]) => {
     const category = categories.find(c => c.slug === 'cars');
     if (!category?.slug) return;
     try {
-      await updateOptionRanksWithRetry(category.slug, carsFuelKey, reordered);
+      await updateOptionRanksWithRetry(category.slug, carsFuelKey, ranks);
       showToast('تم حفظ ترتيب أنواع الوقود', 'success');
     } catch (err) {
       const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -4323,11 +4327,11 @@ export default function CategoriesPage() {
                                   });
                                   setBRANDS_MODELS(newBrandsModels);
                                 }}
-                                onSave={async (reorderedBrands) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'cars');
                                   if (!category?.slug) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, 'brand', reorderedBrands);
+                                    await updateOptionRanksWithRetry(category.slug, 'brand', ranks);
                                     showToast('تم حفظ ترتيب الماركات', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ ترتيب الماركات');
@@ -4782,11 +4786,11 @@ export default function CategoriesPage() {
                               <DraggableOptionsList
                                 options={jobCategoryOptions}
                                 onReorder={setJobCategoryOptions}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'jobs');
                                   if (!category?.slug) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, jobCategoryKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, jobCategoryKey, ranks);
                                     showToast('تم حفظ ترتيب التصنيفات', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -4835,11 +4839,11 @@ export default function CategoriesPage() {
                               <DraggableOptionsList
                                 options={jobSpecialtyOptions}
                                 onReorder={setJobSpecialtyOptions}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'jobs');
                                   if (!category?.slug) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, jobSpecialtyKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, jobSpecialtyKey, ranks);
                                     showToast('تم حفظ ترتيب التخصصات', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -4902,11 +4906,11 @@ export default function CategoriesPage() {
                                   });
                                   setFOOD_MAIN_SUBS(newMap);
                                 }}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'food-products');
                                   if (!category?.slug) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, foodMainKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, foodMainKey, ranks);
                                     showToast('تم حفظ ترتيب الفئات الرئيسية', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -4962,11 +4966,11 @@ export default function CategoriesPage() {
                                     setFOOD_MAIN_SUBS(prev => ({ ...prev, [selectedFoodMain]: reordered }));
                                   }
                                 }}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'food-products');
                                   if (!category?.slug || !selectedFoodMain) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, foodSubKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, foodSubKey, ranks);
                                     showToast('تم حفظ ترتيب الفرعيات', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -5028,11 +5032,16 @@ export default function CategoriesPage() {
                                   });
                                   setRESTAURANTS_MAIN_SUBS(newMap);
                                 }}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'restaurants');
                                   if (!category?.slug) return;
+                                  console.log('Restaurants Main - Saving ranks:', { categorySlug: category.slug, field: restaurantsMainKey, ranks });
+                                  if (!restaurantsMainKey) {
+                                    showToast('خطأ: لم يتم العثور على حقل الفئات الرئيسية', 'error');
+                                    return;
+                                  }
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, restaurantsMainKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, restaurantsMainKey, ranks);
                                     showToast('تم حفظ ترتيب الفئات الرئيسية', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -5088,11 +5097,16 @@ export default function CategoriesPage() {
                                     setRESTAURANTS_MAIN_SUBS(prev => ({ ...prev, [selectedRestaurantMain]: reordered }));
                                   }
                                 }}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'restaurants');
                                   if (!category?.slug || !selectedRestaurantMain) return;
+                                  console.log('Restaurants Sub - Saving ranks:', { categorySlug: category.slug, field: restaurantsSubKey, ranks, selectedMain: selectedRestaurantMain });
+                                  if (!restaurantsSubKey) {
+                                    showToast('خطأ: لم يتم العثور على حقل الفرعيات', 'error');
+                                    return;
+                                  }
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, restaurantsSubKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, restaurantsSubKey, ranks);
                                     showToast('تم حفظ ترتيب الفرعيات', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -5162,11 +5176,11 @@ export default function CategoriesPage() {
                                   });
                                   setSTORES_MAIN_SUBS(newMap);
                                 }}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'stores');
                                   if (!category?.slug) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, storesMainKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, storesMainKey, ranks);
                                     showToast('تم حفظ ترتيب الفئات الرئيسية', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -5222,11 +5236,11 @@ export default function CategoriesPage() {
                                     setSTORES_MAIN_SUBS(prev => ({ ...prev, [selectedStoreMain]: reordered }));
                                   }
                                 }}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'stores');
                                   if (!category?.slug || !selectedStoreMain) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, storesSubKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, storesSubKey, ranks);
                                     showToast('تم حفظ ترتيب الفرعيات', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -6741,11 +6755,11 @@ export default function CategoriesPage() {
                               <DraggableOptionsList
                                 options={propertyTypeOptions}
                                 onReorder={setPropertyTypeOptions}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'real_estate');
                                   if (!category?.slug) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, realPropertyKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, realPropertyKey, ranks);
                                     showToast('تم حفظ ترتيب أنواع العقارات', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');
@@ -6794,11 +6808,11 @@ export default function CategoriesPage() {
                               <DraggableOptionsList
                                 options={contractTypeOptions}
                                 onReorder={setContractTypeOptions}
-                                onSave={async (reordered) => {
+                                onSave={async (ranks) => {
                                   const category = categories.find(c => c.slug === 'real_estate');
                                   if (!category?.slug) return;
                                   try {
-                                    await updateOptionRanksWithRetry(category.slug, realContractKey, reordered);
+                                    await updateOptionRanksWithRetry(category.slug, realContractKey, ranks);
                                     showToast('تم حفظ ترتيب أنواع العقود', 'success');
                                   } catch (err) {
                                     const msg = getErrMsg(err, 'حدث خطأ في حفظ الترتيب');

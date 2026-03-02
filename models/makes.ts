@@ -209,6 +209,9 @@ export interface AdminCategoryListItem {
   homepage_image?: string;
   cards_count?: number;
   fields?: CategoryField[];
+  is_global_image_active?: boolean;
+  global_image_url?: string;
+  global_image_full_url?: string;
 }
 
 export interface CategoryHomepageItem {

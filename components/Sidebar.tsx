@@ -31,7 +31,8 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/category-homepage-management", label: "إدارة أقسام الصفحة الرئيسية", icon: "/categories.png" },
       { href: "/app-banners", label: "إدارة بنارات التطبيق", icon: "/categories.png" },
-      { href: "/unified-images", label: "إدارة صور الأقسام", icon: "/categories.png" }
+      { href: "/unified-images", label: "إدارة صور الأقسام", icon: "/categories.png" },
+      { href: "/dashboard/filters-lists", label: "إدارة الفلاتر والقوائم", icon: "/categories.png" }
     ]
   },
 

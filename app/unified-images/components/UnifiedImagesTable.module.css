@@ -1,0 +1,184 @@
+.tableContainer {
+    overflow-x: auto;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    direction: rtl;
+    background-color: #ffffff;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #ffffff;
+}
+
+.tableHead {
+    background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.tableHead tr th {
+    padding: 16px 20px;
+    text-align: right;
+    font-weight: 600;
+    color: #111827;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.nameColumn {
+    width: 30%;
+    min-width: 200px;
+}
+
+.imageColumn {
+    width: 25%;
+    min-width: 150px;
+    text-align: center !important;
+}
+
+.toggleColumn {
+    width: 20%;
+    min-width: 150px;
+    text-align: center !important;
+}
+
+.actionColumn {
+    width: 25%;
+    min-width: 150px;
+    text-align: center !important;
+}
+
+.tableBody tr {
+    border-bottom: 1px solid #f3f4f6;
+    transition: all 0.2s ease;
+}
+
+.tableBody tr:last-child {
+    border-bottom: none;
+}
+
+.tableBody tr:hover {
+    background-color: #f9fafb;
+    transform: scale(1.001);
+}
+
+.tableBody td {
+    padding: 16px 20px;
+    color: #374151;
+    vertical-align: middle;
+}
+
+.nameCell {
+    font-weight: 500;
+}
+
+.categoryInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.categoryIcon {
+    font-size: 28px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.categoryName {
+    font-size: 15px;
+    color: #111827;
+    font-weight: 500;
+}
+
+.imageCell {
+    text-align: center;
+}
+
+.noImage {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 20px;
+    background-color: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+}
+
+.noImageIcon {
+    font-size: 24px;
+    opacity: 0.5;
+}
+
+.noImageText {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.toggleCell {
+    text-align: center;
+}
+
+.actionCell {
+    text-align: center;
+}
+
+.uploadButton {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+    min-width: 120px;
+}
+
+.uploadButtonActive {
+    background-color: #3b82f6;
+    color: white;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.uploadButtonActive:hover {
+    background-color: #2563eb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+.uploadButtonActive:active {
+    transform: translateY(0);
+}
+
+.uploadButtonDisabled {
+    background-color: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .tableHead tr th {
+        padding: 12px 16px;
+        font-size: 13px;
+    }
+
+    .tableBody td {
+        padding: 12px 16px;
+    }
+
+    .categoryIcon {
+        font-size: 24px;
+    }
+
+    .categoryName {
+        font-size: 14px;
+    }
+
+    .uploadButton {
+        padding: 8px 16px;
+        font-size: 13px;
+        min-width: 100px;
+    }
+}

@@ -1760,31 +1760,47 @@ export async function fetchCategoriesUsageReport(token?: string): Promise<import
 // Unified Category Images Management API
 // ===========================
 
+import { retryWithBackoff } from '../utils/retry';
+
 export async function toggleCategoryGlobalImage(
   categoryId: number,
   isActive: boolean,
   token?: string
 ): Promise<void> {
-  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  };
-  if (t) headers.Authorization = `Bearer ${t}`;
+  return retryWithBackoff(async () => {
+    const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    };
+    if (t) headers.Authorization = `Bearer ${t}`;
 
-  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/toggle-global-image`;
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({ is_global_image_active: isActive }),
+    const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/toggle-global-image`;
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ is_global_image_active: isActive }),
+    });
+
+    if (!res.ok) {
+      const raw = (await res.json().catch(() => null)) as unknown;
+      const err = raw as { error?: string; message?: string } | null;
+      const message = err?.error || err?.message || 'فشل تحديث حالة الصورة الموحدة';
+
+      // Throw error with status code for retry logic
+      const error = new Error(message);
+      (error as any).status = res.status;
+      throw error;
+    }
+  }, {
+    maxAttempts: 3,
+    initialDelay: 1000,
+    shouldRetry: (error: Error, attempt: number) => {
+      const status = (error as any).status;
+      // Retry on network errors or 5xx server errors, but not on 4xx client errors
+      return !status || status >= 500;
+    },
   });
-
-  if (!res.ok) {
-    const raw = (await res.json().catch(() => null)) as unknown;
-    const err = raw as { error?: string; message?: string } | null;
-    const message = err?.error || err?.message || 'فشل تحديث حالة الصورة الموحدة';
-    throw new Error(message);
-  }
 }
 
 export async function uploadCategoryGlobalImage(
@@ -1792,65 +1808,91 @@ export async function uploadCategoryGlobalImage(
   file: File,
   token?: string
 ): Promise<AdminCategoryListItem> {
-  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (t) headers.Authorization = `Bearer ${t}`;
+  return retryWithBackoff(async () => {
+    const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (t) headers.Authorization = `Bearer ${t}`;
 
-  const formData = new FormData();
-  formData.append('image', file);
+    const formData = new FormData();
+    formData.append('image', file);
 
-  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/upload-global-image`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: formData,
-  });
+    const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/upload-global-image`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
 
-  if (!res.ok) {
+    if (!res.ok) {
+      const raw = (await res.json().catch(() => null)) as unknown;
+      const err = raw as { error?: string; message?: string } | null;
+      const message = err?.error || err?.message || 'فشل رفع الصورة';
+
+      // Throw error with status code for retry logic
+      const error = new Error(message);
+      (error as any).status = res.status;
+      throw error;
+    }
+
     const raw = (await res.json().catch(() => null)) as unknown;
-    const err = raw as { error?: string; message?: string } | null;
-    const message = err?.error || err?.message || 'فشل رفع الصورة';
-    throw new Error(message);
-  }
+    if (!raw || typeof raw !== 'object') {
+      throw new Error('استجابة غير صالحة من الخادم');
+    }
 
-  const raw = (await res.json().catch(() => null)) as unknown;
-  if (!raw || typeof raw !== 'object') {
-    throw new Error('استجابة غير صالحة من الخادم');
-  }
+    const data = raw as Record<string, unknown>;
 
-  const data = raw as Record<string, unknown>;
-  const id = typeof data['id'] === 'number' ? data['id'] : categoryId;
-  const global_image_url = typeof data['global_image_url'] === 'string' ? data['global_image_url'] : undefined;
-  const global_image_full_url = typeof data['global_image_full_url'] === 'string' ? data['global_image_full_url'] : undefined;
-  const is_global_image_active = typeof data['is_global_image_active'] === 'boolean' ? data['is_global_image_active'] : true;
+    // After successful upload, fetch the full category data to ensure we have all fields
+    const categories = await fetchAdminCategories(t);
+    const updatedCategory = categories.find(cat => cat.id === categoryId);
 
-  return {
-    id,
-    name: '',
-    global_image_url,
-    global_image_full_url,
-    is_global_image_active,
-  };
+    if (!updatedCategory) {
+      throw new Error('فشل تحميل بيانات القسم المحدث');
+    }
+
+    return updatedCategory;
+  }, {
+    maxAttempts: 2, // Only retry once for uploads to avoid duplicate uploads
+    initialDelay: 2000,
+    shouldRetry: (error: Error, attempt: number) => {
+      const status = (error as any).status;
+      // Only retry on network errors, not on server errors (to avoid duplicate uploads)
+      return !status;
+    },
+  });
 }
 
 export async function deleteCategoryGlobalImage(
   categoryId: number,
   token?: string
 ): Promise<void> {
-  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (t) headers.Authorization = `Bearer ${t}`;
+  return retryWithBackoff(async () => {
+    const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (t) headers.Authorization = `Bearer ${t}`;
 
-  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/global-image`;
-  const res = await fetch(url, {
-    method: 'DELETE',
-    headers,
+    const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/global-image`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers,
+    });
+
+    if (!res.ok) {
+      const raw = (await res.json().catch(() => null)) as unknown;
+      const err = raw as { error?: string; message?: string } | null;
+      const message = err?.error || err?.message || 'فشل حذف الصورة';
+
+      // Throw error with status code for retry logic
+      const error = new Error(message);
+      (error as any).status = res.status;
+      throw error;
+    }
+  }, {
+    maxAttempts: 3,
+    initialDelay: 1000,
+    shouldRetry: (error: Error, attempt: number) => {
+      const status = (error as any).status;
+      // Retry on network errors or 5xx server errors, but not on 4xx client errors
+      return !status || status >= 500;
+    },
   });
-
-  if (!res.ok) {
-    const raw = (await res.json().catch(() => null)) as unknown;
-    const err = raw as { error?: string; message?: string } | null;
-    const message = err?.error || err?.message || 'فشل حذف الصورة';
-    throw new Error(message);
-  }
 }

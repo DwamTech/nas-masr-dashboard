@@ -1,118 +1,93 @@
 /**
- * API Service for Option Ranks
+ * Option Ranks API Service
+ * 
+ * Handles API calls for updating option ranks
  */
 
-export interface RankUpdateRequest {
-    field: string;
-    ranks: {
-        option: string;
-        rank: number;
-    }[];
-}
+import { RankData, RankUpdateResponse } from '@/types/filters-lists';
+import { retryWithBackoff } from '@/utils/retry';
 
-export interface RankUpdateResponse {
-    success: boolean;
-    message: string;
-    data?: {
-        updated_count: number;
-    };
-}
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://back.nasmasr.app/api';
+const API_BASE = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
 
 /**
  * Update option ranks for a category field
+ * @param categorySlug - Category slug
+ * @param field - Field name
+ * @param ranks - Array of rank data
+ * @param parentId - Optional parent ID for hierarchical lists
+ * @param token - Optional authentication token
+ * @returns Rank update response
  */
 export async function updateOptionRanks(
     categorySlug: string,
     field: string,
-    ranks: { option: string; rank: number }[]
+    ranks: RankData[],
+    parentId?: string,
+    token?: string
 ): Promise<RankUpdateResponse> {
-    const token = typeof window !== 'undefined'
-        ? localStorage.getItem('authToken')
-        : null;
+    const operation = async () => {
+        const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+        const headers: Record<string, string> = {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+        };
+        if (t) headers.Authorization = `Bearer ${t}`;
 
-    if (!token) {
-        throw new Error('Authentication token not found');
-    }
+        const payload: any = {
+            field,
+            ranks,
+        };
 
-    const response = await fetch(
-        `${API_BASE_URL}/admin/categories/${categorySlug}/options/ranks`,
-        {
+        // Include parent context for hierarchical lists
+        if (parentId) {
+            payload.parentId = parentId;
+        }
+
+        const res = await fetch(`${API_BASE}/admin/categories/${categorySlug}/options/ranks`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                field,
-                ranks,
-            }),
-        }
-    );
+            headers,
+            body: JSON.stringify(payload),
+        });
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
 
-        if (response.status === 401) {
-            throw new Error('انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.');
-        }
-
-        if (response.status === 403) {
-            throw new Error('ليس لديك صلاحية لتعديل الترتيب');
-        }
-
-        if (response.status === 422) {
-            throw new Error(errorData.message || 'بيانات غير صالحة');
+            // Handle specific status codes
+            switch (res.status) {
+                case 401:
+                    throw new Error('انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.');
+                case 403:
+                    throw new Error('ليس لديك صلاحية لتنفيذ هذا الإجراء');
+                case 404:
+                    throw new Error('المورد المطلوب غير موجود');
+                case 422:
+                    throw new Error(errorData.message || 'بيانات غير صالحة');
+                default:
+                    throw new Error(errorData.message || 'حدث خطأ غير متوقع');
+            }
         }
 
-        if (response.status === 404) {
-            throw new Error('القسم غير موجود');
-        }
+        const data = await res.json() as RankUpdateResponse;
+        return data;
+    };
 
-        throw new Error(errorData.message || 'فشل تحديث الترتيب');
-    }
-
-    return response.json();
+    return retryWithBackoff(operation, {
+        maxAttempts: 3,
+        shouldRetry: (error: Error) => {
+            // Don't retry on validation or auth errors
+            const message = error.message;
+            return !(
+                message.includes('بيانات غير صالحة') ||
+                message.includes('صلاحية') ||
+                message.includes('غير موجود')
+            );
+        },
+    });
 }
 
 /**
- * Update option ranks with retry logic for network failures
+ * Update option ranks with retry logic (legacy export for backward compatibility)
+ * @deprecated Use updateOptionRanks instead
  */
-export async function updateOptionRanksWithRetry(
-    categorySlug: string,
-    field: string,
-    ranks: { option: string; rank: number }[],
-    maxRetries: number = 3
-): Promise<RankUpdateResponse> {
-    let lastError: Error | null = null;
+export const updateOptionRanksWithRetry = updateOptionRanks;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            return await updateOptionRanks(categorySlug, field, ranks);
-        } catch (error) {
-            lastError = error as Error;
-
-            // Don't retry on validation or auth errors
-            if (
-                error instanceof Error &&
-                (error.message.includes('بيانات غير صالحة') ||
-                    error.message.includes('صلاحية') ||
-                    error.message.includes('غير موجود'))
-            ) {
-                throw error;
-            }
-
-            // Retry on network errors
-            if (attempt < maxRetries) {
-                // Exponential backoff: 1s, 2s, 4s
-                const delay = Math.pow(2, attempt - 1) * 1000;
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue;
-            }
-        }
-    }
-
-    throw lastError || new Error('فشل تحديث الترتيب بعد عدة محاولات');
-}

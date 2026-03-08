@@ -1,0 +1,380 @@
+/* ===================================
+   Modal Animations - Task 23.2
+   Visual Polish for Filters & Lists Management
+   =================================== */
+
+/* Modal Backdrop Animation - Fade In/Out */
+@keyframes modalBackdropFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalBackdropFadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+/* Modal Content Animation - Scale + Fade */
+@keyframes modalContentEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes modalContentExit {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+}
+
+/* Modal Backdrop Classes */
+.modal-backdrop {
+    animation: modalBackdropFadeIn 0.2s ease-out;
+}
+
+.modal-backdrop.closing {
+    animation: modalBackdropFadeOut 0.15s ease-in;
+}
+
+/* Modal Content Classes */
+.modal-content {
+    animation: modalContentEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-content.closing {
+    animation: modalContentExit 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ===================================
+   Button Hover Effects - Enhanced
+   =================================== */
+
+.button-primary {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.button-primary::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.button-primary:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.button-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.button-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ===================================
+   Card Hover Effects - Smooth
+   =================================== */
+
+.card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.card-hover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.card-hover:hover::after {
+    opacity: 1;
+}
+
+.card-hover:hover {
+    transform: translateY(-4px);
+}
+
+/* ===================================
+   Loading States - Smooth Transitions
+   =================================== */
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.skeleton-loader {
+    background: linear-gradient(90deg,
+            #f0f0f0 0%,
+            #f8f8f8 50%,
+            #f0f0f0 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+    border-radius: 4px;
+}
+
+/* ===================================
+   Success/Error Message Animations
+   =================================== */
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideOutUp {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+.alert-enter {
+    animation: slideInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.alert-exit {
+    animation: slideOutUp 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ===================================
+   Drag & Drop Enhanced Animations
+   =================================== */
+
+/* Smooth drag start */
+@keyframes dragStart {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.05);
+    }
+}
+
+.dragging-item {
+    animation: dragStart 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Drop zone pulse effect */
+@keyframes dropZonePulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1);
+    }
+}
+
+.drop-zone-active {
+    animation: dropZonePulse 1.5s ease-in-out infinite;
+}
+
+/* Drag handle hover effect */
+.drag-handle-hover {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drag-handle-hover:hover {
+    transform: scale(1.1);
+}
+
+/* ===================================
+   Input Focus Effects
+   =================================== */
+
+.input-focus {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-focus:focus {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ===================================
+   Fade Transitions for Content
+   =================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+.fade-enter {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.fade-exit {
+    animation: fadeOut 0.2s ease-in;
+}
+
+/* ===================================
+   Spinner Animation
+   =================================== */
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinner {
+    animation: spin 0.8s linear infinite;
+}
+
+/* ===================================
+   Badge Pulse Animation
+   =================================== */
+
+@keyframes badgePulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+.badge-pulse {
+    animation: badgePulse 2s ease-in-out infinite;
+}
+
+/* ===================================
+   Responsive Adjustments
+   =================================== */
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .modal-content {
+        animation-duration: 0.25s;
+    }
+
+    .button-primary:hover {
+        transform: none;
+        /* Disable hover lift on mobile */
+    }
+
+    .card-hover:hover {
+        transform: none;
+        /* Disable hover lift on mobile */
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+
+    /* Disable hover effects on touch devices */
+    .button-primary:hover::before {
+        width: 0;
+        height: 0;
+    }
+
+    .card-hover::after {
+        display: none;
+    }
+
+    /* Use active states instead */
+    .button-primary:active {
+        transform: scale(0.98);
+    }
+
+    .card-hover:active {
+        transform: scale(0.99);
+    }
+}

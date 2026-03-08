@@ -5,6 +5,8 @@ import { UnifiedImagesTable } from './components/UnifiedImagesTable';
 import { ImageUploadModal } from './components/ImageUploadModal';
 import { fetchAdminCategories, toggleCategoryGlobalImage } from '@/services/makes';
 import type { AdminCategoryListItem } from '@/models/makes';
+import { escapeHtml } from '@/utils/sanitize';
+import styles from './page.module.css';
 
 export default function UnifiedImagesPage() {
     const [categories, setCategories] = useState<AdminCategoryListItem[]>([]);
@@ -48,7 +50,9 @@ export default function UnifiedImagesPage() {
             setCategories(data);
         } catch (err) {
             console.error('Failed to load categories:', err);
-            setError('فشل تحميل الأقسام');
+            // Sanitize error message to prevent XSS
+            const errorMsg = err instanceof Error ? escapeHtml(err.message) : 'فشل تحميل الأقسام';
+            setError(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -74,7 +78,9 @@ export default function UnifiedImagesPage() {
             // Rollback on error: Revert to previous state
             setCategories(previousCategories);
             console.error('Failed to toggle:', err);
-            setError('فشل تحديث حالة الصورة الموحدة');
+            // Sanitize error message to prevent XSS
+            const errorMsg = err instanceof Error ? escapeHtml(err.message) : 'فشل تحديث حالة الصورة الموحدة';
+            setError(errorMsg);
         }
     };
 
@@ -110,28 +116,29 @@ export default function UnifiedImagesPage() {
     };
 
     return (
-        <div className="container mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-6">إدارة صور الأقسام الموحدة</h1>
+        <div className={styles.container}>
+            <h1 className={styles.title}>إدارة صور الأقسام الموحدة</h1>
 
             {/* Success Message */}
             {successMessage && (
-                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-sm text-green-600">{successMessage}</p>
+                <div className={`${styles.messageBox} ${styles.successMessage}`}>
+                    <p>{successMessage}</p>
                 </div>
             )}
 
             {/* Error Message */}
             {error && (
-                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{error}</p>
+                <div className={`${styles.messageBox} ${styles.errorMessage}`}>
+                    {/* Using dangerouslySetInnerHTML with sanitized content */}
+                    <p dangerouslySetInnerHTML={{ __html: error }} />
                 </div>
             )}
 
             {/* Loading State */}
             {loading ? (
-                <div className="text-center py-8">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                    <p className="mt-2 text-gray-600">جاري التحميل...</p>
+                <div className={styles.loadingContainer}>
+                    <div className={styles.spinner}></div>
+                    <p className={styles.loadingText}>جاري التحميل...</p>
                 </div>
             ) : (
                 <UnifiedImagesTable

@@ -1,0 +1,125 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+}
+
+.modal {
+    background-color: white;
+    border-radius: var(--border-radius-lg);
+    padding: 24px;
+    max-width: 672px;
+    width: 100%;
+    margin: 0 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+    direction: rtl;
+}
+
+.title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--color-black);
+}
+
+.dropZone {
+    border: 2px dashed #d1d5db;
+    border-radius: var(--border-radius);
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dropZone:hover {
+    border-color: #9ca3af;
+}
+
+.dropZoneActive {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+.fileInput {
+    display: none;
+}
+
+.fileInputLabel {
+    cursor: pointer;
+}
+
+.dropZoneText {
+    color: #6b7280;
+    margin: 0;
+}
+
+.dropZoneHint {
+    font-size: 14px;
+    color: #9ca3af;
+    margin-top: 8px;
+}
+
+.errorBox {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--border-radius-sm);
+}
+
+.errorBox p {
+    font-size: 14px;
+    color: #dc2626;
+    margin: 0;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.button {
+    padding: 8px 16px;
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+}
+
+.cancelButton {
+    border: 1px solid #e5e7eb;
+    background-color: white;
+    color: var(--color-black);
+}
+
+.cancelButton:hover {
+    background-color: #f9fafb;
+}
+
+.cancelButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.uploadButton {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.uploadButton:hover:not(:disabled) {
+    background-color: #2563eb;
+}
+
+.uploadButton:disabled {
+    background-color: #d1d5db;
+    cursor: not-allowed;
+}

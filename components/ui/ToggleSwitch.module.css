@@ -1,0 +1,62 @@
+.toggle {
+    position: relative;
+    display: inline-flex;
+    height: 28px;
+    width: 52px;
+    align-items: center;
+    border-radius: 9999px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    cursor: pointer;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+    direction: ltr;
+    /* Force LTR for toggle to work correctly in RTL context */
+}
+
+.toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.toggle:hover:not(.toggleDisabled) {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.toggleChecked {
+    background-color: #3b82f6;
+}
+
+.toggleChecked:hover:not(.toggleDisabled) {
+    background-color: #2563eb;
+}
+
+.toggleUnchecked {
+    background-color: #d1d5db;
+}
+
+.toggleUnchecked:hover:not(.toggleDisabled) {
+    background-color: #9ca3af;
+}
+
+.toggleDisabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.toggleThumb {
+    display: inline-block;
+    height: 22px;
+    width: 22px;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.toggleThumbChecked {
+    transform: translateX(26px);
+}
+
+.toggleThumbUnchecked {
+    transform: translateX(3px);
+}

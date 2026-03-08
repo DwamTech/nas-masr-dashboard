@@ -112,4 +112,237 @@ export function useProcessedOptions(
     return processOptions(options, shouldSort);
 }
 
+/**
+ * يحلل مدخلات الإضافة الجماعية (فاصلة أو سطر جديد)
+ * @param input - النص المدخل (فاصل بفواصل أو أسطر جديدة)
+ * @returns مصفوفة من الخيارات المنظفة
+ */
+export function parseBulkInput(input: string): string[] {
+    if (!input || typeof input !== 'string') {
+        return [];
+    }
+
+    // محاولة تحديد الفاصل (فاصلة أو سطر جديد)
+    const hasCommas = input.includes(',');
+    const hasNewlines = input.includes('\n');
+
+    let options: string[] = [];
+
+    if (hasCommas && !hasNewlines) {
+        // فاصل بفواصل
+        options = input.split(',');
+    } else if (hasNewlines) {
+        // فاصل بأسطر جديدة
+        options = input.split('\n');
+    } else if (hasCommas) {
+        // إذا كان هناك فواصل وأسطر جديدة، استخدم الفواصل
+        options = input.split(',');
+    } else {
+        // إذا لم يكن هناك فاصل، اعتبر المدخل كخيار واحد
+        options = [input];
+    }
+
+    // تنظيف كل خيار: إزالة المسافات الزائدة والقيم الفارغة
+    return options
+        .map(opt => String(opt || '').trim())
+        .filter(opt => opt.length > 0);
+}
+
+/**
+ * التحقق من صحة الخيارات (كشف التكرارات والقيم الفارغة)
+ * @param options - الخيارات المراد التحقق منها
+ * @param existingOptions - الخيارات الموجودة بالفعل (اختياري)
+ * @returns نتيجة التحقق
+ */
+export interface ValidationResult {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    duplicates: string[];
+}
+
+export function validateOptions(
+    options: string[],
+    existingOptions: string[] = []
+): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const duplicates: string[] = [];
+
+    if (!Array.isArray(options)) {
+        return {
+            valid: false,
+            errors: ['المدخل يجب أن يكون مصفوفة'],
+            warnings: [],
+            duplicates: [],
+        };
+    }
+
+    // التحقق من القيم الفارغة
+    const emptyIndices = options
+        .map((opt, idx) => ({ opt, idx }))
+        .filter(({ opt }) => !opt || String(opt).trim().length === 0)
+        .map(({ idx }) => idx);
+
+    if (emptyIndices.length > 0) {
+        errors.push(`يوجد قيم فارغة في المواضع: ${emptyIndices.join(', ')}`);
+    }
+
+    // التحقق من التكرارات داخل المصفوفة الجديدة
+    const seen = new Set<string>();
+    const internalDuplicates: string[] = [];
+
+    options.forEach(opt => {
+        const trimmed = String(opt || '').trim();
+        if (trimmed.length > 0) {
+            if (seen.has(trimmed)) {
+                if (!internalDuplicates.includes(trimmed)) {
+                    internalDuplicates.push(trimmed);
+                }
+            }
+            seen.add(trimmed);
+        }
+    });
+
+    if (internalDuplicates.length > 0) {
+        duplicates.push(...internalDuplicates);
+        errors.push(`يوجد خيارات مكررة: ${internalDuplicates.join(', ')}`);
+    }
+
+    // التحقق من التكرارات مع الخيارات الموجودة
+    const existingSet = new Set(
+        existingOptions.map(opt => String(opt || '').trim()).filter(opt => opt.length > 0)
+    );
+
+    const conflictingDuplicates: string[] = [];
+    options.forEach(opt => {
+        const trimmed = String(opt || '').trim();
+        if (trimmed.length > 0 && existingSet.has(trimmed)) {
+            if (!conflictingDuplicates.includes(trimmed)) {
+                conflictingDuplicates.push(trimmed);
+            }
+        }
+    });
+
+    if (conflictingDuplicates.length > 0) {
+        duplicates.push(...conflictingDuplicates);
+        errors.push(`الخيارات التالية موجودة بالفعل: ${conflictingDuplicates.join(', ')}`);
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings,
+        duplicates,
+    };
+}
+
+/**
+ * واجهة بيانات الترتيب
+ */
+export interface RankData {
+    option: string;
+    rank: number;
+}
+
+/**
+ * حساب الترتيبات المتسلسلة للخيارات
+ * @param options - الخيارات المراد حساب ترتيبها
+ * @returns مصفوفة من بيانات الترتيب
+ */
+export function calculateRanks(options: string[]): RankData[] {
+    if (!Array.isArray(options) || options.length === 0) {
+        return [];
+    }
+
+    return options.map((option, index) => ({
+        option,
+        rank: index + 1,
+    }));
+}
+
+/**
+ * يكتشف وجود "غير ذلك" في القائمة
+ * @param options - القائمة المراد البحث فيها
+ * @returns true إذا كان "غير ذلك" موجوداً، false خلاف ذلك
+ */
+export function detectOtherOption(options: string[]): boolean {
+    if (!Array.isArray(options)) {
+        return false;
+    }
+    return options.includes(OTHER_OPTION);
+}
+
+/**
+ * فئة OptionsHelper - توفر واجهة موحدة للعمليات على الخيارات
+ */
+export class OptionsHelper {
+    static readonly OTHER_OPTION = OTHER_OPTION;
+
+    /**
+     * يكتشف وجود "غير ذلك" في القائمة
+     */
+    static detectOtherOption(options: string[]): boolean {
+        return detectOtherOption(options);
+    }
+
+    /**
+     * يضمن أن "غير ذلك" موجود في آخر القائمة
+     */
+    static ensureOtherIsLast(options: string[]): string[] {
+        return ensureOtherAtEnd(options);
+    }
+
+    /**
+     * يحلل مدخلات الإضافة الجماعية
+     */
+    static parseBulkInput(input: string): string[] {
+        return parseBulkInput(input);
+    }
+
+    /**
+     * يتحقق من صحة الخيارات
+     */
+    static validateOptions(
+        options: string[],
+        existingOptions?: string[]
+    ): ValidationResult {
+        return validateOptions(options, existingOptions);
+    }
+
+    /**
+     * يحسب الترتيبات المتسلسلة
+     */
+    static calculateRanks(options: string[]): RankData[] {
+        return calculateRanks(options);
+    }
+
+    /**
+     * يرتب القائمة أبجدياً مع إبقاء "غير ذلك" في الآخر
+     */
+    static sortOptionsWithOtherAtEnd(options: string[]): string[] {
+        return sortOptionsWithOtherAtEnd(options);
+    }
+
+    /**
+     * يعالج options من API
+     */
+    static processOptions(
+        options: string[] | null | undefined,
+        shouldSort?: boolean
+    ): string[] {
+        return processOptions(options, shouldSort);
+    }
+
+    /**
+     * يعالج Record من options
+     */
+    static processOptionsMap<T extends Record<string, string[]>>(
+        optionsMap: T,
+        shouldSort?: boolean
+    ): T {
+        return processOptionsMap(optionsMap, shouldSort);
+    }
+}
+
 export { OTHER_OPTION };

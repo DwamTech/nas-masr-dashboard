@@ -17,6 +17,9 @@ global.fetch = vi.fn();
 describe('Unified Category Images API Service Functions', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Reset fetch mock completely
+        (global.fetch as any).mockReset();
+
         // Mock localStorage
         Object.defineProperty(window, 'localStorage', {
             value: {
@@ -137,10 +140,23 @@ describe('Unified Category Images API Service Functions', () => {
         });
 
         it('should handle authentication errors', async () => {
-            (global.fetch as any).mockResolvedValueOnce({
-                ok: false,
-                json: async () => ({ error: 'غير مصرح' }),
-            });
+            // Mock all retry attempts to return the same error
+            (global.fetch as any)
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 401,
+                    json: async () => ({ error: 'غير مصرح' }),
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 401,
+                    json: async () => ({ error: 'غير مصرح' }),
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 401,
+                    json: async () => ({ error: 'غير مصرح' }),
+                });
 
             await expect(toggleCategoryGlobalImage(1, true)).rejects.toThrow('غير مصرح');
         });
@@ -183,10 +199,18 @@ describe('Unified Category Images API Service Functions', () => {
         it('should handle upload errors', async () => {
             const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
 
-            (global.fetch as any).mockResolvedValueOnce({
-                ok: false,
-                json: async () => ({ error: 'حجم الصورة كبير جداً' }),
-            });
+            // Mock retry attempts (upload only retries once on network errors, not on 4xx errors)
+            (global.fetch as any)
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 413,
+                    json: async () => ({ error: 'حجم الصورة كبير جداً' }),
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 413,
+                    json: async () => ({ error: 'حجم الصورة كبير جداً' }),
+                });
 
             await expect(uploadCategoryGlobalImage(1, mockFile)).rejects.toThrow('حجم الصورة كبير جداً');
         });
@@ -194,10 +218,16 @@ describe('Unified Category Images API Service Functions', () => {
         it('should handle invalid response', async () => {
             const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
 
-            (global.fetch as any).mockResolvedValueOnce({
-                ok: true,
-                json: async () => null,
-            });
+            // Mock retry attempts
+            (global.fetch as any)
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => null,
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => null,
+                });
 
             await expect(uploadCategoryGlobalImage(1, mockFile)).rejects.toThrow('استجابة غير صالحة من الخادم');
         });
@@ -229,10 +259,23 @@ describe('Unified Category Images API Service Functions', () => {
         });
 
         it('should handle delete errors', async () => {
-            (global.fetch as any).mockResolvedValueOnce({
-                ok: false,
-                json: async () => ({ error: 'الصورة غير موجودة' }),
-            });
+            // Mock all retry attempts to return the same error
+            (global.fetch as any)
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 404,
+                    json: async () => ({ error: 'الصورة غير موجودة' }),
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 404,
+                    json: async () => ({ error: 'الصورة غير موجودة' }),
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 404,
+                    json: async () => ({ error: 'الصورة غير موجودة' }),
+                });
 
             await expect(deleteCategoryGlobalImage(1)).rejects.toThrow('الصورة غير موجودة');
         });

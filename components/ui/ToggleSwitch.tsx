@@ -1,3 +1,5 @@
+import styles from './ToggleSwitch.module.css';
+
 interface ToggleSwitchProps {
     checked: boolean;
     onChange: (checked: boolean) => void;
@@ -11,6 +13,17 @@ export function ToggleSwitch({
     disabled = false,
     ariaLabel = 'Toggle switch'
 }: ToggleSwitchProps) {
+    const toggleClasses = [
+        styles.toggle,
+        checked ? styles.toggleChecked : styles.toggleUnchecked,
+        disabled ? styles.toggleDisabled : ''
+    ].filter(Boolean).join(' ');
+
+    const thumbClasses = [
+        styles.toggleThumb,
+        checked ? styles.toggleThumbChecked : styles.toggleThumbUnchecked
+    ].join(' ');
+
     return (
         <button
             type="button"
@@ -19,19 +32,9 @@ export function ToggleSwitch({
             aria-label={ariaLabel}
             disabled={disabled}
             onClick={() => onChange(!checked)}
-            className={`
-        relative inline-flex h-6 w-11 items-center rounded-full
-        transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-        ${checked ? 'bg-blue-600' : 'bg-gray-300'}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-      `}
+            className={toggleClasses}
         >
-            <span
-                className={`
-          inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-          ${checked ? 'translate-x-6' : 'translate-x-1'}
-        `}
-            />
+            <span className={thumbClasses} />
         </button>
     );
 }

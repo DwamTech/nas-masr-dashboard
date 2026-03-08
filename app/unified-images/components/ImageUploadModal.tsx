@@ -4,6 +4,8 @@ import { useState, useCallback, DragEvent, ChangeEvent } from 'react';
 import { uploadCategoryGlobalImage } from '@/services/makes';
 import { ImagePreview } from './ImagePreview';
 import type { AdminCategoryListItem } from '@/models/makes';
+import { sanitizeCategoryName, sanitizeFilename } from '@/utils/sanitize';
+import styles from './ImageUploadModal.module.css';
 
 interface ImageUploadModalProps {
     category: AdminCategoryListItem;
@@ -24,6 +26,9 @@ export function ImageUploadModal({
     const [isDragActive, setIsDragActive] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Sanitize category name to prevent XSS
+    const safeCategoryName = sanitizeCategoryName(category.name || '');
+
     // Client-side validation
     const validateImage = (file: File): string | null => {
         const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -34,6 +39,12 @@ export function ImageUploadModal({
         if (file.size > 5242880) {
             // 5MB
             return 'حجم الصورة يتجاوز 5 ميجابايت';
+        }
+
+        // Sanitize filename to prevent path traversal
+        const safeFilename = sanitizeFilename(file.name);
+        if (!safeFilename) {
+            return 'اسم الملف غير صالح';
         }
 
         return null;
@@ -114,10 +125,10 @@ export function ImageUploadModal({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4">
-                    رفع صورة موحدة - {category.name}
+        <div className={styles.overlay}>
+            <div className={styles.modal}>
+                <h2 className={styles.title}>
+                    رفع صورة موحدة - {safeCategoryName}
                 </h2>
 
                 {preview && (
@@ -132,40 +143,38 @@ export function ImageUploadModal({
                     onDragLeave={handleDragLeave}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
-                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragActive
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 hover:border-gray-400'
+                    className={`${styles.dropZone} ${isDragActive ? styles.dropZoneActive : ''
                         }`}
                 >
                     <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         onChange={handleFileInput}
-                        className="hidden"
+                        className={styles.fileInput}
                         id="file-input"
                     />
-                    <label htmlFor="file-input" className="cursor-pointer">
-                        <p className="text-gray-600">
+                    <label htmlFor="file-input" className={styles.fileInputLabel}>
+                        <p className={styles.dropZoneText}>
                             {isDragActive
                                 ? 'أفلت الصورة هنا...'
                                 : 'اسحب وأفلت صورة هنا، أو انقر للاختيار'}
                         </p>
-                        <p className="text-sm text-gray-400 mt-2">
+                        <p className={styles.dropZoneHint}>
                             الحد الأقصى: 5MB | الصيغ المدعومة: JPEG, PNG, WebP
                         </p>
                     </label>
                 </div>
 
                 {error && (
-                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                        <p className="text-sm text-red-600">{error}</p>
+                    <div className={styles.errorBox}>
+                        <p>{error}</p>
                     </div>
                 )}
 
-                <div className="flex justify-end gap-3 mt-6">
+                <div className={styles.actions}>
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 border rounded hover:bg-gray-50 transition-colors"
+                        className={`${styles.button} ${styles.cancelButton}`}
                         disabled={uploading}
                     >
                         إلغاء
@@ -173,7 +182,7 @@ export function ImageUploadModal({
                     <button
                         onClick={handleUpload}
                         disabled={!selectedFile || uploading}
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                        className={`${styles.button} ${styles.uploadButton}`}
                     >
                         {uploading ? 'جاري الرفع...' : 'حفظ وتعميم'}
                     </button>

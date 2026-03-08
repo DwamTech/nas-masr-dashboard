@@ -25,6 +25,7 @@ export function useDragAndDrop({
     const [activeId, setActiveId] = useState<string | null>(null);
 
     // Setup sensors with better activation constraints for smoother UX
+    // TouchSensor configured with 150ms delay for long press (Requirement 4.18, 11.3)
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -38,7 +39,7 @@ export function useDragAndDrop({
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 150, // Reduced from 200ms for faster response
+                delay: 150, // Long press delay for touch devices (Requirement 4.18, 11.3)
                 tolerance: 8, // Increased tolerance for better mobile UX
             },
         }),

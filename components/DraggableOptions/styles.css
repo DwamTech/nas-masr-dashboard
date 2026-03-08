@@ -2,6 +2,17 @@
    Drag & Drop Styles - Enhanced UX
    =================================== */
 
+/* Screen Reader Only - Accessibility */
+.sr-only {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
 /* Container */
 .models-list {
     position: relative;
@@ -14,16 +25,22 @@
     min-height: 60px;
 }
 
-/* Draggable Option Container */
+/* Draggable Option Container - Enhanced with smooth transitions */
 .draggable-option {
     display: inline-flex;
     align-items: center;
     position: relative;
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform, opacity;
     transform: translateZ(0);
     /* Force GPU acceleration */
     backface-visibility: hidden;
+    border-radius: 6px;
+}
+
+/* Hover state for better visual feedback */
+.draggable-option:hover {
+    background: rgba(76, 175, 80, 0.02);
 }
 
 /* Disable transitions during drag for smoother movement */
@@ -31,7 +48,7 @@
     transition: none !important;
 }
 
-/* Drag Handle */
+/* Drag Handle - Enhanced with smooth transitions */
 .drag-handle {
     cursor: grab;
     padding: 8px 12px;
@@ -42,21 +59,44 @@
     justify-content: center;
     font-size: 18px;
     line-height: 1;
-    transition: all 0.2s ease;
-    border-radius: 4px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 6px;
     margin-left: 8px;
     flex-shrink: 0;
+    /* Ensure minimum 44x44px touch target (Requirement 4.18, 11.3) */
+    min-width: 44px;
+    min-height: 44px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Ripple effect on hover */
+.drag-handle::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(76, 175, 80, 0.15) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .drag-handle:hover {
     color: #4CAF50;
     background: rgba(76, 175, 80, 0.08);
+    transform: scale(1.05);
 }
 
-.drag-handle:active {
+.drag-handle:hover::before {
+    opacity: 1;
+}
+
+/* Touch feedback - visual indication on touch (Requirement 4.18, 11.3) */
+.drag-handle:active,
+.drag-handle.touch-active {
     cursor: grabbing;
     color: #388E3C;
     background: rgba(76, 175, 80, 0.15);
+    transform: scale(0.95);
 }
 
 /* RTL Support */
@@ -65,31 +105,47 @@
     margin-right: 8px;
 }
 
-/* Dragging State - More visible */
+/* Dragging State - Enhanced visual feedback */
 .draggable-option.dragging {
-    opacity: 0.4;
+    opacity: 0.5;
     transform: scale(0.98);
+    filter: blur(1px);
 }
 
-/* Drop Zone Indicator - Clear visual feedback */
+/* Drop Zone Indicator - Enhanced with animation */
 .draggable-option.over {
     background: linear-gradient(to bottom,
             rgba(76, 175, 80, 0.15) 0%,
             rgba(76, 175, 80, 0.05) 100%);
-    border-radius: 6px;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+    border-radius: 8px;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.4);
+    animation: dropZonePulse 1.5s ease-in-out infinite;
 }
 
-/* Drag Overlay - Enhanced */
+@keyframes dropZonePulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.2);
+    }
+}
+
+/* Drag Overlay - Enhanced with better shadow and rotation */
 .drag-overlay {
     background: white;
     border: 2px solid #4CAF50;
-    border-radius: 6px;
-    padding: 6px 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    padding: 8px 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3),
+        0 4px 8px rgba(76, 175, 80, 0.2);
     cursor: grabbing;
-    transform: rotate(2deg);
+    transform: rotate(3deg) scale(1.05);
     opacity: 0.95;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Drop Indicator Line */
@@ -166,24 +222,26 @@
     }
 }
 
-/* Model Tag Enhancement */
+/* Model Tag Enhancement - Smoother transitions */
 .model-tag {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: white;
     border: 1px solid #e0e0e0;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 14px;
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     flex: 1;
     min-width: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .draggable-option:hover .model-tag {
     border-color: #4CAF50;
-    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15);
+    transform: translateY(-1px);
 }
 
 /* Tag Remove Button */
@@ -239,8 +297,11 @@
 /* Mobile Optimization */
 @media (max-width: 768px) {
     .drag-handle {
-        padding: 10px 14px;
+        /* Ensure larger touch targets on mobile (Requirement 4.18, 11.3) */
+        padding: 12px 16px;
         font-size: 20px;
+        min-width: 48px;
+        min-height: 48px;
     }
 
     .model-tag {
@@ -251,5 +312,28 @@
     .models-list {
         gap: 10px;
         padding: 14px;
+    }
+}
+
+/* Touch device specific styles (Requirement 4.18, 11.3) */
+@media (hover: none) and (pointer: coarse) {
+
+    /* Increase touch targets for touch-only devices */
+    .drag-handle {
+        min-width: 48px;
+        min-height: 48px;
+        padding: 12px 16px;
+    }
+
+    /* Enhanced visual feedback for touch */
+    .draggable-option:active {
+        background: rgba(76, 175, 80, 0.05);
+        border-radius: 6px;
+    }
+
+    /* Larger tap areas for better UX */
+    .model-tag {
+        padding: 12px 16px;
+        min-height: 44px;
     }
 }

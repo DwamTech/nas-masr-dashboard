@@ -1,10 +1,40 @@
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { ImagePreview } from './ImagePreview';
 import type { AdminCategoryListItem } from '@/models/makes';
+import { sanitizeCategoryName } from '@/utils/sanitize';
+import styles from './UnifiedImagesTable.module.css';
 
 interface UnifiedImagesTableProps {
     categories: AdminCategoryListItem[];
     onToggle: (categoryId: number, isActive: boolean) => Promise<void>;
     onUploadClick: (category: AdminCategoryListItem) => void;
+}
+
+// Decode HTML entities in icon strings
+function decodeHtmlEntities(text: string | undefined): string {
+    if (!text) return '';
+
+    // If icon contains image file extension, it's not an emoji - return empty
+    if (text.includes('.jpg') || text.includes('.jpeg') || text.includes('.png') || text.includes('.webp') || text.includes('.gif')) {
+        return '';
+    }
+
+    // Create a temporary element to decode HTML entities
+    if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        return textarea.value;
+    }
+
+    // Fallback for server-side rendering
+    return text
+        .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
 }
 
 export function UnifiedImagesTable({
@@ -13,51 +43,70 @@ export function UnifiedImagesTable({
     onUploadClick,
 }: UnifiedImagesTableProps) {
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full border-collapse bg-white shadow-sm rounded-lg">
-                <thead>
-                    <tr className="bg-gray-100 border-b">
-                        <th className="p-3 text-right font-semibold text-gray-700">القسم</th>
-                        <th className="p-3 text-right font-semibold text-gray-700">الأيقونة</th>
-                        <th className="p-3 text-center font-semibold text-gray-700">
+        <div className={styles.tableContainer}>
+            <table className={styles.table}>
+                <thead className={styles.tableHead}>
+                    <tr>
+                        <th className={styles.nameColumn}>القسم</th>
+                        <th className={styles.imageColumn}>معاينة الصورة</th>
+                        <th className={styles.toggleColumn}>
                             تفعيل الصورة الموحدة
                         </th>
-                        <th className="p-3 text-center font-semibold text-gray-700">
+                        <th className={styles.actionColumn}>
                             إدارة الصورة
                         </th>
                     </tr>
                 </thead>
-                <tbody>
-                    {categories.map((category) => (
-                        <tr key={category.id} className="border-b hover:bg-gray-50">
-                            <td className="p-3 text-gray-800">{category.name}</td>
-                            <td className="p-3 text-2xl">{category.icon}</td>
-                            <td className="p-3 text-center">
-                                <div className="flex justify-center">
+                <tbody className={styles.tableBody}>
+                    {categories.map((category) => {
+                        // Sanitize category name to prevent XSS
+                        const safeName = sanitizeCategoryName(category.name || '');
+                        // Decode HTML entities in icon
+                        const decodedIcon = decodeHtmlEntities(category.icon);
+
+                        return (
+                            <tr key={category.id}>
+                                <td className={styles.nameCell}>
+                                    <div className={styles.categoryInfo}>
+                                        <span className={styles.categoryIcon}>{decodedIcon}</span>
+                                        <span className={styles.categoryName}>{safeName}</span>
+                                    </div>
+                                </td>
+                                <td className={styles.imageCell}>
+                                    {category.global_image_full_url ? (
+                                        <ImagePreview
+                                            imageUrl={category.global_image_full_url}
+                                            categoryName={safeName}
+                                        />
+                                    ) : (
+                                        <div className={styles.noImage}>
+                                            <span className={styles.noImageIcon}>📷</span>
+                                            <span className={styles.noImageText}>لا توجد صورة</span>
+                                        </div>
+                                    )}
+                                </td>
+                                <td className={styles.toggleCell}>
                                     <ToggleSwitch
                                         checked={category.is_global_image_active ?? false}
                                         onChange={(checked) => onToggle(category.id, checked)}
-                                        ariaLabel={`تفعيل الصورة الموحدة لقسم ${category.name}`}
+                                        ariaLabel={`تفعيل الصورة الموحدة لقسم ${safeName}`}
                                     />
-                                </div>
-                            </td>
-                            <td className="p-3 text-center">
-                                <button
-                                    disabled={!category.is_global_image_active}
-                                    onClick={() => onUploadClick(category)}
-                                    className={`
-                    px-4 py-2 rounded-md font-medium transition-colors
-                    ${category.is_global_image_active
-                                            ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
-                                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        }
-                  `}
-                                >
-                                    {category.global_image_url ? 'تعديل الصورة' : 'رفع صورة'}
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
+                                </td>
+                                <td className={styles.actionCell}>
+                                    <button
+                                        disabled={!category.is_global_image_active}
+                                        onClick={() => onUploadClick(category)}
+                                        className={`${styles.uploadButton} ${category.is_global_image_active
+                                            ? styles.uploadButtonActive
+                                            : styles.uploadButtonDisabled
+                                            }`}
+                                    >
+                                        {category.global_image_url ? 'تعديل الصورة' : 'رفع صورة'}
+                                    </button>
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>

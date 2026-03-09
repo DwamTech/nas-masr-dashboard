@@ -219,7 +219,7 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
                                             if (found) setSelectedGov(found);
                                         }}
                                         disabled={saving}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.95rem', direction: 'rtl', background: 'white' }}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.95rem', direction: 'rtl', background: 'white', color: '#111827' }}
                                     >
                                         {governorates.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                                     </select>
@@ -239,7 +239,7 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
                                     placeholder="أدخل الخيارات مفصولة بفواصل أو كل خيار في سطر جديد..."
                                     disabled={saving}
                                     rows={3}
-                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', direction: 'rtl', fontFamily: 'inherit', resize: 'vertical', fontSize: '0.875rem' }}
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', direction: 'rtl', fontFamily: 'inherit', resize: 'vertical', fontSize: '0.875rem', background: 'white', color: '#111827' }}
                                 />
                                 <button onClick={handleBulkAdd} disabled={saving || !bulkInput.trim()} className="add-btn" style={{ marginTop: '0.5rem' }}>
                                     {saving ? '...' : 'إضافة'}
@@ -256,7 +256,7 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
                                         onKeyDown={e => e.key === 'Enter' && handleAddItem()}
                                         placeholder={`اسم ${activeTab === 'gov' ? 'المحافظة' : 'المدينة'} الجديدة`}
                                         disabled={saving}
-                                        style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', direction: 'rtl', fontSize: '0.875rem' }}
+                                        style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', direction: 'rtl', fontSize: '0.875rem', background: 'white', color: '#111827' }}
                                     />
                                     <button onClick={handleAddItem} disabled={saving || !newItemName.trim()} className="add-btn">إضافة</button>
                                 </div>
@@ -278,7 +278,7 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
                                                             onChange={e => setEditingName(e.target.value)}
                                                             onKeyDown={e => e.key === 'Enter' && handleSaveEdit()}
                                                             autoFocus
-                                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #3b82f6', direction: 'rtl', fontSize: '0.875rem' }}
+                                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #3b82f6', direction: 'rtl', fontSize: '0.875rem', background: 'white', color: '#111827' }}
                                                         />
                                                         <button onClick={handleSaveEdit} className="save-edit-btn" disabled={saving}>حفظ</button>
                                                         <button onClick={() => setEditingId(null)} className="cancel-btn">إلغاء</button>

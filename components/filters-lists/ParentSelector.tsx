@@ -93,6 +93,7 @@ export function ParentSelector({
                         }
                         ${isOpen ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'}
                     `}
+                    style={{ color: '#111827' }}
                     aria-haspopup="listbox"
                     aria-expanded={isOpen}
                     aria-label={selectedParent ? `${label}: ${selectedParent}` : `${label}: لم يتم الاختيار`}
@@ -134,6 +135,7 @@ export function ParentSelector({
                                                 : 'text-gray-900 hover:bg-gray-50'
                                             }
                                         `}
+                                        style={{ color: parent === selectedParent ? '#1d4ed8' : '#111827' }}
                                         tabIndex={0}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' || e.key === ' ') {

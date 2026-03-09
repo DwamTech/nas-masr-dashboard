@@ -788,6 +788,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                                 }
                             }}
                             className="flex-1 px-3 py-1.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            style={{ color: '#111827', background: 'white' }}
                             autoFocus
                             disabled={saving}
                         />
@@ -1074,6 +1075,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                                                 }}
                                                 placeholder="أدخل اسم الخيار الجديد"
                                                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                style={{ color: '#111827', background: 'white' }}
                                                 disabled={saving}
                                                 aria-describedby="new-option-help"
                                             />
@@ -1141,6 +1143,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                                                         }}
                                                         placeholder="أدخل اسم الخيار الجديد"
                                                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        style={{ color: '#111827', background: 'white' }}
                                                         disabled={saving}
                                                         aria-describedby="new-child-option-help"
                                                     />

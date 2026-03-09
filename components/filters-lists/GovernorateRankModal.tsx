@@ -126,7 +126,7 @@ export default function GovernorateRankModal({ isOpen, onClose, category }: Gove
                                     if (found) setSelectedGov(found);
                                 }}
                                 disabled={saving}
-                                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.95rem', direction: 'rtl', background: 'white' }}
+                                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.95rem', direction: 'rtl', background: 'white', color: '#111827' }}
                             >
                                 {governorates.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                             </select>

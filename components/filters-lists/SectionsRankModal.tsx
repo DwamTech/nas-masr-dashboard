@@ -231,7 +231,7 @@ export default function SectionsRankModal({ isOpen, onClose, category }: Section
                                 style={{
                                     width: '100%', padding: '0.75rem', borderRadius: '8px',
                                     border: '1px solid #d1d5db', fontSize: '0.95rem',
-                                    direction: 'rtl', background: 'white'
+                                    direction: 'rtl', background: 'white', color: '#111827'
                                 }}
                             >
                                 {mainSections.map(s => (

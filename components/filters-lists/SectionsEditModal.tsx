@@ -294,7 +294,7 @@ export default function SectionsEditModal({ isOpen, onClose, category }: Section
                                         style={{
                                             width: '100%', padding: '0.75rem', borderRadius: '8px',
                                             border: '1px solid #d1d5db', fontSize: '0.95rem',
-                                            direction: 'rtl', background: 'white'
+                                            direction: 'rtl', background: 'white', color: '#111827'
                                         }}
                                     >
                                         {mainSections.map(s => (
@@ -322,6 +322,7 @@ export default function SectionsEditModal({ isOpen, onClose, category }: Section
                                         width: '100%', padding: '0.75rem', borderRadius: '8px',
                                         border: '1px solid #d1d5db', direction: 'rtl',
                                         fontFamily: 'inherit', resize: 'vertical', fontSize: '0.875rem',
+                                        background: 'white', color: '#111827'
                                     }}
                                 />
                                 <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
@@ -352,7 +353,7 @@ export default function SectionsEditModal({ isOpen, onClose, category }: Section
                                         style={{
                                             flex: 1, padding: '0.75rem', borderRadius: '8px',
                                             border: '1px solid #d1d5db', direction: 'rtl',
-                                            fontSize: '0.875rem',
+                                            fontSize: '0.875rem', background: 'white', color: '#111827'
                                         }}
                                     />
                                     <button
@@ -390,6 +391,7 @@ export default function SectionsEditModal({ isOpen, onClose, category }: Section
                                                                 flex: 1, padding: '0.5rem', borderRadius: '6px',
                                                                 border: '1px solid #3b82f6', direction: 'rtl',
                                                                 fontSize: '0.875rem',
+                                                                background: 'white', color: '#111827'
                                                             }}
                                                         />
                                                         <button onClick={handleSaveEdit} className="save-edit-btn" disabled={saving}>

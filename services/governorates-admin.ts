@@ -133,3 +133,53 @@ export async function deleteCity(id: number): Promise<void> {
         throw new Error(data.message || 'فشل حذف المدينة');
     }
 }
+
+/**
+ * Update governorate ranks (sort order)
+ */
+export async function updateGovernorateRanks(ranks: { id: number; rank: number }[]): Promise<void> {
+    console.log('Calling updateGovernorateRanks with:', ranks);
+
+    const url = `${API_ADMIN_BASE}/api/admin/governorates/ranks`;
+    console.log('Request URL:', url);
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ranks }),
+        cache: 'no-store',
+    });
+
+    console.log('Response status:', res.status, res.statusText);
+
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error('Error response:', data);
+        throw new Error(data.message || `فشل حفظ ترتيب المحافظات (${res.status})`);
+    }
+}
+
+/**
+ * Update city ranks (sort order) for a specific governorate
+ */
+export async function updateCityRanks(ranks: { id: number; rank: number }[]): Promise<void> {
+    console.log('Calling updateCityRanks with:', ranks);
+
+    const url = `${API_ADMIN_BASE}/api/admin/cities/ranks`;
+    console.log('Request URL:', url);
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ranks }),
+        cache: 'no-store',
+    });
+
+    console.log('Response status:', res.status, res.statusText);
+
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error('Error response:', data);
+        throw new Error(data.message || `فشل حفظ ترتيب المدن (${res.status})`);
+    }
+}

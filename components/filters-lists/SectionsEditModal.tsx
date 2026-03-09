@@ -46,6 +46,10 @@ export default function SectionsEditModal({ isOpen, onClose, category }: Section
     // Load main sections
     useEffect(() => {
         if (!isOpen) return;
+        // Reset state when modal opens
+        setLoading(true);
+        setError(null);
+        setSuccessMessage(null);
         loadData();
     }, [isOpen, category.slug]);
 
@@ -61,6 +65,8 @@ export default function SectionsEditModal({ isOpen, onClose, category }: Section
             if (sections.length > 0 && !selectedMain) {
                 setSelectedMain(sections[0]);
             }
+            // Small delay to ensure DOM is ready
+            await new Promise(resolve => setTimeout(resolve, 50));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'فشل تحميل البيانات');
         } finally {
@@ -73,8 +79,8 @@ export default function SectionsEditModal({ isOpen, onClose, category }: Section
         activeTab === 'main'
             ? mainSections
             : (selectedMain?.subSections || selectedMain?.sub_sections || []).filter(
-                  s => s.name !== 'غير ذلك' && s.id !== null
-              );
+                s => s.name !== 'غير ذلك' && s.id !== null
+            );
 
     // Handle tab change
     const handleTabChange = (tab: 'main' | 'sub') => {

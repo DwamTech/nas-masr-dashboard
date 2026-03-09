@@ -43,6 +43,7 @@ export default function SectionsRankModal({ isOpen, onClose, category }: Section
         const loadData = async () => {
             setLoading(true);
             setError(null);
+            setSuccessMessage(null);
             try {
                 const response = await fetchMainSections(category.slug);
                 const sections = response.main_sections || [];
@@ -55,6 +56,8 @@ export default function SectionsRankModal({ isOpen, onClose, category }: Section
                 if (sortable.length > 0 && !selectedMain) {
                     setSelectedMain(sortable[0]);
                 }
+                // Small delay to ensure DOM is ready
+                await new Promise(resolve => setTimeout(resolve, 50));
             } catch (err) {
                 console.error('Error loading main sections:', err);
                 setError(err instanceof Error ? err.message : 'فشل تحميل البيانات');
@@ -253,6 +256,7 @@ export default function SectionsRankModal({ isOpen, onClose, category }: Section
 
                             {currentOptions.length > 0 ? (
                                 <DraggableOptionsList
+                                    key={`${activeTab}-${currentOptions.length}-${currentOptions[0]}`}
                                     options={currentOptions}
                                     onReorder={handleReorder}
                                     onSave={handleSave}

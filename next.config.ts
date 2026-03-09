@@ -18,6 +18,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/admin/:path*',
+        destination: 'https://back.nasmasr.app/api/admin/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

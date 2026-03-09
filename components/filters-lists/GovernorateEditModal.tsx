@@ -40,6 +40,10 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
 
     useEffect(() => {
         if (!isOpen) return;
+        // Reset state when modal opens
+        setLoading(true);
+        setError(null);
+        setSuccessMessage(null);
         loadData();
     }, [isOpen]);
 
@@ -57,6 +61,8 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
                     setSelectedGov(data[0]);
                 }
             }
+            // Small delay to ensure DOM is ready
+            await new Promise(resolve => setTimeout(resolve, 50));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'فشل تحميل البيانات');
         } finally {

@@ -116,3 +116,37 @@ export interface CategoryFieldsResponse {
     supports_sections?: boolean;
     main_sections?: any[];
 }
+
+// ──────────────────────────────────────────────
+// Unified Categories: Main Sections / Sub Sections
+// ──────────────────────────────────────────────
+
+export interface SubSection {
+    id: number | null;
+    name: string;
+    title?: string;
+    sort_order?: number;
+    is_active?: boolean;
+    main_section_id?: number;
+    category_id?: number;
+}
+
+export interface MainSection {
+    id: number | null;
+    name: string;
+    title?: string;
+    sort_order?: number;
+    is_active?: boolean;
+    category_id?: number;
+    subSections?: SubSection[];
+    sub_sections?: SubSection[];
+}
+
+export interface MainSectionsResponse {
+    category: {
+        id: number;
+        slug: string;
+        name: string;
+    };
+    main_sections: MainSection[];
+}

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Category, CategoryField, FieldMetadata, RankData } from '@/types/filters-lists';
+import type { AdminMakeListItem } from '@/models/makes';
 import { fetchCategoryFields } from '@/services/categoryFields';
+import { fetchAdminMakesWithIds } from '@/services/makes';
 import { updateOptionRanks } from '@/services/optionRanks';
 import { fetchGovernorates } from '@/services/governorates';
 import { ParentSelector } from './ParentSelector';
@@ -32,7 +34,7 @@ interface RankModalProps {
     isOpen: boolean;
     onClose: () => void;
     category: Category;
-    field: CategoryField;
+    field?: CategoryField; // Optional - if not provided, used internally from allFields
     parent?: string;
 }
 
@@ -68,7 +70,7 @@ function detectListType(field: CategoryField): FieldMetadata {
     };
 }
 
-export default function RankModal({ isOpen, onClose, category, field, parent }: RankModalProps) {
+export default function RankModal({ isOpen, onClose, category, field: initialField, parent }: RankModalProps) {
     const [options, setOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -77,9 +79,19 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [isClosing, setIsClosing] = useState(false);
 
+    // All fields for the category (for tabs)
+    const [allFields, setAllFields] = useState<CategoryField[]>([]);
+    const [activeField, setActiveField] = useState<CategoryField | null>(initialField || null);
+
     const [parentOptions, setParentOptions] = useState<string[]>([]);
     const [selectedParent, setSelectedParent] = useState<string | null>(parent || null);
     const [loadingParents, setLoadingParents] = useState(false);
+
+    /**
+     * Cache of fetched makes (brand + models) to avoid repeated API calls.
+     * Populated once per modal open for brand/model fields.
+     */
+    const [makesCache, setMakesCache] = useState<AdminMakeListItem[]>([]);
 
     const modalRef = useFocusTrap<HTMLDivElement>(isOpen);
     useFocusReturn(isOpen);
@@ -114,8 +126,33 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
         }, 200);
     }, [onClose]);
 
+    // Load all category fields for tabs on mount
     useEffect(() => {
         if (!isOpen) return;
+
+        const loadFields = async () => {
+            try {
+                const response = await fetchCategoryFields(category.slug);
+                const fields = response.data || [];
+                setAllFields(fields);
+
+                if (!activeField && fields.length > 0) {
+                    setActiveField(fields[0]);
+                } else if (activeField && !fields.some((f: CategoryField) => f.field_name === activeField.field_name)) {
+                    setActiveField(fields[0] || null);
+                }
+            } catch (err) {
+                console.error('Error loading category fields for tabs:', err);
+            }
+        };
+
+        loadFields();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, category.slug]);
+
+    // Reload options when modal opens or active field changes
+    useEffect(() => {
+        if (!isOpen || !activeField) return;
 
         const loadOptions = async () => {
             setLoading(true);
@@ -123,17 +160,28 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
             setSuccessMessage(null);
 
             try {
-                const metadata = detectListType(field);
+                const metadata = detectListType(activeField);
                 setFieldMetadata(metadata);
 
                 if (metadata.listType === 'hierarchical') {
-                    await loadParentOptions(metadata);
-
-                    if (selectedParent) {
-                        await loadChildOptions(metadata, selectedParent);
+                    if (!metadata.hasParent) {
+                        // Parent field (e.g. brand): rank the parents themselves
+                        // For brand/make: load from /api/makes, not category fields
+                        if (metadata.childField === 'model') {
+                            await loadBrandFieldOptions();
+                        } else {
+                            // generic parent (e.g. governorate as parent)
+                            await loadIndependentOptions();
+                        }
                     } else {
-                        setOptions([]);
-                        setLoading(false);
+                        // Child field (e.g. model): show parent selector first
+                        await loadParentOptions(metadata);
+                        if (selectedParent) {
+                            await loadChildOptions(metadata, selectedParent);
+                        } else {
+                            setOptions([]);
+                            setLoading(false);
+                        }
                     }
                 } else {
                     await loadIndependentOptions();
@@ -146,26 +194,66 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
         };
 
         loadOptions();
-    }, [isOpen, category.slug, field.field_name, selectedParent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, category.slug, activeField?.field_name, selectedParent]);
 
+    /**
+     * Load brand names from /api/makes to use as the makes list that can be ranked.
+     * Used when the active field IS the brand/make field (parent, not child).
+     */
+    const loadBrandFieldOptions = async () => {
+        try {
+            let makes = makesCache;
+            if (makes.length === 0) {
+                makes = await fetchAdminMakesWithIds();
+                setMakesCache(makes);
+            }
+            const brandNames = makes.map(m => m.name);
+            setOptions(brandNames);
+        } catch (err) {
+            console.error('Error loading brand options:', err);
+            throw new Error('فشل تحميل قائمة الماركات');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /**
+     * Load parent selector options for child fields (e.g. model → needs brand selector).
+     * For brand parent: fetches makes from /api/makes and caches them.
+     * For governorate parent: fetches governorates list.
+     */
     const loadParentOptions = async (metadata: FieldMetadata) => {
         setLoadingParents(true);
 
         try {
-            if (metadata.parentField === 'governorate' || metadata.hasParent) {
+            if (metadata.parentField === 'brand') {
+                // Fetch makes from /api/makes and cache them
+                let makes = makesCache;
+                if (makes.length === 0) {
+                    makes = await fetchAdminMakesWithIds();
+                    setMakesCache(makes);
+                }
+                const brandNames = makes.map(m => m.name);
+                setParentOptions(brandNames);
+
+                // Auto-select first brand if none selected
+                if (!selectedParent && brandNames.length > 0) {
+                    setSelectedParent(brandNames[0]);
+                }
+            } else if (metadata.parentField === 'governorate') {
                 const governorates = await fetchGovernorates();
                 const parentNames = governorates.map(g => g.name);
                 setParentOptions(parentNames);
-            } else if (metadata.parentField === 'brand') {
-                const response = await fetchCategoryFields(category.slug);
-                if (response.makes) {
-                    const brandNames = response.makes.map((make: any) => make.name || make);
-                    setParentOptions(brandNames);
+
+                if (!selectedParent && parentNames.length > 0) {
+                    setSelectedParent(parentNames[0]);
                 }
             } else {
+                // Generic: look for parent field in category fields
                 const response = await fetchCategoryFields(category.slug);
-                const parentFieldName = metadata.parentField || field.field_name.replace(/sub_|child_/, '');
-                const parentField = response.data.find(f => f.field_name === parentFieldName);
+                const parentFieldName = metadata.parentField || '';
+                const parentField = response.data.find((f: CategoryField) => f.field_name === parentFieldName);
 
                 if (parentField) {
                     setParentOptions(parentField.options || []);
@@ -179,37 +267,41 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
         }
     };
 
+    /**
+     * Load child options for the selected parent (e.g. models for a brand).
+     * For brand→model: uses makesCache to get models without extra API calls.
+     * For governorate→city: fetches cities from the governorate.
+     */
     const loadChildOptions = async (metadata: FieldMetadata, parentValue: string) => {
         setLoading(true);
 
         try {
-            if (metadata.hasParent && metadata.parentField === 'governorate') {
+            if (metadata.parentField === 'brand') {
+                // Get models for the selected brand from the makes cache
+                let makes = makesCache;
+                if (makes.length === 0) {
+                    makes = await fetchAdminMakesWithIds();
+                    setMakesCache(makes);
+                }
+                const selectedMake = makes.find(m => m.name === parentValue);
+                const modelNames = selectedMake?.models ?? [];
+                setOptions(modelNames);
+            } else if (metadata.parentField === 'governorate') {
                 const governorates = await fetchGovernorates();
                 const governorate = governorates.find(g => g.name === parentValue);
 
                 if (governorate) {
-                    const cityNames = governorate.cities.map(c => c.name);
-                    setOptions(cityNames);
-                }
-            } else if (metadata.hasParent && metadata.parentField === 'brand') {
-                const response = await fetchCategoryFields(category.slug);
-                if (response.makes) {
-                    const brand = response.makes.find((make: any) =>
-                        (make.name || make) === parentValue
-                    );
-
-                    if (brand && brand.models) {
-                        const modelNames = brand.models.map((model: any) => model.name || model);
-                        setOptions(modelNames);
-                    }
+                    setOptions(governorate.cities.map(c => c.name));
+                } else {
+                    setOptions([]);
                 }
             } else {
+                // Generic: load the child field options from category fields
                 const response = await fetchCategoryFields(category.slug);
-                const targetField = response.data.find(f => f.field_name === field.field_name);
-
-                if (targetField) {
-                    setOptions(targetField.options || []);
-                }
+                const targetField = response.data.find(
+                    (f: CategoryField) => f.field_name === activeField?.field_name
+                );
+                setOptions(targetField?.options ?? []);
             }
         } catch (err) {
             console.error('Error loading child options:', err);
@@ -220,9 +312,10 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
     };
 
     const loadIndependentOptions = async () => {
+        if (!activeField) return;
         try {
             const response = await fetchCategoryFields(category.slug);
-            const targetField = response.data.find(f => f.field_name === field.field_name);
+            const targetField = response.data.find((f: CategoryField) => f.field_name === activeField.field_name);
 
             if (!targetField) {
                 throw new Error('الحقل المطلوب غير موجود');
@@ -250,6 +343,7 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
     }, []);
 
     const handleSave = useCallback(async (ranks: RankData[]) => {
+        if (!activeField) return;
         setSaving(true);
         setError(null);
         setSuccessMessage(null);
@@ -271,7 +365,7 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
 
             await updateOptionRanks(
                 category.slug,
-                field.field_name,
+                activeField.field_name,
                 ranks,
                 parentContext || undefined
             );
@@ -279,11 +373,12 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
             const pattern = INVALIDATION_PATTERNS.RANK_UPDATE(category.slug);
             cache.invalidate(pattern);
 
-            setSuccessMessage('تم حفظ الترتيب بنجاح');
+            setSuccessMessage('تم حفظ الترتيب بنجاح ✓');
 
+            // Clear success message after 3 seconds — but keep the modal open
             setTimeout(() => {
-                handleClose();
-            }, 1000);
+                setSuccessMessage(null);
+            }, 3000);
         } catch (err) {
             console.error('Error saving ranks:', err);
             const errorMessage = err instanceof Error ? err.message : 'حدث خطأ أثناء حفظ الترتيب';
@@ -292,7 +387,7 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
         } finally {
             setSaving(false);
         }
-    }, [category.slug, field.field_name, parent, selectedParent, fieldMetadata, handleClose]);
+    }, [category.slug, activeField?.field_name, parent, selectedParent, fieldMetadata, handleClose]);
 
     const renderOption = useCallback((option: string) => {
         return (
@@ -356,7 +451,7 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
                         paddingRight: '1rem',
                         margin: 0
                     }}>
-                        ترتيب {field.display_name}
+                        ترتيب اختيارات {category.name}
                         {selectedParent && ` - ${selectedParent}`}
                     </h2>
                     <button
@@ -395,6 +490,85 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
                     </button>
                 </div>
 
+                {/* Floating Success Toast — positioned absolutely so it doesn't affect scroll */}
+                {successMessage && (
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        style={{
+                            position: 'absolute',
+                            bottom: '5.5rem',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            zIndex: 20,
+                            backgroundColor: '#166534',
+                            color: '#ffffff',
+                            padding: '0.6rem 1.25rem',
+                            borderRadius: '999px',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            whiteSpace: 'nowrap',
+                            pointerEvents: 'none',
+                            animation: 'fadeIn 0.2s ease',
+                        }}
+                    >
+                        {successMessage}
+                    </div>
+                )}
+
+                {/* Field Tabs - horizontal scrollable tab bar for switching between category fields */}
+                {allFields.length > 1 && (
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'row',
+                            overflowX: 'auto',
+                            borderBottom: '2px solid #e5e7eb',
+                            padding: '0 1.5rem',
+                            gap: '0.25rem',
+                            flexShrink: 0,
+                            WebkitOverflowScrolling: 'touch',
+                            backgroundColor: '#ffffff',
+                        }}
+                        role="tablist"
+                        aria-label="حقول القسم"
+                    >
+                        {allFields.map((f) => {
+                            const isActive = activeField?.field_name === f.field_name;
+                            return (
+                                <button
+                                    key={f.field_name}
+                                    role="tab"
+                                    aria-selected={isActive}
+                                    onClick={() => {
+                                        setActiveField(f);
+                                        setOptions([]);
+                                        setError(null);
+                                        setSuccessMessage(null);
+                                        setSelectedParent(null);
+                                    }}
+                                    style={{
+                                        padding: '0.65rem 1.1rem',
+                                        whiteSpace: 'nowrap',
+                                        border: 'none',
+                                        borderBottom: isActive ? '2px solid #2563eb' : '2px solid transparent',
+                                        background: 'none',
+                                        color: isActive ? '#2563eb' : '#6b7280',
+                                        fontWeight: isActive ? 600 : 400,
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                        marginBottom: '-2px',
+                                    }}
+                                >
+                                    {f.display_name}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
                 <div
                     className="flex-1 overflow-y-auto p-6"
                     style={{
@@ -424,12 +598,7 @@ export default function RankModal({ isOpen, onClose, category, field, parent }: 
                         </div>
                     )}
 
-                    {successMessage && (
-                        <div className="border rounded-lg p-4 mb-4" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }} role="status" aria-live="polite">
-                            <p className="font-medium">نجح</p>
-                            <p className="text-sm mt-1">{successMessage}</p>
-                        </div>
-                    )}
+                    {/* Success toast is rendered outside the scroll area as a floating overlay */}
 
                     {!loading && fieldMetadata && (
                         <div>

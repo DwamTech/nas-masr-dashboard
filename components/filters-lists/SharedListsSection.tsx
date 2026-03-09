@@ -4,16 +4,21 @@ import { useState, useEffect } from 'react';
 import { fetchGovernorates } from '@/services/governorates';
 import { Governorate } from '@/models/governorates';
 import { cache, CACHE_TIMES } from '@/utils/cache';
+import { Category } from '@/types/filters-lists';
+
+interface SharedListsSectionProps {
+    onRankClick?: (category: Category) => void;
+    onEditClick?: (category: Category) => void;
+}
 
 /**
  * SharedListsSection Component
  * 
  * Displays shared lists that apply across all categories (e.g., Governorates and Cities).
  * Shows hierarchical list structure with parent count and child count.
- * 
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.7, 13.1, 13.2, 13.3
+ * Now includes rank/edit buttons for managing governorate and city data.
  */
-export default function SharedListsSection() {
+export default function SharedListsSection({ onRankClick, onEditClick }: SharedListsSectionProps) {
     const [governorates, setGovernorates] = useState<Governorate[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -101,6 +106,29 @@ export default function SharedListsSection() {
                             <p className="list-description">
                                 قائمة المحافظات والمدن المستخدمة في جميع الأقسام
                             </p>
+                            {/* Action Buttons */}
+                            <div className="card-actions">
+                                <button
+                                    className="action-button rank-button"
+                                    onClick={() => onRankClick?.({
+                                        id: 0, slug: 'shared_governorates', name: 'المحافظات والمدن',
+                                        is_active: true, created_at: '', updated_at: '',
+                                    })}
+                                    aria-label="ترتيب اختيارات المحافظات والمدن"
+                                >
+                                    📊 ترتيب الاختيارات
+                                </button>
+                                <button
+                                    className="action-button edit-button"
+                                    onClick={() => onEditClick?.({
+                                        id: 0, slug: 'shared_governorates', name: 'المحافظات والمدن',
+                                        is_active: true, created_at: '', updated_at: '',
+                                    })}
+                                    aria-label="اضافة/تعديل المحافظات والمدن"
+                                >
+                                    ✏️ اضافة/تعديل الاختيارات
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -284,6 +312,46 @@ export default function SharedListsSection() {
                     line-height: 1.5;
                 }
 
+                .card-actions {
+                    display: flex;
+                    gap: 0.75rem;
+                    margin-top: 0.5rem;
+                }
+
+                .action-button {
+                    flex: 1;
+                    padding: 0.625rem 1rem;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 0.8125rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    text-align: center;
+                }
+
+                .rank-button {
+                    background: #3b82f6;
+                    color: white;
+                }
+
+                .rank-button:hover {
+                    background: #2563eb;
+                    transform: translateY(-1px);
+                    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+                }
+
+                .edit-button {
+                    background: #ef4444;
+                    color: white;
+                }
+
+                .edit-button:hover {
+                    background: #dc2626;
+                    transform: translateY(-1px);
+                    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+                }
+
                 @media (max-width: 640px) {
                     .shared-lists-grid {
                         grid-template-columns: 1fr;
@@ -296,6 +364,10 @@ export default function SharedListsSection() {
 
                     .count-separator {
                         transform: rotate(90deg);
+                    }
+
+                    .card-actions {
+                        flex-direction: column;
                     }
                 }
             `}</style>

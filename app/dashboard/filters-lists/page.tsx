@@ -12,6 +12,22 @@ import { fetchCategoryFields } from '@/services/categoryFields';
 // Lazy load modals for code splitting
 const RankModal = lazy(() => import('@/components/filters-lists/RankModal'));
 const EditModal = lazy(() => import('@/components/filters-lists/EditModal'));
+const SectionsRankModal = lazy(() => import('@/components/filters-lists/SectionsRankModal'));
+const SectionsEditModal = lazy(() => import('@/components/filters-lists/SectionsEditModal'));
+
+/**
+ * Unified categories that use main_sections → sub_sections
+ * instead of category_fields.
+ */
+const UNIFIED_CATEGORY_SLUGS = [
+    'maintenance', 'car-services', 'home-services', 'lighting-decor',
+    'animals', 'wholesale', 'production-lines', 'light-vehicles',
+    'heavy-transport', 'tools', 'missing',
+];
+
+function isUnifiedCategory(slug: string): boolean {
+    return UNIFIED_CATEGORY_SLUGS.includes(slug);
+}
 
 /**
  * Loading fallback for lazy-loaded modals
@@ -84,7 +100,6 @@ export default function FiltersListsPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-    const [selectedField, setSelectedField] = useState<CategoryField | null>(null);
     const router = useRouter();
     const { modalState, openModal, closeModal } = useModalState();
 
@@ -116,7 +131,7 @@ export default function FiltersListsPage() {
 
     // Handle URL-based modal state restoration
     useEffect(() => {
-        if (!modalState.category || !modalState.field) return;
+        if (!modalState.category) return;
 
         const loadModalData = async () => {
             try {
@@ -124,40 +139,31 @@ export default function FiltersListsPage() {
                 const category = categories.find(c => c.slug === modalState.category);
                 if (!category) return;
 
-                // Fetch category fields
-                const response = await fetchCategoryFields(category.slug);
-                const field = response.data.find(f => f.field_name === modalState.field);
-
-                if (field) {
-                    setSelectedCategory(category);
-                    setSelectedField(field);
-                }
+                setSelectedCategory(category);
             } catch (error) {
                 console.error('Error loading modal data:', error);
             }
         };
 
         loadModalData();
-    }, [modalState.category, modalState.field, categories]);
+    }, [modalState.category, categories]);
 
     /**
      * Handle rank button click from CategoryCard
-     * Opens the rank modal for the selected field
+     * Opens the rank modal for the selected category
      */
-    const handleRankClick = (category: Category, field: CategoryField) => {
+    const handleRankClick = (category: Category) => {
         setSelectedCategory(category);
-        setSelectedField(field);
-        openModal('rank', category.slug, field.field_name);
+        openModal('rank', category.slug, null);
     };
 
     /**
      * Handle edit button click from CategoryCard
-     * Opens the edit modal for the selected field
+     * Opens the edit modal for the selected category
      */
-    const handleEditClick = (category: Category, field: CategoryField) => {
+    const handleEditClick = (category: Category) => {
         setSelectedCategory(category);
-        setSelectedField(field);
-        openModal('edit', category.slug, field.field_name);
+        openModal('edit', category.slug, null);
     };
 
     /**
@@ -166,7 +172,6 @@ export default function FiltersListsPage() {
     const handleCloseModal = () => {
         closeModal();
         setSelectedCategory(null);
-        setSelectedField(null);
     };
 
     if (!isAuthenticated) {
@@ -182,8 +187,11 @@ export default function FiltersListsPage() {
                 </p>
             </div>
 
-            {/* Shared Lists Section */}
-            <SharedListsSection />
+            {/* Shared Lists Section — with rank/edit buttons */}
+            <SharedListsSection
+                onRankClick={handleRankClick}
+                onEditClick={handleEditClick}
+            />
 
             {/* Category Cards Section */}
             <CategoryCardsSection
@@ -191,28 +199,48 @@ export default function FiltersListsPage() {
                 onEditClick={handleEditClick}
             />
 
-            {/* Rank Modal */}
-            {modalState.type === 'rank' && selectedCategory && selectedField && (
+            {/* Field-based Rank Modal (real_estate, cars, jobs, etc.) */}
+            {modalState.type === 'rank' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && (
                 <Suspense fallback={<ModalLoadingFallback />}>
                     <RankModal
                         isOpen={true}
                         onClose={handleCloseModal}
                         category={selectedCategory}
-                        field={selectedField}
                         parent={modalState.parent || undefined}
                     />
                 </Suspense>
             )}
 
-            {/* Edit Modal */}
-            {modalState.type === 'edit' && selectedCategory && selectedField && (
+            {/* Sections-based Rank Modal (unified categories) */}
+            {modalState.type === 'rank' && selectedCategory && isUnifiedCategory(selectedCategory.slug) && (
+                <Suspense fallback={<ModalLoadingFallback />}>
+                    <SectionsRankModal
+                        isOpen={true}
+                        onClose={handleCloseModal}
+                        category={selectedCategory}
+                    />
+                </Suspense>
+            )}
+
+            {/* Field-based Edit Modal (real_estate, cars, jobs, etc.) */}
+            {modalState.type === 'edit' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && (
                 <Suspense fallback={<ModalLoadingFallback />}>
                     <EditModal
                         isOpen={true}
                         onClose={handleCloseModal}
                         category={selectedCategory}
-                        field={selectedField}
                         parent={modalState.parent || undefined}
+                    />
+                </Suspense>
+            )}
+
+            {/* Sections-based Edit Modal (unified categories) */}
+            {modalState.type === 'edit' && selectedCategory && isUnifiedCategory(selectedCategory.slug) && (
+                <Suspense fallback={<ModalLoadingFallback />}>
+                    <SectionsEditModal
+                        isOpen={true}
+                        onClose={handleCloseModal}
+                        category={selectedCategory}
                     />
                 </Suspense>
             )}

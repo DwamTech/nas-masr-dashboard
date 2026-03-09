@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Category, CategoryField, FieldMetadata, OptionData } from '@/types/filters-lists';
 import { fetchCategoryFields } from '@/services/categoryFields';
+import { fetchAdminMakesWithIds } from '@/services/makes';
 import { fetchGovernorates } from '@/services/governorates';
 import { updateCategoryFieldOptions, postAdminMakeModels } from '@/services/makes';
 import { cache, INVALIDATION_PATTERNS } from '@/utils/cache';
@@ -38,7 +39,7 @@ interface EditModalProps {
     isOpen: boolean;
     onClose: () => void;
     category: Category;
-    field: CategoryField;
+    field?: CategoryField; // Optional - if not provided, the first field is used
     parent?: string; // For hierarchical lists
 }
 
@@ -52,7 +53,7 @@ interface OptionWithState extends OptionData {
  * @param field - The category field to analyze
  * @returns Field metadata with list type information
  */
-function detectListType(field: CategoryField): FieldMetadata {
+function detectListType(f: CategoryField): FieldMetadata {
     // Hierarchical patterns
     const hierarchicalPatterns = [
         { parent: 'governorate', child: 'city' },
@@ -60,7 +61,7 @@ function detectListType(field: CategoryField): FieldMetadata {
         { parent: 'main_section', child: 'sub_section' },
     ];
 
-    const fieldNameLower = field.field_name.toLowerCase();
+    const fieldNameLower = f.field_name.toLowerCase();
 
     // Check if field is part of a hierarchical relationship
     for (const pattern of hierarchicalPatterns) {
@@ -87,7 +88,7 @@ function detectListType(field: CategoryField): FieldMetadata {
     };
 }
 
-export default function EditModal({ isOpen, onClose, category, field, parent }: EditModalProps) {
+export default function EditModal({ isOpen, onClose, category, field: initialField, parent }: EditModalProps) {
     const [options, setOptions] = useState<OptionWithState[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -97,10 +98,20 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
     const [newOptionValue, setNewOptionValue] = useState<string>(''); // Task 11.2: Single option add input
     const [isClosing, setIsClosing] = useState(false); // Task 23.2: Track closing animation
 
+    // Fields management — load all category fields, select one as active
+    const [allFields, setAllFields] = useState<CategoryField[]>([]);
+    const [activeField, setActiveField] = useState<CategoryField | null>(initialField || null);
+
     // Task 13.1: State for hierarchical lists
     const [parentOptions, setParentOptions] = useState<string[]>([]);
     const [selectedParent, setSelectedParent] = useState<string | null>(parent || null);
     const [loadingParents, setLoadingParents] = useState(false);
+
+    /**
+     * Cache of fetched makes (brand + models) to avoid repeated API calls.
+     * Populated once when the brand or model field becomes active.
+     */
+    const [makesCache, setMakesCache] = useState<{ id: number; name: string; models: string[] }[]>([]);
 
     // Task 18.1: Keyboard navigation support
     // Implement focus trap in modal (Requirement 11.5)
@@ -136,9 +147,35 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
         }, 200); // Match animation duration
     }, [onClose]);
 
-    // Fetch options when modal opens
+    // Load all category fields for the tabs, then set active field
     useEffect(() => {
         if (!isOpen) return;
+
+        const loadFields = async () => {
+            try {
+                const response = await fetchCategoryFields(category.slug);
+                const fields = response.data || [];
+                setAllFields(fields);
+
+                // Set active field: prefer the one passed via prop, otherwise the first field
+                if (!activeField && fields.length > 0) {
+                    setActiveField(fields[0]);
+                } else if (activeField && !fields.some(f => f.field_name === activeField.field_name)) {
+                    // Active field no longer in the list, default to first
+                    setActiveField(fields[0] || null);
+                }
+            } catch (err) {
+                console.error('Error loading category fields for tabs:', err);
+            }
+        };
+
+        loadFields();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, category.slug]);
+
+    // Fetch options when modal opens or active field changes
+    useEffect(() => {
+        if (!isOpen || !activeField) return;
 
         const loadOptions = async () => {
             setLoading(true);
@@ -147,7 +184,7 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
 
             try {
                 // Detect field type (Requirement 10.1)
-                const metadata = detectListType(field);
+                const metadata = detectListType(activeField);
                 setFieldMetadata(metadata);
 
                 // Task 13.1: Handle hierarchical lists
@@ -158,8 +195,12 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
                         await loadParentOptions(metadata);
                     } else {
                         // This is a parent field (e.g., governorate, brand)
-                        // Load parent options directly
-                        await loadIndependentOptions();
+                        if (metadata.childField === 'model') {
+                            // Brand field: load from /api/makes
+                            await loadBrandFieldOptions();
+                        } else {
+                            await loadIndependentOptions();
+                        }
                     }
                 } else {
                     // Independent list
@@ -173,7 +214,8 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
         };
 
         loadOptions();
-    }, [isOpen, category.slug, field.field_name]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, category.slug, activeField?.field_name]);
 
     // Task 13.1: Load parent options for hierarchical child fields
     // Requirements: 6.9, 6.10
@@ -191,8 +233,9 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
      */
     const loadIndependentOptions = async () => {
         try {
+            if (!activeField) return;
             const response = await fetchCategoryFields(category.slug);
-            const targetField = response.data.find(f => f.field_name === field.field_name);
+            const targetField = response.data.find(f => f.field_name === activeField.field_name);
 
             if (!targetField) {
                 throw new Error('الحقل المطلوب غير موجود');
@@ -217,6 +260,32 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
     };
 
     /**
+     * Load brand names from /api/makes for the brand field.
+     * Used when the active field IS the brand/make field (parent, not child).
+     */
+    const loadBrandFieldOptions = async () => {
+        try {
+            let makes = makesCache;
+            if (makes.length === 0) {
+                makes = await fetchAdminMakesWithIds();
+                setMakesCache(makes);
+            }
+            const brandOptions: OptionWithState[] = makes.map((m, index) => ({
+                value: m.name,
+                is_active: true,
+                rank: index + 1,
+                isEditing: false,
+            }));
+            setOptions(brandOptions);
+        } catch (err) {
+            console.error('Error loading brand options:', err);
+            throw new Error('فشل تحميل قائمة الماركات');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /**
      * Task 13.1: Load parent options for hierarchical lists
      * Requirements: 6.9, 6.10
      * 
@@ -225,36 +294,30 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
     const loadParentOptions = async (metadata: FieldMetadata) => {
         setLoadingParents(true);
         try {
-            // Determine which parent data to fetch based on field type
-            if (metadata.parentField?.includes('governorate')) {
-                // Fetch governorates
+            if (metadata.parentField?.includes('brand')) {
+                // Fetch brands from /api/makes (the authoritative source)
+                let makes = makesCache;
+                if (makes.length === 0) {
+                    makes = await fetchAdminMakesWithIds();
+                    setMakesCache(makes);
+                }
+                const brandNames = makes.map(m => m.name);
+                setParentOptions(brandNames);
+
+                if (parent) {
+                    setSelectedParent(parent);
+                } else if (brandNames.length > 0) {
+                    setSelectedParent(brandNames[0]);
+                }
+            } else if (metadata.parentField?.includes('governorate')) {
                 const governorates = await fetchGovernorates();
                 const parentNames = governorates.map(g => g.name);
                 setParentOptions(parentNames);
 
-                // If parent prop was provided, set it as selected
                 if (parent) {
                     setSelectedParent(parent);
-                }
-                // Otherwise, select first parent by default
-                else if (parentNames.length > 0) {
+                } else if (parentNames.length > 0) {
                     setSelectedParent(parentNames[0]);
-                }
-            } else if (metadata.parentField?.includes('brand')) {
-                // Fetch brands from category fields
-                const response = await fetchCategoryFields(category.slug);
-                const brandField = response.data.find(f => f.field_name.toLowerCase().includes('brand'));
-                if (brandField && brandField.options) {
-                    setParentOptions(brandField.options);
-
-                    // If parent prop was provided, set it as selected
-                    if (parent) {
-                        setSelectedParent(parent);
-                    }
-                    // Otherwise, select first parent by default
-                    else if (brandField.options.length > 0) {
-                        setSelectedParent(brandField.options[0]);
-                    }
                 }
             }
         } catch (err) {
@@ -277,8 +340,23 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
         setError(null);
 
         try {
-            if (fieldMetadata?.parentField?.includes('governorate')) {
-                // Fetch cities for the selected governorate
+            if (fieldMetadata?.parentField?.includes('brand')) {
+                // Fetch models for the selected brand from /api/makes cache
+                let makes = makesCache;
+                if (makes.length === 0) {
+                    makes = await fetchAdminMakesWithIds();
+                    setMakesCache(makes);
+                }
+                const selectedMake = makes.find(m => m.name === parentValue);
+                const modelNames = selectedMake?.models ?? [];
+                const modelOptions: OptionWithState[] = modelNames.map((model, index) => ({
+                    value: model,
+                    is_active: true,
+                    rank: index + 1,
+                    isEditing: false,
+                }));
+                setOptions(modelOptions);
+            } else if (fieldMetadata?.parentField?.includes('governorate')) {
                 const governorates = await fetchGovernorates();
                 const selectedGov = governorates.find(g => g.name === parentValue);
 
@@ -290,26 +368,6 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
                         isEditing: false,
                     }));
                     setOptions(cityOptions);
-                } else {
-                    setOptions([]);
-                }
-            } else if (fieldMetadata?.parentField?.includes('brand')) {
-                // Fetch models for the selected brand
-                // This would require a backend endpoint for models by brand
-                // For now, we'll use the category fields approach
-                const response = await fetchCategoryFields(category.slug);
-                const modelField = response.data.find(f => f.field_name.toLowerCase().includes('model'));
-
-                if (modelField && modelField.options) {
-                    // Filter models by brand (if the backend supports this)
-                    // For now, show all models
-                    const modelOptions: OptionWithState[] = modelField.options.map((model, index) => ({
-                        value: model,
-                        is_active: true,
-                        rank: index + 1,
-                        isEditing: false,
-                    }));
-                    setOptions(modelOptions);
                 } else {
                     setOptions([]);
                 }
@@ -611,6 +669,7 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
      * - Submits the current options to the backend API
      */
     const handleSave = useCallback(async () => {
+        if (!activeField) return;
         setSaving(true);
         setError(null);
         setSuccessMessage(null);
@@ -622,7 +681,7 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
             // Save to backend using category fields API
             await updateCategoryFieldOptions(
                 category.slug,
-                field.field_name,
+                activeField.field_name,
                 optionsToSave
             );
 
@@ -642,7 +701,7 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
         } finally {
             setSaving(false);
         }
-    }, [category.slug, field.field_name, options, handleClose]);
+    }, [category.slug, activeField?.field_name, options, handleClose]);
 
     /**
      * Task 11.4: Handle toggling hide/show for an option
@@ -866,14 +925,12 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
                     overflow: 'hidden'
                 }}
             >
-                {/* Header - displays field display name (Requirement 6.1) */}
-                {/* Task 13.1: Update header with parent context (Requirement 6.11) */}
-                {/* Responsive padding and text sizing */}
+                {/* Header - category name, with close button */}
                 <div className="flex items-center justify-between p-4 sm:p-6 border-b flex-shrink-0" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
                     <h2 id="edit-modal-title" className="text-lg sm:text-xl font-bold text-gray-900 truncate pr-2">
                         {fieldMetadata?.listType === 'hierarchical' && fieldMetadata.hasParent && selectedParent
-                            ? `تعديل ${field.display_name} - ${selectedParent}`
-                            : `اضافة/تعديل ${field.display_name}`
+                            ? `تعديل ${activeField?.display_name ?? ''} - ${selectedParent}`
+                            : `اضافة/تعديل خيارات ${category.name}`
                         }
                     </h2>
                     <button
@@ -888,6 +945,58 @@ export default function EditModal({ isOpen, onClose, category, field, parent }: 
                         </svg>
                     </button>
                 </div>
+
+                {/* Field Tabs - horizontal scrollable tab bar for switching between category fields */}
+                {allFields.length > 1 && (
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'row',
+                            overflowX: 'auto',
+                            borderBottom: '2px solid #e5e7eb',
+                            padding: '0 1.5rem',
+                            gap: '0.25rem',
+                            flexShrink: 0,
+                            WebkitOverflowScrolling: 'touch',
+                        }}
+                        role="tablist"
+                        aria-label="حقول القسم"
+                    >
+                        {allFields.map((f) => {
+                            const isActive = activeField?.field_name === f.field_name;
+                            return (
+                                <button
+                                    key={f.field_name}
+                                    role="tab"
+                                    aria-selected={isActive}
+                                    onClick={() => {
+                                        setActiveField(f);
+                                        setOptions([]);
+                                        setError(null);
+                                        setSuccessMessage(null);
+                                        setSelectedParent(null);
+                                        setNewOptionValue('');
+                                    }}
+                                    style={{
+                                        padding: '0.65rem 1.1rem',
+                                        whiteSpace: 'nowrap',
+                                        border: 'none',
+                                        borderBottom: isActive ? '2px solid #2563eb' : '2px solid transparent',
+                                        background: 'none',
+                                        color: isActive ? '#2563eb' : '#6b7280',
+                                        fontWeight: isActive ? 600 : 400,
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                        marginBottom: '-2px',
+                                    }}
+                                >
+                                    {f.display_name}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* Content - Scrollable on small screens */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ flex: '1 1 auto', overflowY: 'auto', padding: '1.5rem', WebkitOverflowScrolling: 'touch', minHeight: 0 }}>

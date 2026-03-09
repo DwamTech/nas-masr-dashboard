@@ -70,13 +70,16 @@ export function useModalState() {
     const openModal = useCallback((
         type: 'rank' | 'edit',
         category: string,
-        field: string,
+        field: string | null,
         parent?: string
     ) => {
         const params = new URLSearchParams();
         params.set('modal', type);
         params.set('category', category);
-        params.set('field', field);
+
+        if (field) {
+            params.set('field', field);
+        }
 
         if (parent) {
             params.set('parent', parent);

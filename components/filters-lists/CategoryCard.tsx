@@ -8,8 +8,8 @@ import { cache, CACHE_TIMES } from '@/utils/cache';
 
 interface CategoryCardProps {
     category: Category;
-    onRankClick: (field: CategoryField) => void;
-    onEditClick: (field: CategoryField) => void;
+    onRankClick: (category: Category) => void;
+    onEditClick: (category: Category) => void;
 }
 
 /**
@@ -125,25 +125,11 @@ export default function CategoryCard({
 
     /**
      * Handle rank button click
-     * Opens the rank modal for the first field (or user selects field)
+     * Opens the rank modal for the entire category (all fields)
      */
-    const handleRankClick = useCallback(async () => {
-        try {
-            const cacheKey = `fields:${category.slug}`;
-            let response = cache.get(cacheKey);
-
-            if (!response) {
-                response = await fetchCategoryFields(category.slug);
-                cache.set(cacheKey, response, CACHE_TIMES.CATEGORY_FIELDS);
-            }
-
-            if (response?.data && response.data.length > 0) {
-                onRankClick(response.data[0]);
-            }
-        } catch (error) {
-            console.error('Failed to fetch category fields:', error);
-        }
-    }, [category.slug, onRankClick]);
+    const handleRankClick = useCallback(() => {
+        onRankClick(category);
+    }, [category, onRankClick]);
 
     /**
      * Handle rank button hover
@@ -156,25 +142,11 @@ export default function CategoryCard({
 
     /**
      * Handle edit button click
-     * Opens the edit modal for the first field (or user selects field)
+     * Opens the edit modal for the entire category (all fields)
      */
-    const handleEditClick = useCallback(async () => {
-        try {
-            const cacheKey = `fields:${category.slug}`;
-            let response = cache.get(cacheKey);
-
-            if (!response) {
-                response = await fetchCategoryFields(category.slug);
-                cache.set(cacheKey, response, CACHE_TIMES.CATEGORY_FIELDS);
-            }
-
-            if (response?.data && response.data.length > 0) {
-                onEditClick(response.data[0]);
-            }
-        } catch (error) {
-            console.error('Failed to fetch category fields:', error);
-        }
-    }, [category.slug, onEditClick]);
+    const handleEditClick = useCallback(() => {
+        onEditClick(category);
+    }, [category, onEditClick]);
 
     /**
      * Handle edit button hover

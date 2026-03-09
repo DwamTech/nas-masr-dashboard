@@ -7,8 +7,8 @@ import { cache, CACHE_TIMES } from '@/utils/cache';
 import CategoryCard from './CategoryCard';
 
 interface CategoryCardsSectionProps {
-    onRankClick: (category: Category, field: CategoryField) => void;
-    onEditClick: (category: Category, field: CategoryField) => void;
+    onRankClick: (category: Category, field?: CategoryField) => void;
+    onEditClick: (category: Category, field?: CategoryField) => void;
 }
 
 /**
@@ -67,18 +67,12 @@ export default function CategoryCardsSection({
         }
     };
 
-    const handleRankClick = (field: CategoryField) => {
-        const category = categories.find(cat => cat.slug === field.category_slug);
-        if (category) {
-            onRankClick(category, field);
-        }
+    const handleRankClick = (category: Category) => {
+        onRankClick(category);
     };
 
-    const handleEditClick = (field: CategoryField) => {
-        const category = categories.find(cat => cat.slug === field.category_slug);
-        if (category) {
-            onEditClick(category, field);
-        }
+    const handleEditClick = (category: Category) => {
+        onEditClick(category);
     };
 
     return (

@@ -590,13 +590,54 @@ export default function CategoryHomepageManagementClient() {
                   )}
                 </div>
               </div>
-              <div className="category-actions">
+              <div className="category-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="toggle-container" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <label className="toggle-switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!category.is_active}
+                        onChange={async (e) => {
+                          const newStatus = e.target.checked;
+                          try {
+                            const updatedCategory = await updateCategoryHomepage(category.id, { is_active: newStatus });
+                            
+                            setCategories(prev => prev.map(c => 
+                              c.id === category.id 
+                                ? { ...c, is_active: !!(updatedCategory.is_active ?? newStatus) } 
+                                : c
+                            ));
+                            
+                            showToast(`تم ${newStatus ? 'تفعيل' : 'إخفاء'} القسم بنجاح`, 'success');
+                          } catch (error: any) {
+                            showToast(error.message || 'حدث خطأ أثناء تعديل حالة القسم', 'error');
+                            // Revert checkbox explicitly if needed, but standard React state should handle it
+                            setCategories([...categories]);
+                          }
+                        }}
+                        style={{ opacity: 0, width: 0, height: 0 }} 
+                      />
+                      <span className="slider round" style={{ 
+                        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, 
+                        backgroundColor: category.is_active ? '#27ae60' : '#ccc', 
+                        transition: '.4s', borderRadius: '34px' 
+                      }}>
+                        <span style={{
+                          position: 'absolute', content: '""', height: '16px', width: '16px', 
+                          left: category.is_active ? '22px' : '2px', bottom: '2px', 
+                          backgroundColor: 'white', transition: '.4s', borderRadius: '50%'
+                        }} />
+                      </span>
+                    </label>
+                    <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                      {category.is_active ? 'نشط' : 'مخفي'}
+                    </span>
+                </div>
                 <button
                   className="btn-manage"
                   onClick={() => handleOpenEditModal(category)}
                   disabled={uploadingIcon}
                 >
-                  إدارة بيانات القسم
+                  إدارة
                 </button>
               </div>
             </div>

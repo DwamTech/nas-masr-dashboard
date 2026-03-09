@@ -944,11 +944,40 @@ export default function UsersPage() {
   useEffect(() => {
     const loadCats = async () => {
       try {
+        setCategoriesLoadState('loading');
         const resp = await fetchCategories();
-        const slugs = Array.isArray(resp?.data) ? resp.data.map((c: { slug: string }) => c.slug).filter(Boolean) : [];
-        setCategories(['all', ...slugs]);
+        if (Array.isArray(resp?.data)) {
+          const slugs = resp.data.map((c: any) => c.slug).filter(Boolean);
+          setCategories(['all', ...slugs]);
+          
+          const cats: Category[] = resp.data.map((c: any) => ({
+            id: c.id,
+            slug: c.slug,
+            name: c.name || c.slug,
+            nameAr: CATEGORY_LABELS_AR[c.slug as keyof typeof CATEGORY_LABELS_AR] || c.name || c.slug
+          }));
+          setDynamicCategories(cats);
+          setCategoriesLoadState('loaded');
+          saveCategoriesToCache(cats);
+        } else {
+          setCategories(['all']);
+          setCategoriesLoadState('error');
+        }
       } catch (e) {
         setCategories(['all']);
+        setCategoriesLoadState('error');
+        
+        // استخدام الأقسام الاحتياطية في حالة الفشل
+        const fallbackCategories = Object.entries(CATEGORY_LABELS_AR).map(
+          ([slug, nameAr], index) => ({
+            id: index + 1,
+            slug,
+            name: slug,
+            nameAr
+          })
+        );
+        setDynamicCategories(fallbackCategories);
+        setCategoriesLoadState('loaded');
       }
     };
     loadCats();
@@ -1086,6 +1115,25 @@ export default function UsersPage() {
     setIsLoadingFavorites(true);
     setFavoritesError(null);
     
+    // التأكد من تحميل الأقسام إذا لم تكن محملة
+    if (dynamicCategories.length === 0) {
+      try {
+        const resp = await fetchCategories();
+        if (Array.isArray(resp?.data)) {
+          const cats: Category[] = resp.data.map((c: any) => ({
+            id: c.id,
+            slug: c.slug,
+            name: c.name || c.slug,
+            nameAr: CATEGORY_LABELS_AR[c.slug as keyof typeof CATEGORY_LABELS_AR] || c.name || c.slug
+          }));
+          setDynamicCategories(cats);
+          setCategoriesLoadState('loaded');
+        }
+      } catch (e) {
+        console.error('فشل تحميل الأقسام في نافذة المفضل:', e);
+      }
+    }
+
     try {
       // جلب البيانات من API
       const response = await fetchUserFeaturedCategories(user.id);
@@ -1545,47 +1593,42 @@ export default function UsersPage() {
         }
       }
 
-      // جلب الأقسام الديناميكية
-      const cachedCategories = loadCategoriesFromCache();
-      if (cachedCategories) {
-        setDynamicCategories(cachedCategories);
-        setCategoriesLoadState('loaded');
-      } else {
-        setCategoriesLoadState('loading');
-      }
-
-      try {
-        // جلب الأقسام من API
-        const categoriesResp = await fetchCategories();
-        console.log('Categories response:', categoriesResp);
-        if (Array.isArray(categoriesResp?.data)) {
-          const cats: Category[] = categoriesResp.data.map((c: any) => ({
-            id: c.id,
-            slug: c.slug,
-            name: c.name || c.slug,
-            nameAr: c.name || CATEGORY_LABELS_AR[c.slug as keyof typeof CATEGORY_LABELS_AR] || c.slug
-          }));
-          console.log('Processed categories:', cats);
-          setDynamicCategories(cats);
-          saveCategoriesToCache(cats);
+      // جلب الأقسام الديناميكية إذا لم تكن محملة
+      if (dynamicCategories.length === 0) {
+        const cachedCategories = loadCategoriesFromCache();
+        if (cachedCategories) {
+          setDynamicCategories(cachedCategories);
           setCategoriesLoadState('loaded');
-        }
-      } catch (error) {
-        console.error('Failed to fetch categories:', error);
-        setCategoriesLoadState('error');
-        
-        // استخدام الأقسام الاحتياطية
-        if (!cachedCategories) {
-          const fallbackCategories = Object.entries(CATEGORY_LABELS_AR).map(
-            ([slug, nameAr], index) => ({
-              id: index + 1,
-              slug,
-              name: slug,
-              nameAr
-            })
-          );
-          setDynamicCategories(fallbackCategories);
-          setCategoriesLoadState('loaded');
+        } else {
+          setCategoriesLoadState('loading');
+          try {
+            const categoriesResp = await fetchCategories();
+            if (Array.isArray(categoriesResp?.data)) {
+              const cats: Category[] = categoriesResp.data.map((c: any) => ({
+                id: c.id,
+                slug: c.slug,
+                name: c.name || c.slug,
+                nameAr: CATEGORY_LABELS_AR[c.slug as keyof typeof CATEGORY_LABELS_AR] || c.name || c.slug
+              }));
+              setDynamicCategories(cats);
+              saveCategoriesToCache(cats);
+              setCategoriesLoadState('loaded');
+            }
+          } catch (error) {
+            console.error('Failed to fetch categories:', error);
+            setCategoriesLoadState('error');
+            
+            const fallbackCategories = Object.entries(CATEGORY_LABELS_AR).map(
+              ([slug, nameAr], index) => ({
+                id: index + 1,
+                slug,
+                name: slug,
+                nameAr
+              })
+            );
+            setDynamicCategories(fallbackCategories);
+            setCategoriesLoadState('loaded');
+          }
         }
       }
 
@@ -3811,7 +3854,13 @@ export default function UsersPage() {
                           <path d="M3 12v5l9 4 9-4v-5" stroke="white" strokeWidth="2" />
                         </svg>
                       </button>
-                      {['advertiser', 'معلن'].includes(String(user.role || '').toLowerCase().trim()) && (
+                      {(
+                        ['advertiser', 'معلن'].includes(String(user.role || '').toLowerCase().trim()) ||
+                        (
+                          ['delegate', 'representative', 'مندوب'].includes(String(user.role || '').toLowerCase().trim()) &&
+                          user.adsCount > 0
+                        )
+                      ) && (
                         <button
                           className="btn-favorites"
                           onClick={() => openFavoritesModal(user)}
@@ -4032,7 +4081,13 @@ export default function UsersPage() {
                 >
                   الباقات
                 </button>
-                {(String(user.role || '').toLowerCase().includes('advertiser') || String(user.role || '').includes('معلن')) && (
+                {(
+                  ['advertiser', 'معلن'].includes(String(user.role || '').toLowerCase().trim()) ||
+                  (
+                    ['delegate', 'representative', 'مندوب'].includes(String(user.role || '').toLowerCase().trim()) &&
+                    user.adsCount > 0
+                  )
+                ) && (
                   <button
                     className="btn-favorites"
                     onClick={() => openFavoritesModal(user)}

@@ -153,3 +153,35 @@ export async function deleteSubSection(subSectionId: number): Promise<void> {
         throw new Error(data.message || 'فشل حذف القسم الفرعي');
     }
 }
+
+/**
+ * Update the rank (sort_order) of main sections
+ */
+export async function updateMainSectionRanks(ranks: { id: number; rank: number }[]): Promise<void> {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/category-sections/main/ranks`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ranks }),
+    });
+
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'فشل تحديث ترتيب الأقسام الرئيسية');
+    }
+}
+
+/**
+ * Update the rank (sort_order) of sub sections
+ */
+export async function updateSubSectionRanks(ranks: { id: number; rank: number }[]): Promise<void> {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/category-sections/sub/ranks`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ranks }),
+    });
+
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'فشل تحديث ترتيب الأقسام الفرعية');
+    }
+}

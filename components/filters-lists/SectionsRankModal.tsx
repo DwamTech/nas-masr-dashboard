@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Category, MainSection, SubSection } from '@/types/filters-lists';
-import { fetchMainSections, fetchSubSections } from '@/services/sections';
+import { fetchMainSections, fetchSubSections, updateMainSectionRanks, updateSubSectionRanks } from '@/services/sections';
 import { DraggableOptionsList } from '@/components/DraggableOptions/DraggableOptionsList';
 import '@/components/DraggableOptions/styles.css';
 import './animations.css';
@@ -121,9 +121,21 @@ export default function SectionsRankModal({ isOpen, onClose, category }: Section
         setSaving(true);
         setError(null);
         try {
-            // Note: The backend doesn't have a sort_order update endpoint yet.
-            // For now, show success and keep the new order in state.
-            // TODO: Implement sort_order update API when available
+            if (activeTab === 'main') {
+                const payload = ranks.map(r => {
+                    const section = mainSections.find(s => s.name === r.option);
+                    return { id: section?.id as number, rank: r.rank };
+                }).filter(p => p.id != null);
+                await updateMainSectionRanks(payload);
+            } else {
+                const payload = ranks.map(r => {
+                    // sub sections are inside selectedMain
+                    const section = selectedMain?.subSections?.find(s => s.name === r.option) || selectedMain?.sub_sections?.find((s: any) => s.name === r.option);
+                    return { id: section?.id as number, rank: r.rank };
+                }).filter(p => p.id != null);
+                await updateSubSectionRanks(payload);
+            }
+
             setSuccessMessage('تم حفظ الترتيب بنجاح');
             setTimeout(() => setSuccessMessage(null), 2000);
         } catch (err) {
@@ -131,11 +143,11 @@ export default function SectionsRankModal({ isOpen, onClose, category }: Section
         } finally {
             setSaving(false);
         }
-    }, []);
+    }, [activeTab, mainSections, selectedMain]);
 
     // Render option item 
     const renderOption = useCallback((option: string) => (
-        <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{option}</span>
+        <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#1f2937' }}>{option}</span>
     ), []);
 
     // Handle close

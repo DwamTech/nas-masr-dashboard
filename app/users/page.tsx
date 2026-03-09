@@ -6,6 +6,7 @@ import ManagedSelect from '@/components/ManagedSelect';
 import { CATEGORY_LABELS_AR } from '@/constants/categories';
 import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Search, RefreshCw, Calendar } from 'lucide-react';
 import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, fetchCategories, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage, fetchUserFeaturedCategories } from '@/services/users';
+import { fetchAdminCategories } from '@/services/makes';
 import { CATEGORY_SLUGS, CategorySlug } from '@/models/makes';
 import { UsersMeta, AssignUserPackagePayload, UsersSummaryResponse, DelegateClient } from '@/models/users';
 
@@ -260,22 +261,22 @@ const getErrorMessage = (error: any): PackageError => {
   };
 };
 
-const retryWithDelay = async <T>(
+async function retryWithDelay<T>(
   fn: () => Promise<T>,
   delay: number = 2000
-): Promise<T> => {
+): Promise<T> {
   await new Promise(resolve => setTimeout(resolve, delay));
   return fn();
 };
 
-const fetchWithRetry = async <T>(
+async function fetchWithRetry<T>(
   fetchFn: () => Promise<T>,
   options: {
     maxRetries?: number;
     retryDelay?: number;
     onRetry?: (attempt: number) => void;
   } = {}
-): Promise<T> => {
+): Promise<T> {
   const { maxRetries = 1, retryDelay = 2000, onRetry } = options;
   
   let lastError: any;
@@ -945,16 +946,16 @@ export default function UsersPage() {
     const loadCats = async () => {
       try {
         setCategoriesLoadState('loading');
-        const resp = await fetchCategories();
-        if (Array.isArray(resp?.data)) {
-          const slugs = resp.data.map((c: any) => c.slug).filter(Boolean);
+        const resp = await fetchAdminCategories();
+        if (Array.isArray(resp)) {
+          const slugs = resp.map((c: any) => c.slug).filter(Boolean);
           setCategories(['all', ...slugs]);
           
-          const cats: Category[] = resp.data.map((c: any) => ({
+          const cats: Category[] = resp.map((c: any) => ({
             id: c.id,
             slug: c.slug,
-            name: c.name || c.slug,
-            nameAr: CATEGORY_LABELS_AR[c.slug as keyof typeof CATEGORY_LABELS_AR] || c.name || c.slug
+            name: c.name,
+            nameAr: c.name
           }));
           setDynamicCategories(cats);
           setCategoriesLoadState('loaded');
@@ -1602,13 +1603,13 @@ export default function UsersPage() {
         } else {
           setCategoriesLoadState('loading');
           try {
-            const categoriesResp = await fetchCategories();
-            if (Array.isArray(categoriesResp?.data)) {
-              const cats: Category[] = categoriesResp.data.map((c: any) => ({
+            const categoriesResp = await fetchAdminCategories();
+            if (Array.isArray(categoriesResp)) {
+              const cats: Category[] = categoriesResp.map((c: any) => ({
                 id: c.id,
                 slug: c.slug,
-                name: c.name || c.slug,
-                nameAr: CATEGORY_LABELS_AR[c.slug as keyof typeof CATEGORY_LABELS_AR] || c.name || c.slug
+                name: c.name,
+                nameAr: c.name
               }));
               setDynamicCategories(cats);
               saveCategoriesToCache(cats);

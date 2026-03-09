@@ -140,7 +140,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   {hasSubItems ? (
                     <button
                       className={`nav-item dropdown-toggle${isActive ? " active" : ""}`}
-                      onClick={() => { router.push(item.href); toggleDropdown(item.href); }}
+                      onClick={() => toggleDropdown(item.href)}
                       type="button"
                     >
                       <span className="nav-indicator" aria-hidden="true" />
@@ -200,6 +200,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           <button
             className="logout-btn"
             onClick={() => {
+              localStorage.removeItem('authToken');
               localStorage.removeItem('isAuthenticated');
               localStorage.removeItem('userEmail');
               localStorage.removeItem('rememberMe');

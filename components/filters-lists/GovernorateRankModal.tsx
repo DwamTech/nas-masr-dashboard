@@ -79,7 +79,7 @@ export default function GovernorateRankModal({ isOpen, onClose, category }: Gove
     }, []);
 
     const renderOption = useCallback((option: string) => (
-        <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{option}</span>
+        <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#111827' }}>{option}</span>
     ), []);
 
     const handleClose = () => {

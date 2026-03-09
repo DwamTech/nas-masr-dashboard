@@ -14,19 +14,24 @@ const RankModal = lazy(() => import('@/components/filters-lists/RankModal'));
 const EditModal = lazy(() => import('@/components/filters-lists/EditModal'));
 const SectionsRankModal = lazy(() => import('@/components/filters-lists/SectionsRankModal'));
 const SectionsEditModal = lazy(() => import('@/components/filters-lists/SectionsEditModal'));
+const GovernorateRankModal = lazy(() => import('@/components/filters-lists/GovernorateRankModal'));
+const GovernorateEditModal = lazy(() => import('@/components/filters-lists/GovernorateEditModal'));
 
 /**
- * Unified categories that use main_sections → sub_sections
- * instead of category_fields.
+ * Categories that use category_fields. All other categories
+ * are assumed to be unified categories (main_sections → sub_sections).
  */
-const UNIFIED_CATEGORY_SLUGS = [
-    'maintenance', 'car-services', 'home-services', 'lighting-decor',
-    'animals', 'wholesale', 'production-lines', 'light-vehicles',
-    'heavy-transport', 'tools', 'missing',
+const FIELD_BASED_CATEGORY_SLUGS = [
+    'real_estate', 'cars', 'cars_rent', 'spare-parts', 
+    'jobs', 'teachers', 'doctors'
 ];
 
 function isUnifiedCategory(slug: string): boolean {
-    return UNIFIED_CATEGORY_SLUGS.includes(slug);
+    return !FIELD_BASED_CATEGORY_SLUGS.includes(slug) && slug !== 'shared_governorates';
+}
+
+function isGovernorateSlug(slug: string): boolean {
+    return slug === 'shared_governorates';
 }
 
 /**
@@ -200,7 +205,7 @@ export default function FiltersListsPage() {
             />
 
             {/* Field-based Rank Modal (real_estate, cars, jobs, etc.) */}
-            {modalState.type === 'rank' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && (
+            {modalState.type === 'rank' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && !isGovernorateSlug(selectedCategory.slug) && (
                 <Suspense fallback={<ModalLoadingFallback />}>
                     <RankModal
                         isOpen={true}
@@ -222,8 +227,19 @@ export default function FiltersListsPage() {
                 </Suspense>
             )}
 
+            {/* Governorate Rank Modal */}
+            {modalState.type === 'rank' && selectedCategory && isGovernorateSlug(selectedCategory.slug) && (
+                <Suspense fallback={<ModalLoadingFallback />}>
+                    <GovernorateRankModal
+                        isOpen={true}
+                        onClose={handleCloseModal}
+                        category={selectedCategory}
+                    />
+                </Suspense>
+            )}
+
             {/* Field-based Edit Modal (real_estate, cars, jobs, etc.) */}
-            {modalState.type === 'edit' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && (
+            {modalState.type === 'edit' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && !isGovernorateSlug(selectedCategory.slug) && (
                 <Suspense fallback={<ModalLoadingFallback />}>
                     <EditModal
                         isOpen={true}
@@ -238,6 +254,17 @@ export default function FiltersListsPage() {
             {modalState.type === 'edit' && selectedCategory && isUnifiedCategory(selectedCategory.slug) && (
                 <Suspense fallback={<ModalLoadingFallback />}>
                     <SectionsEditModal
+                        isOpen={true}
+                        onClose={handleCloseModal}
+                        category={selectedCategory}
+                    />
+                </Suspense>
+            )}
+
+            {/* Governorate Edit Modal */}
+            {modalState.type === 'edit' && selectedCategory && isGovernorateSlug(selectedCategory.slug) && (
+                <Suspense fallback={<ModalLoadingFallback />}>
+                    <GovernorateEditModal
                         isOpen={true}
                         onClose={handleCloseModal}
                         category={selectedCategory}

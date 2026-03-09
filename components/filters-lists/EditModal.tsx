@@ -154,7 +154,10 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
         const loadFields = async () => {
             try {
                 const response = await fetchCategoryFields(category.slug);
-                const fields = response.data || [];
+                // Filter out 'name' fields — free-text entered by ad creators, not selectable options
+                const fields = (response.data || []).filter(
+                    (f: CategoryField) => f.field_name !== 'name'
+                );
                 setAllFields(fields);
 
                 // Set active field: prefer the one passed via prop, otherwise the first field

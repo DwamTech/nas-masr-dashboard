@@ -18,20 +18,7 @@
  */
 
 import { MainSection, MainSectionsResponse, SubSection } from '@/types/filters-lists';
-
-const API_BASE = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
-
-function getAuthHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-    };
-    if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('authToken');
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-    }
-    return headers;
-}
+import { API_BASE, API_ADMIN_BASE, getAuthHeaders } from '@/utils/api';
 
 /**
  * Fetch main sections with their sub sections for a category
@@ -69,7 +56,7 @@ export async function fetchSubSections(mainSectionId: number): Promise<SubSectio
  * Create a new main section for a category
  */
 export async function createMainSection(categorySlug: string, name: string, title?: string): Promise<MainSection> {
-    const res = await fetch(`${API_BASE.replace('/api', '')}/api/admin/main-section/${categorySlug}`, {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/main-section/${categorySlug}`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ name, title }),
@@ -87,7 +74,7 @@ export async function createMainSection(categorySlug: string, name: string, titl
  * Add sub sections to a main section
  */
 export async function addSubSections(mainSectionId: number, subSectionNames: string[]): Promise<{ main_section_id: number; sub_sections: SubSection[] }> {
-    const res = await fetch(`${API_BASE.replace('/api', '')}/api/admin/sub-section/${mainSectionId}`, {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/sub-section/${mainSectionId}`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ sub_sections: subSectionNames }),
@@ -105,7 +92,7 @@ export async function addSubSections(mainSectionId: number, subSectionNames: str
  * Update a main section name/title
  */
 export async function updateMainSection(mainSectionId: number, data: { name?: string; title?: string }): Promise<MainSection> {
-    const res = await fetch(`${API_BASE.replace('/api', '')}/api/admin/main-section/${mainSectionId}`, {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/main-section/${mainSectionId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
@@ -123,7 +110,7 @@ export async function updateMainSection(mainSectionId: number, data: { name?: st
  * Update a sub section name/title
  */
 export async function updateSubSection(subSectionId: number, data: { name?: string; title?: string }): Promise<SubSection> {
-    const res = await fetch(`${API_BASE.replace('/api', '')}/api/admin/sub-section/${subSectionId}`, {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/sub-section/${subSectionId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
@@ -141,7 +128,7 @@ export async function updateSubSection(subSectionId: number, data: { name?: stri
  * Delete a main section (fails if used by listings)
  */
 export async function deleteMainSection(mainSectionId: number): Promise<void> {
-    const res = await fetch(`${API_BASE.replace('/api', '')}/api/admin/main-section/${mainSectionId}`, {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/main-section/${mainSectionId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
     });
@@ -156,7 +143,7 @@ export async function deleteMainSection(mainSectionId: number): Promise<void> {
  * Delete a sub section (fails if used by listings)
  */
 export async function deleteSubSection(subSectionId: number): Promise<void> {
-    const res = await fetch(`${API_BASE.replace('/api', '')}/api/admin/sub-section/${subSectionId}`, {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/sub-section/${subSectionId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
     });

@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Category, MainSection, SubSection } from '@/types/filters-lists';
 import { fetchMainSections, fetchSubSections } from '@/services/sections';
 import { DraggableOptionsList } from '@/components/DraggableOptions/DraggableOptionsList';
+import '@/components/DraggableOptions/styles.css';
+import './animations.css';
+import './tailwind-shim.css';
 
 interface SectionsRankModalProps {
     isOpen: boolean;

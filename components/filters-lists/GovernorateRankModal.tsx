@@ -189,7 +189,7 @@ export default function GovernorateRankModal({ isOpen, onClose, category }: Gove
     }, []);
 
     const handleParentChange = useCallback((newParent: string) => {
-        setSelectedParent(newParent);
+        setSelectedGov(newParent);
     }, []);
 
     if (!isOpen && !isClosing) return null;
@@ -207,9 +207,10 @@ export default function GovernorateRankModal({ isOpen, onClose, category }: Gove
                 backdropFilter: 'blur(4px)',
                 zIndex: 9999,
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'center',
-                padding: '1rem'
+                padding: '1rem',
+                overflowY: 'auto'
             }}
             onClick={(e) => {
                 if (e.target === e.currentTarget) handleClose();
@@ -227,12 +228,14 @@ export default function GovernorateRankModal({ isOpen, onClose, category }: Gove
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
                     maxWidth: '42rem',
                     width: '100%',
-                    maxHeight: '90vh',
+                    maxHeight: 'calc(100dvh - 2rem)',
                     display: 'flex',
                     flexDirection: 'column',
                     position: 'relative',
                     zIndex: 10000,
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    padding: 0,
+                    margin: 0
                 }}
             >
                 <div className="flex items-center justify-between p-6" style={{
@@ -376,7 +379,8 @@ export default function GovernorateRankModal({ isOpen, onClose, category }: Gove
                         backgroundColor: '#fafbfc',
                         overscrollBehavior: 'contain',
                         touchAction: 'pan-y',
-                        minHeight: 0
+                        minHeight: 0,
+                        overflowX: 'hidden'
                     }}
                     onWheel={(e) => {
                         e.stopPropagation();
@@ -406,17 +410,27 @@ export default function GovernorateRankModal({ isOpen, onClose, category }: Gove
                                     <p className="text-xs mb-4" style={{ color: '#6b7280' }}>
                                         اسحب الخيارات لإعادة ترتيبها. سيتم حفظ التغييرات تلقائياً.
                                     </p>
-                                    <Suspense fallback={<DraggableListLoading />}>
-                                        <DraggableOptionsList
-                                            key={`gov-${options.length}`}
-                                            options={options}
-                                            onReorder={handleReorder}
-                                            onSave={handleSave}
-                                            renderOption={renderOption}
-                                            otherOptionLabel="غير ذلك"
-                                            disabled={saving}
-                                        />
-                                    </Suspense>
+                                    <div
+                                        style={{
+                                            maxHeight: 'min(42vh, 420px)',
+                                            overflowY: 'auto',
+                                            overflowX: 'hidden',
+                                            paddingInlineEnd: '0.25rem',
+                                            overscrollBehavior: 'contain',
+                                        }}
+                                    >
+                                        <Suspense fallback={<DraggableListLoading />}>
+                                            <DraggableOptionsList
+                                                key={`gov-${options.length}`}
+                                                options={options}
+                                                onReorder={handleReorder}
+                                                onSave={handleSave}
+                                                renderOption={renderOption}
+                                                otherOptionLabel="غير ذلك"
+                                                disabled={saving}
+                                            />
+                                        </Suspense>
+                                    </div>
                                 </div>
                             ) : (
                                 <div>
@@ -438,17 +452,27 @@ export default function GovernorateRankModal({ isOpen, onClose, category }: Gove
                                             <p className="text-xs mb-4 mt-6" style={{ color: '#6b7280' }}>
                                                 اسحب الخيارات لإعادة ترتيبها. سيتم حفظ التغييرات تلقائياً.
                                             </p>
-                                            <Suspense fallback={<DraggableListLoading />}>
-                                                <DraggableOptionsList
-                                                    key={`city-${selectedGov}-${options.length}`}
-                                                    options={options}
-                                                    onReorder={handleReorder}
-                                                    onSave={handleSave}
-                                                    renderOption={renderOption}
-                                                    otherOptionLabel="غير ذلك"
-                                                    disabled={saving}
-                                                />
-                                            </Suspense>
+                                            <div
+                                                style={{
+                                                    maxHeight: 'min(42vh, 420px)',
+                                                    overflowY: 'auto',
+                                                    overflowX: 'hidden',
+                                                    paddingInlineEnd: '0.25rem',
+                                                    overscrollBehavior: 'contain',
+                                                }}
+                                            >
+                                                <Suspense fallback={<DraggableListLoading />}>
+                                                    <DraggableOptionsList
+                                                        key={`city-${selectedGov}-${options.length}`}
+                                                        options={options}
+                                                        onReorder={handleReorder}
+                                                        onSave={handleSave}
+                                                        renderOption={renderOption}
+                                                        otherOptionLabel="غير ذلك"
+                                                        disabled={saving}
+                                                    />
+                                                </Suspense>
+                                            </div>
                                         </>
                                     ) : (
                                         <div className="text-center py-8" style={{ color: '#6b7280' }} role="status">

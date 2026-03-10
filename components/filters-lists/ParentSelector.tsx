@@ -114,8 +114,14 @@ export function ParentSelector({
                 </button>
 
                 {isOpen && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto"
-                         style={{ scrollbarWidth: 'thin' }}>
+                    <div
+                        className="absolute w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg overflow-y-auto"
+                        style={{
+                            zIndex: 3000,
+                            maxHeight: '14rem',
+                            scrollbarWidth: 'thin',
+                        }}
+                    >
                         {parents.length === 0 ? (
                             <div className="p-3 text-center text-gray-500 text-sm" role="status">
                                 لا توجد خيارات متاحة

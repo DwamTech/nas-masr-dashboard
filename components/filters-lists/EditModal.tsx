@@ -911,7 +911,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
             }}>
             <div
                 ref={modalRef}
-                className={`bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col sm:mx-4 mx-0 modal-content ${isClosing ? 'closing' : ''}`}
+                className={`bg-white rounded-lg shadow-xl max-w-2xl w-full flex flex-col sm:mx-4 mx-0 modal-content ${isClosing ? 'closing' : ''}`}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="edit-modal-title"
@@ -921,12 +921,11 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
                     maxWidth: '42rem',
                     width: '100%',
-                    maxHeight: 'calc(100vh - 2rem)',
                     display: 'flex',
                     flexDirection: 'column',
                     position: 'relative',
                     zIndex: 10000,
-                    overflow: 'hidden'
+                    // overflow: 'hidden' - Removed to allow dropdowns to overflow Modal container if necessary
                 }}
             >
                 {/* Header - category name, with close button */}
@@ -1002,8 +1001,8 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     </div>
                 )}
 
-                {/* Content - Scrollable on small screens */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ flex: '1 1 auto', overflowY: 'auto', padding: '1.5rem', WebkitOverflowScrolling: 'touch', minHeight: 0 }}>
+                {/* Content - Removed overflow-y-auto to allow dropdown to escape container if it needs to, but kept some padding */}
+                <div className="flex-1 p-4 sm:p-6" style={{ flex: '1 1 auto', padding: '1.5rem', minHeight: 0 }}>
                     {loading && (
                         <div className="flex items-center justify-center py-12" role="status" aria-live="polite">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>

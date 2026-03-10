@@ -1,12 +1,14 @@
 'use client';
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import AuthGuard from "../components/auth/AuthGuard";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+
+const CHUNK_RELOAD_KEY = "__chunk_reload_attempt_ts";
+const CHUNK_RELOAD_WINDOW_MS = 5 * 60 * 1000;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +27,60 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const isChunkLoadError = (value: unknown) => {
+      const msg = String(
+        (value as Error)?.message ||
+          (value as { reason?: Error })?.reason?.message ||
+          value ||
+          ""
+      ).toLowerCase();
+      return (
+        msg.includes("chunkloaderror") ||
+        msg.includes("failed to load chunk") ||
+        msg.includes("loading chunk") ||
+        msg.includes("dynamically imported module")
+      );
+    };
+
+    const tryReloadOnce = () => {
+      const now = Date.now();
+      const previous = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || "0");
+      const retriedRecently =
+        Number.isFinite(previous) && now - previous < CHUNK_RELOAD_WINDOW_MS;
+
+      if (retriedRecently) return;
+
+      sessionStorage.setItem(CHUNK_RELOAD_KEY, String(now));
+      const url = new URL(window.location.href);
+      url.searchParams.set("__r", String(now));
+      window.location.replace(url.toString());
+    };
+
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (isChunkLoadError(event.reason)) {
+        event.preventDefault();
+        tryReloadOnce();
+      }
+    };
+
+    const onWindowError = (event: ErrorEvent) => {
+      if (isChunkLoadError(event.error || event.message)) {
+        event.preventDefault();
+        tryReloadOnce();
+      }
+    };
+
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    window.addEventListener("error", onWindowError);
+
+    return () => {
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+      window.removeEventListener("error", onWindowError);
+    };
+  }, []);
+
   const isHomeIntro = pathname === "/";
   const isNewLanding = pathname?.startsWith("/landing");
   const isLegalPage = pathname?.startsWith("/terms") || pathname?.startsWith("/privacy");

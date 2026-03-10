@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
   },
 
   { href: "/users", label: " المستخدمون والمعلِنون والمناديب ", icon: "/profile.png" },
+  { href: "/admin-account", label: "إدارة حساب الأدمن", icon: "/profile.png" },
   { href: "/reports", label: "التقارير والإحصائيات", icon: "/clipboard.png" },
   { href: "/notifications", label: "الإشعارات ", icon: "/bell.png" },
   { href: "/messages", label: "الرسائل", icon: "/chat2.png" },

@@ -491,6 +491,26 @@ export default function UsersPage() {
     return `${m[3]}-${m[2]}-${m[1]}`;
   };
 
+  const normalizeRole = (role?: string | null) =>
+    String(role || '').toLowerCase().trim();
+
+  const isAdvertiserRole = (role?: string | null) =>
+    ['advertiser', 'معلن'].includes(normalizeRole(role));
+
+  const isDelegateRole = (role?: string | null) =>
+    ['delegate', 'representative', 'مندوب'].includes(normalizeRole(role));
+
+  const hasDelegateCode = (user?: User | null) =>
+    Boolean(String(user?.delegateCode || '').trim());
+
+  const canShowAdsTab = (user?: User | null) =>
+    Boolean(user) &&
+    (isAdvertiserRole(user?.role) || Number(user?.adsCount || 0) > 0);
+
+  const canShowDelegateClientsTab = (user?: User | null) =>
+    Boolean(user) &&
+    (isDelegateRole(user?.role) || hasDelegateCode(user));
+
   // Sub-components for enhanced packages modal
   const PackageLoadingSkeleton = () => (
     <div className="space-y-4">
@@ -1988,7 +2008,13 @@ export default function UsersPage() {
 
   // Fetch delegate clients when activeTab is 'clients'
   useEffect(() => {
-    if (activeTab === 'clients' && selectedUser && (selectedUser.role === 'delegate' || selectedUser.role === 'representative')) {
+    const role = String(selectedUser?.role || '').toLowerCase().trim();
+    const isDelegate =
+      role === 'delegate' || role === 'representative' || role === 'مندوب';
+    const hasCode = Boolean(String(selectedUser?.delegateCode || '').trim());
+    const canLoadClients = activeTab === 'clients' && selectedUser && (isDelegate || hasCode);
+
+    if (canLoadClients) {
       setIsFetchingClients(true);
       fetchDelegateClients(selectedUser.id)
         .then(response => {
@@ -2000,6 +2026,29 @@ export default function UsersPage() {
         .finally(() => {
           setIsFetchingClients(false);
         });
+    } else if (activeTab === 'clients') {
+      setDelegateClients([]);
+    }
+  }, [activeTab, selectedUser]);
+
+  useEffect(() => {
+    if (!selectedUser) return;
+
+    const role = String(selectedUser.role || '').toLowerCase().trim();
+    const isAdvertiser = role === 'advertiser' || role === 'معلن';
+    const isDelegate =
+      role === 'delegate' || role === 'representative' || role === 'مندوب';
+    const hasCode = Boolean(String(selectedUser.delegateCode || '').trim());
+    const hasAds = Number(selectedUser.adsCount || 0) > 0;
+    const canOpenAdsTab = isAdvertiser || hasAds;
+    const canOpenClientsTab = isDelegate || hasCode;
+
+    if (activeTab === 'ads' && !canOpenAdsTab) {
+      setActiveTab('data');
+      return;
+    }
+    if (activeTab === 'clients' && !canOpenClientsTab) {
+      setActiveTab('data');
     }
   }, [activeTab, selectedUser]);
 
@@ -2357,19 +2406,21 @@ export default function UsersPage() {
             >
               البيانات
             </button>
-            <button
-              className={`tab-btn ${activeTab === 'ads' ? 'active' : ''}`}
-              onClick={() => setActiveTab('ads')}
-            >
-              الإعلانات
-            </button>
+            {canShowAdsTab(selectedUser) && (
+              <button
+                className={`tab-btn ${activeTab === 'ads' ? 'active' : ''}`}
+                onClick={() => setActiveTab('ads')}
+              >
+                الإعلانات
+              </button>
+            )}
             {/* <button 
               className={`tab-btn ${activeTab === 'transactions' ? 'active' : ''}`}
               onClick={() => setActiveTab('transactions')}
             >
               المعاملات
             </button> */}
-            {(selectedUser.role === 'delegate' || selectedUser.role === 'representative') && (
+            {canShowDelegateClientsTab(selectedUser) && (
               <button
                 className={`tab-btn ${activeTab === 'clients' ? 'active' : ''}`}
                 onClick={() => setActiveTab('clients')}
@@ -2580,7 +2631,7 @@ export default function UsersPage() {
               </div>
             )}
 
-            {activeTab === 'ads' && (
+            {activeTab === 'ads' && canShowAdsTab(selectedUser) && (
               <div className="user-ads-tab">
                 <div className="ads-header">
                   <h3>إعلانات المستخدم</h3>
@@ -2628,7 +2679,7 @@ export default function UsersPage() {
               </div>
             )}
 
-            {activeTab === 'clients' && (
+            {activeTab === 'clients' && canShowDelegateClientsTab(selectedUser) && (
               <div style={{ padding: '24px', flex: 1, backgroundColor: '#f9fafb' }}>
                 <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', alignItems: 'flex-end', backgroundColor: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
                   <div style={{ flex: 1 }}>

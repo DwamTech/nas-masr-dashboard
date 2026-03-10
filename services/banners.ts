@@ -108,6 +108,7 @@ export function getBannerDisplayName(slug: string): string {
         'home': 'بانر الصفحة الرئيسية',
         'home_ads': 'بانر صفحة إضافة إعلان',
         'payment_single_ad_methods': 'صفحة طرق الدفع الخاصة بالإعلان الفردي',
+        'payment_packages_subscribe': 'صفحة الاشتراك في الباقات',
 
         // الأقسام المختلفة
         'real_estate': 'عقارات',

@@ -109,9 +109,10 @@ export default function BannersManagementClient() {
 
   // Separate banners into sections
   const mainBanners = banners.filter(b => b.slug === 'home' || b.slug === 'home_ads');
-  const paymentPageBanners = banners.filter(b => b.slug === 'payment_single_ad_methods');
+  const paymentPageBannerSlugs = ['payment_single_ad_methods', 'payment_packages_subscribe'];
+  const paymentPageBanners = banners.filter(b => paymentPageBannerSlugs.includes(b.slug));
   const categoryBanners = banners.filter(
-    b => b.slug !== 'home' && b.slug !== 'home_ads' && b.slug !== 'payment_single_ad_methods'
+    b => b.slug !== 'home' && b.slug !== 'home_ads' && !paymentPageBannerSlugs.includes(b.slug)
   );
 
   return (

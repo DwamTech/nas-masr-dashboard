@@ -13,6 +13,7 @@ export interface SystemSettingsPayload {
   free_ads_count?: number;
   free_ads_max_price?: number;
   free_ad_days_validity?: number;
+  package_selection_ads_count?: number;
   jobs_default_image?: string;
   doctors_default_image?: string;
   teachers_default_image?: string;
@@ -35,6 +36,7 @@ export interface SystemSettingsData {
   free_ads_count?: number;
   free_ads_max_price?: number;
   free_ad_days_validity?: number;
+  package_selection_ads_count?: number;
   jobs_default_image?: string;
   doctors_default_image?: string;
   teachers_default_image?: string;
@@ -47,4 +49,5 @@ export interface SystemSettingsResponse {
   data?: SystemSettingsData;
   free_ads_count?: number;
   free_ads_max_price?: number;
+  package_selection_ads_count?: number;
 }

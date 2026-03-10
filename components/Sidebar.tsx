@@ -64,6 +64,24 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   };
 
   useEffect(() => {
+    const activeParents = navItems
+      .filter(
+        (item) =>
+          Array.isArray(item.subItems) &&
+          item.subItems.length > 0 &&
+          (pathname === item.href || pathname.startsWith(`${item.href}/`))
+      )
+      .map((item) => item.href);
+
+    if (activeParents.length === 0) return;
+    setOpenDropdowns((prev) => {
+      const next = new Set(prev);
+      activeParents.forEach((href) => next.add(href));
+      return Array.from(next);
+    });
+  }, [pathname]);
+
+  useEffect(() => {
     let mounted = true;
     const token = typeof window !== "undefined" ? (localStorage.getItem("authToken") ?? undefined) : undefined;
     const load = async () => {
@@ -140,7 +158,14 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   {hasSubItems ? (
                     <button
                       className={`nav-item dropdown-toggle${isActive ? " active" : ""}`}
-                      onClick={() => toggleDropdown(item.href)}
+                      onClick={() => {
+                        if (pathname === item.href) {
+                          toggleDropdown(item.href);
+                          return;
+                        }
+                        router.push(item.href);
+                        onClose?.();
+                      }}
                       type="button"
                     >
                       <span className="nav-indicator" aria-hidden="true" />

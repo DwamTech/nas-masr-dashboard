@@ -3923,7 +3923,7 @@ export default function UsersPage() {
                           </svg>
                         </button>
                       )}
-                      {(user.role === 'representative' || user.role === 'مندوب') && (
+                      {canShowDelegateClientsTab(user) && (
                         <button
                           className="btn-delegate-clients"
                           onClick={() => handleOpenDelegateClients(user)}
@@ -4074,7 +4074,7 @@ export default function UsersPage() {
                 >
                   {user.status === 'active' ? 'حظر' : 'إلغاء الحظر'}
                 </button>
-                {(user.role === 'representative' || user.role === 'مندوب') && (
+                {canShowDelegateClientsTab(user) && (
                   <button
                     className="btn-delegate-clients"
                     onClick={() => handleOpenDelegateClients(user)}

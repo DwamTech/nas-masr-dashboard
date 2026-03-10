@@ -107,9 +107,12 @@ export default function BannersManagementClient() {
     }
   };
 
-  // Separate banners into main banners and category banners
+  // Separate banners into sections
   const mainBanners = banners.filter(b => b.slug === 'home' || b.slug === 'home_ads');
-  const categoryBanners = banners.filter(b => b.slug !== 'home' && b.slug !== 'home_ads');
+  const paymentPageBanners = banners.filter(b => b.slug === 'payment_single_ad_methods');
+  const categoryBanners = banners.filter(
+    b => b.slug !== 'home' && b.slug !== 'home_ads' && b.slug !== 'payment_single_ad_methods'
+  );
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'Arial, sans-serif', direction: 'rtl' }}>
@@ -638,6 +641,52 @@ export default function BannersManagementClient() {
           )}
 
           {/* Category Banners Section */}
+          {paymentPageBanners.length > 0 && (
+            <div className="section">
+              <div className="section-header">
+                <span className="section-icon">💳</span>
+                <h2 className="section-title">بنارات صفحات الدفع</h2>
+              </div>
+              <div className="main-banners-grid">
+                {paymentPageBanners.map(banner => (
+                  <div key={banner.slug} className="banner-card">
+                    <div className="banner-name">
+                      {getBannerDisplayName(banner.slug)}
+                    </div>
+                    <div className="banner-preview">
+                      {banner.banner_url ? (
+                        <>
+                          <img
+                            src={banner.banner_url}
+                            alt={getBannerDisplayName(banner.slug)}
+                          />
+                          <span className="banner-status status-active">
+                            ✓ مفعل
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="banner-placeholder">🖼️</span>
+                          <span className="banner-status status-empty">
+                            ⚠ غير مفعل
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      className="btn-change"
+                      onClick={() => handleOpenEditModal(banner)}
+                      disabled={uploading}
+                    >
+                      تغيير البانر
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Category Banners Section */}
           {categoryBanners.length > 0 && (
             <div className="section">
               <div className="section-header">
@@ -684,7 +733,9 @@ export default function BannersManagementClient() {
           )}
 
           {/* Empty State */}
-          {mainBanners.length === 0 && categoryBanners.length === 0 && (
+          {mainBanners.length === 0 &&
+            paymentPageBanners.length === 0 &&
+            categoryBanners.length === 0 && (
             <div className="empty-state">
               <p>لا توجد بانرات متاحة</p>
             </div>

@@ -10,6 +10,7 @@ import { fetchAdminRejectedListings } from '@/services/rejectedListings';
 import { fetchListingReports } from '@/services/reports';
 import { PublishedListing, ListingAttribute, ListingImage } from '@/models/published';
 import { PendingListingsMeta } from '@/models/listings';
+import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
 
 interface Toast {
   id: string;
@@ -30,6 +31,8 @@ type AdRow = {
   displayType: string;
   value: number;
   views: number;
+  whatsappClicks: number;
+  callClicks: number;
 };
 
 const statusColors = {
@@ -173,7 +176,9 @@ function AdsManagement() {
     const valueRaw = l.price;
     const value = typeof valueRaw === 'number' ? valueRaw : Number(valueRaw) || 0;
     const views = typeof l.views === 'number' ? l.views : 0;
-    return { id, status, category, categorySlug, createdDate, expiryDate, ownerCode, displayType, value, views };
+    const whatsappClicks = typeof l.whatsapp_clicks === 'number' ? l.whatsapp_clicks : Number(l.whatsapp_clicks) || 0;
+    const callClicks = typeof l.call_clicks === 'number' ? l.call_clicks : Number(l.call_clicks) || 0;
+    return { id, status, category, categorySlug, createdDate, expiryDate, ownerCode, displayType, value, views, whatsappClicks, callClicks };
   };
 
   useEffect(() => {
@@ -664,10 +669,16 @@ function AdsManagement() {
               <th>📅 تاريخ الإنشاء</th>
               <th>⏰ تاريخ الانتهاء</th>
               <th>👤 كود المعلن</th>
-              <th>🆔 رقم الإعلان</th>
+              <th>🆔 ID الإعلان</th>
               <th>🎯 نوع الظهور</th>
               <th>💰 القيمة</th>
               <th>�️ المشاهدات</th>
+              <th title="ضغطات واتساب" aria-label="ضغطات واتساب">
+                <FaWhatsapp style={{ margin: "0 auto", display: "block" }} />
+              </th>
+              <th title="ضغطات الاتصال" aria-label="ضغطات الاتصال">
+                <FaPhoneAlt style={{ margin: "0 auto", display: "block", fontSize: "0.9rem" }} />
+              </th>
               {/* <th>🚨 البلاغات</th> */}
               <th>⚙️ إجراءات</th>
             </tr>
@@ -697,7 +708,7 @@ function AdsManagement() {
                 <td>
                   <span className="owner-code-badge">{ad.ownerCode}</span>
                 </td>
-                <td className="ad-id">{ad.id}</td>
+                <td className="ad-id">#{ad.id}</td>
                 <td>{ad.displayType}</td>
                 <td>
                   <span className="value-strong">{ad.value} ج.م</span>
@@ -707,6 +718,8 @@ function AdsManagement() {
                     {ad.views.toLocaleString()}
                   </span>
                 </td>
+                <td style={{ textAlign: "center", fontWeight: 600 }}>{ad.whatsappClicks.toLocaleString()}</td>
+                <td style={{ textAlign: "center", fontWeight: 600 }}>{ad.callClicks.toLocaleString()}</td>
                 {/* <td>
                   <span className={`reports-text ${ad.reports > 0 ? 'reports-has' : 'reports-none'}`}>
                     {ad.reports}
@@ -746,6 +759,10 @@ function AdsManagement() {
             </div>
             <div className="ad-card-body">
               <div className="ad-card-field">
+                <span className="ad-card-label">ID الإعلان</span>
+                <span className="ad-card-value">#{ad.id}</span>
+              </div>
+              <div className="ad-card-field">
                 <span className="ad-card-label">تاريخ الإنشاء</span>
                 <span className="ad-card-value">{formatDateDDMMYYYY(ad.createdDate)}</span>
               </div>
@@ -764,6 +781,14 @@ function AdsManagement() {
               <div className="ad-card-field">
                 <span className="ad-card-label">المشاهدات</span>
                 <span className={`views-badge ${ad.views > 1000 ? 'views-high' : 'views-low'}`}>{ad.views.toLocaleString()}</span>
+              </div>
+              <div className="ad-card-field">
+                <span className="ad-card-label"><FaWhatsapp /></span>
+                <span className="ad-card-value">{ad.whatsappClicks.toLocaleString()}</span>
+              </div>
+              <div className="ad-card-field">
+                <span className="ad-card-label"><FaPhoneAlt /></span>
+                <span className="ad-card-value">{ad.callClicks.toLocaleString()}</span>
               </div>
               {/* <div className="ad-card-field">
                 <span className="ad-card-label">البلاغات</span>

@@ -41,6 +41,8 @@ export interface PublishedListing {
   plan_type?: string | null;
   price?: number | string | null;
   views?: number | null;
+  whatsapp_clicks?: number | null;
+  call_clicks?: number | null;
   advertiser_id?: number | null;
   advertiser_phone?: string | null;
   // Extended details

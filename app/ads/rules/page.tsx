@@ -8,6 +8,7 @@ import { CategoryPlanPrice, CategoryPlanPriceUpdateItem } from "../../../models/
 const initialRules = {
   free_ads_count: 0,
   free_ad_days_validity: 0,
+  package_selection_ads_count: 0,
   featured_days: 0,
   standard_days: 0,
 };
@@ -25,11 +26,13 @@ export default function DisplayRules() {
       .then((res) => {
         const count = (res?.data?.free_ads_count ?? (res as unknown as { free_ads_count?: number }).free_ads_count ?? 0);
         const days = (res?.data?.free_ad_days_validity ?? (res as unknown as { free_ad_days_validity?: number }).free_ad_days_validity ?? 0);
+        const packageSelectionAdsCount = (res?.data?.package_selection_ads_count ?? (res as unknown as { package_selection_ads_count?: number }).package_selection_ads_count ?? 0);
         const featured = (res?.data?.featured_days ?? (res as unknown as { featured_days?: number }).featured_days ?? 0);
         const standard = (res?.data?.standard_days ?? (res as unknown as { standard_days?: number }).standard_days ?? 0);
         setRules({
           free_ads_count: Number(count) || 0,
           free_ad_days_validity: Number(days) || 0,
+          package_selection_ads_count: Number(packageSelectionAdsCount) || 0,
           featured_days: Number(featured) || 0,
           standard_days: Number(standard) || 0,
         });
@@ -87,6 +90,7 @@ export default function DisplayRules() {
       await updateSystemSettings({
         free_ads_count: Number(rules.free_ads_count) || 0,
         free_ad_days_validity: Number(rules.free_ad_days_validity) || 0,
+        package_selection_ads_count: Number(rules.package_selection_ads_count) || 0,
       });
       setSavedMessage("تم حفظ قواعد الأقسام بنجاح ✅");
       setTimeout(() => setSavedMessage(""), 3000);
@@ -178,6 +182,25 @@ export default function DisplayRules() {
                     onChange={(e) => setRules({
                       ...rules,
                       free_ad_days_validity: parseInt(e.target.value) || 0,
+                    })}
+                    disabled={!isEditingSection}
+                    className={`form-input ${isEditingSection ? 'editable' : 'readonly'}`}
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">
+                  <span className="label-icon">📢</span>
+                  عدد اعلانات اختيار الباقة
+                </label>
+                <div className="input-wrapper">
+                  <input
+                    type="number"
+                    value={rules.package_selection_ads_count}
+                    onChange={(e) => setRules({
+                      ...rules,
+                      package_selection_ads_count: parseInt(e.target.value) || 0,
                     })}
                     disabled={!isEditingSection}
                     className={`form-input ${isEditingSection ? 'editable' : 'readonly'}`}

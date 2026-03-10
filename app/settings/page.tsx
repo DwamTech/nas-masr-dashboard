@@ -57,6 +57,8 @@ export default function SettingsPage() {
     supportNumbers: {
       support: '',
       passwordChange: '',
+      instapay: '',
+      vodafoneCash: '',
       inquiries: ''
     },
 
@@ -134,6 +136,8 @@ export default function SettingsPage() {
           supportNumbers: {
             support: prev?.supportNumbers?.support || d.support_number || '',
             passwordChange: prev?.supportNumbers?.passwordChange || d.sub_support_number || '',
+            instapay: prev?.supportNumbers?.instapay || d.instapay_number || '',
+            vodafoneCash: prev?.supportNumbers?.vodafoneCash || d.vodafone_cash_number || '',
             inquiries: prev?.supportNumbers?.inquiries || d.emergency_number || '',
           },
           showPhoneNumbers: typeof prev?.showPhoneNumbers === 'boolean' ? prev.showPhoneNumbers : Boolean(d.show_phone),
@@ -180,6 +184,8 @@ export default function SettingsPage() {
     const payload = {
       support_number: settings.supportNumbers.support,
       sub_support_number: settings.supportNumbers.passwordChange,
+      instapay_number: settings.supportNumbers.instapay,
+      vodafone_cash_number: settings.supportNumbers.vodafoneCash,
       emergency_number: settings.supportNumbers.inquiries,
       privacy_policy: settings.privacyPolicy,
       'terms_conditions-main_': settings.termsOfService,
@@ -334,6 +340,28 @@ export default function SettingsPage() {
               className="form-input"
               value={settings.supportNumbers.passwordChange}
               onChange={(e) => handleInputChange('supportNumbers', 'passwordChange', e.target.value)}
+              placeholder="+20 1XX XXX XXXX"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="instapayNumber">رقم إنستا باي (instapay_number)</label>
+            <input
+              type="tel"
+              id="instapayNumber"
+              className="form-input"
+              value={settings.supportNumbers.instapay}
+              onChange={(e) => handleInputChange('supportNumbers', 'instapay', e.target.value)}
+              placeholder="+20 1XX XXX XXXX"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="vodafoneCashNumber">رقم فودافون كاش (vodafone_cash_number)</label>
+            <input
+              type="tel"
+              id="vodafoneCashNumber"
+              className="form-input"
+              value={settings.supportNumbers.vodafoneCash}
+              onChange={(e) => handleInputChange('supportNumbers', 'vodafoneCash', e.target.value)}
               placeholder="+20 1XX XXX XXXX"
             />
           </div>

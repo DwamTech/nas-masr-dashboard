@@ -1,6 +1,8 @@
 export interface SystemSettingsPayload {
   support_number?: string;
   sub_support_number?: string;
+  instapay_number?: string;
+  vodafone_cash_number?: string;
   emergency_number?: string;
   privacy_policy?: string;
   'terms_conditions-main_'?: string;
@@ -24,6 +26,8 @@ export interface SystemSettingsPayload {
 export interface SystemSettingsData {
   support_number: string;
   sub_support_number: string;
+  instapay_number?: string;
+  vodafone_cash_number?: string;
   emergency_number: string;
   privacy_policy: string;
   'terms_conditions-main_'?: string;

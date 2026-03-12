@@ -322,6 +322,20 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                 } else if (parentNames.length > 0) {
                     setSelectedParent(parentNames[0]);
                 }
+            } else if (metadata.parentField?.includes('main_section')) {
+                const response = await fetchCategoryFields(category.slug);
+                const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
+                const mainNames = sections
+                    .map((s: any) => (s?.name ?? '').toString().trim())
+                    .filter((v: string) => v.length > 0);
+                const uniqueMainNames = Array.from(new Set(mainNames));
+                setParentOptions(uniqueMainNames);
+
+                if (parent) {
+                    setSelectedParent(parent);
+                } else if (uniqueMainNames.length > 0) {
+                    setSelectedParent(uniqueMainNames[0]);
+                }
             }
         } catch (err) {
             console.error('Error loading parent options:', err);
@@ -374,6 +388,27 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                 } else {
                     setOptions([]);
                 }
+            } else if (fieldMetadata?.parentField?.includes('main_section')) {
+                const response = await fetchCategoryFields(category.slug);
+                const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
+                const selectedMain = sections.find(
+                    (s: any) => (s?.name ?? '').toString().trim() === parentValue
+                );
+
+                const subSections = Array.isArray(selectedMain?.sub_sections)
+                    ? selectedMain.sub_sections
+                    : [];
+                const subNames = subSections
+                    .map((s: any) => (s?.name ?? '').toString().trim())
+                    .filter((v: string) => v.length > 0);
+
+                const subOptions: OptionWithState[] = Array.from(new Set(subNames)).map((name, index) => ({
+                    value: name,
+                    is_active: true,
+                    rank: index + 1,
+                    isEditing: false,
+                }));
+                setOptions(subOptions);
             }
         } catch (err) {
             console.error('Error loading child options:', err);

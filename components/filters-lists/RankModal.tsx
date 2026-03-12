@@ -252,6 +252,18 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                 if (!selectedParent && parentNames.length > 0) {
                     setSelectedParent(parentNames[0]);
                 }
+            } else if (metadata.parentField === 'main_section') {
+                const response = await fetchCategoryFields(category.slug);
+                const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
+                const mainNames = sections
+                    .map((s: any) => (s?.name ?? '').toString().trim())
+                    .filter((v: string) => v.length > 0);
+                const uniqueMainNames = Array.from(new Set(mainNames));
+                setParentOptions(uniqueMainNames);
+
+                if (!selectedParent && uniqueMainNames.length > 0) {
+                    setSelectedParent(uniqueMainNames[0]);
+                }
             } else {
                 // Generic: look for parent field in category fields
                 const response = await fetchCategoryFields(category.slug);
@@ -298,6 +310,19 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                 } else {
                     setOptions([]);
                 }
+            } else if (metadata.parentField === 'main_section') {
+                const response = await fetchCategoryFields(category.slug);
+                const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
+                const selectedMain = sections.find(
+                    (s: any) => (s?.name ?? '').toString().trim() === parentValue
+                );
+                const subSections = Array.isArray(selectedMain?.sub_sections)
+                    ? selectedMain.sub_sections
+                    : [];
+                const subNames = subSections
+                    .map((s: any) => (s?.name ?? '').toString().trim())
+                    .filter((v: string) => v.length > 0);
+                setOptions(Array.from(new Set(subNames)));
             } else {
                 // Generic: load the child field options from category fields
                 const response = await fetchCategoryFields(category.slug);

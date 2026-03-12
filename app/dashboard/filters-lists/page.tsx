@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation';
 import SharedListsSection from '@/components/filters-lists/SharedListsSection';
 import CategoryCardsSection from '@/components/filters-lists/CategoryCardsSection';
 import { useModalState } from '@/hooks/useModalState';
-import { Category, CategoryField } from '@/types/filters-lists';
+import { Category } from '@/types/filters-lists';
 import { fetchCategories } from '@/services/categories';
-import { fetchCategoryFields } from '@/services/categoryFields';
 
 // Lazy load modals for code splitting
 const RankModal = lazy(() => import('@/components/filters-lists/RankModal'));
@@ -22,7 +21,7 @@ const GovernorateEditModal = lazy(() => import('@/components/filters-lists/Gover
  * are assumed to be unified categories (main_sections → sub_sections).
  */
 const FIELD_BASED_CATEGORY_SLUGS = [
-    'real_estate', 'cars', 'cars_rent', 'spare-parts', 
+    'real_estate', 'cars', 'cars_rent', 'spare-parts',
     'jobs', 'teachers', 'doctors'
 ];
 

@@ -905,9 +905,10 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                 backdropFilter: 'blur(4px)',
                 zIndex: 9999,
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'center',
-                padding: '1rem'
+                padding: '1rem',
+                overflowY: 'auto'
             }}>
             <div
                 ref={modalRef}
@@ -921,11 +922,12 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
                     maxWidth: '42rem',
                     width: '100%',
+                    maxHeight: 'calc(100dvh - 2rem)',
                     display: 'flex',
                     flexDirection: 'column',
                     position: 'relative',
                     zIndex: 10000,
-                    // overflow: 'hidden' - Removed to allow dropdowns to overflow Modal container if necessary
+                    overflow: 'hidden'
                 }}
             >
                 {/* Header - category name, with close button */}
@@ -1001,8 +1003,21 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     </div>
                 )}
 
-                {/* Content - Removed overflow-y-auto to allow dropdown to escape container if it needs to, but kept some padding */}
-                <div className="flex-1 p-4 sm:p-6" style={{ flex: '1 1 auto', padding: '1.5rem', minHeight: 0 }}>
+                {/* Content - scrollable area inside modal to prevent layout freeze on long forms */}
+                <div
+                    className="flex-1 overflow-y-auto p-4 sm:p-6"
+                    style={{
+                        flex: '1 1 auto',
+                        padding: '1.5rem',
+                        minHeight: 0,
+                        WebkitOverflowScrolling: 'touch',
+                        overscrollBehavior: 'contain',
+                        overflowX: 'hidden'
+                    }}
+                    onWheel={(e) => {
+                        e.stopPropagation();
+                    }}
+                >
                     {loading && (
                         <div className="flex items-center justify-center py-12" role="status" aria-live="polite">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>

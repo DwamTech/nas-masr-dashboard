@@ -8,7 +8,13 @@ import { fetchUsersSummary } from "@/services/users";
 import { fetchAdminNotificationsCount } from "@/services/notifications";
 
 type NavSubItem = { href: string; label: string; icon: string };
-type NavItem = { href: string; label: string; icon: string; subItems?: NavSubItem[] };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  subItems?: NavSubItem[];
+  toggleOnly?: boolean;
+};
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "الرئيسية", icon: "/window.svg" },
@@ -28,6 +34,7 @@ const navItems: NavItem[] = [
     href: "/categories",
     label: "الأقسام والتصنيفات",
     icon: "/categories.png",
+    toggleOnly: true,
     subItems: [
       { href: "/category-homepage-management", label: "إدارة أقسام الصفحة الرئيسية", icon: "/categories.png" },
       { href: "/app-banners", label: "إدارة بنارات التطبيق", icon: "/categories.png" },
@@ -66,12 +73,18 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   useEffect(() => {
     const activeParents = navItems
-      .filter(
-        (item) =>
-          Array.isArray(item.subItems) &&
-          item.subItems.length > 0 &&
-          (pathname === item.href || pathname.startsWith(`${item.href}/`))
-      )
+      .filter((item) => {
+        if (!Array.isArray(item.subItems) || item.subItems.length === 0) {
+          return false;
+        }
+        const isParentPathActive =
+          pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const isAnySubItemActive = item.subItems.some(
+          (subItem) =>
+            pathname === subItem.href || pathname.startsWith(`${subItem.href}/`)
+        );
+        return isParentPathActive || isAnySubItemActive;
+      })
       .map((item) => item.href);
 
     if (activeParents.length === 0) return;
@@ -150,8 +163,18 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         <nav aria-label="القائمة الرئيسية">
           <ul className="nav-list">
             {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
               const hasSubItems = item.subItems && item.subItems.length > 0;
+              const isSubItemActive = hasSubItems
+                ? item.subItems!.some(
+                    (subItem) =>
+                      pathname === subItem.href ||
+                      pathname.startsWith(`${subItem.href}/`)
+                  )
+                : false;
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(item.href)) ||
+                isSubItemActive;
               const isDropdownOpen = openDropdowns.includes(item.href);
 
               return (
@@ -160,6 +183,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                     <button
                       className={`nav-item dropdown-toggle${isActive ? " active" : ""}`}
                       onClick={() => {
+                        if (item.toggleOnly) {
+                          toggleDropdown(item.href);
+                          return;
+                        }
                         if (pathname === item.href) {
                           toggleDropdown(item.href);
                           return;

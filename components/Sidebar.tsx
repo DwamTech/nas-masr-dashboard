@@ -97,6 +97,43 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     );
   };
 
+  const navigateTo = (href: string) => {
+    if (!href || pathname === href) {
+      onClose?.();
+      return;
+    }
+
+    const currentPath = pathname;
+    onClose?.();
+    router.push(href);
+
+    // Fallback for cases where production client navigation stalls after build.
+    window.setTimeout(() => {
+      if (window.location.pathname === currentPath) {
+        window.location.assign(href);
+      }
+    }, 180);
+  };
+
+  const handleLinkClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    navigateTo(href);
+  };
+
   useEffect(() => {
     const activeParents = visibleNavItems
       .filter((item) => {
@@ -221,8 +258,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                           toggleDropdown(item.href);
                           return;
                         }
-                        router.push(item.href);
-                        onClose?.();
+                        navigateTo(item.href);
                       }}
                       type="button"
                     >
@@ -240,7 +276,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                     <Link
                       href={item.href}
                       className={`nav-item${isActive ? " active" : ""}`}
-                      onClick={onClose}
+                      onClick={(event) => handleLinkClick(event, item.href)}
                     >
                       <span className="nav-indicator" aria-hidden="true" />
                       <Image src={item.icon} alt="" width={20} height={20} className="nav-icon" />
@@ -260,7 +296,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                             <Link
                               href={subItem.href}
                               className={`nav-sub-item${isSubActive ? " active" : ""}`}
-                              onClick={onClose}
+                              onClick={(event) => handleLinkClick(event, subItem.href)}
                             >
                               <span className="nav-sub-indicator" aria-hidden="true" />
                               <Image src={subItem.icon} alt="" width={16} height={16} className="nav-sub-icon" />

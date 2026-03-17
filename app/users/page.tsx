@@ -553,6 +553,49 @@ const formatDate = (dateString: string): string => {
     ? ['معلن', 'مستخدم', 'موظف', 'مشرف', 'مراجع']
     : ['معلن', 'مستخدم'];
 
+  const generateUserPassword = () => {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const numbers = '23456789';
+    const symbols = '!@#$%';
+    const allChars = `${upper}${lower}${numbers}${symbols}`;
+
+    const pick = (source: string) => source[Math.floor(Math.random() * source.length)];
+    const passwordChars = [
+      pick(upper),
+      pick(lower),
+      pick(numbers),
+      pick(symbols),
+    ];
+
+    while (passwordChars.length < 10) {
+      passwordChars.push(pick(allChars));
+    }
+
+    const generatedPassword = passwordChars
+      .map((char) => ({ char, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map((item) => item.char)
+      .join('');
+
+    setNewUserForm((prev) => ({ ...prev, password: generatedPassword }));
+  };
+
+  const copyGeneratedPassword = async () => {
+    const password = String(newUserForm.password || '').trim();
+    if (!password) {
+      showToast('لا توجد كلمة مرور لنسخها', 'warning');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(password);
+      showToast('تم نسخ كلمة المرور', 'success');
+    } catch {
+      showToast('تعذر نسخ كلمة المرور', 'error');
+    }
+  };
+
   useEffect(() => {
     const syncViewerRole = () => {
       setViewerRole(String(readDashboardUser()?.role || ''));
@@ -1315,6 +1358,7 @@ const formatDate = (dateString: string): string => {
     name: '',
     email: '',
     phone: '',
+    password: '',
     role: 'مستخدم',
     status: 'active' as User['status'],
     allowedDashboardPages: [] as string[],
@@ -1346,6 +1390,7 @@ const formatDate = (dateString: string): string => {
         name: newUserForm.name?.trim() || undefined,
         email: newUserForm.email?.trim() || undefined,
         phone: newUserForm.phone.trim(),
+        password: newUserForm.password?.trim() || undefined,
         role: roleMapped,
         status: newUserForm.status === 'banned' ? 'blocked' : 'active',
         allowed_dashboard_pages: roleMapped === 'employee' ? newUserForm.allowedDashboardPages : [],
@@ -1376,6 +1421,7 @@ const formatDate = (dateString: string): string => {
         name: '',
         email: '',
         phone: '',
+        password: '',
         role: 'مستخدم',
         status: 'active',
         allowedDashboardPages: [],
@@ -3324,6 +3370,57 @@ const formatDate = (dateString: string): string => {
                       onChange={(e) => handleNewUserChange('email', e.target.value)}
                       placeholder="employee@example.com"
                     />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label>كلمة المرور</label>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={newUserForm.password}
+                        onChange={(e) => handleNewUserChange('password', e.target.value)}
+                        placeholder="أدخل كلمة المرور أو أنشئ واحدة تلقائيًا"
+                        style={{ flex: '1 1 320px', direction: 'ltr', textAlign: 'left', letterSpacing: '0.05em' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={generateUserPassword}
+                        style={{
+                          border: '1px solid #bfdbfe',
+                          borderRadius: '12px',
+                          background: '#eff6ff',
+                          color: '#1d4ed8',
+                          padding: '0 16px',
+                          minHeight: '46px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        إنشاء باسورد
+                      </button>
+                      <button
+                        type="button"
+                        onClick={copyGeneratedPassword}
+                        disabled={!String(newUserForm.password || '').trim()}
+                        style={{
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '12px',
+                          background: String(newUserForm.password || '').trim() ? '#0f766e' : '#e2e8f0',
+                          color: String(newUserForm.password || '').trim() ? '#ffffff' : '#64748b',
+                          padding: '0 16px',
+                          minHeight: '46px',
+                          fontWeight: 700,
+                          cursor: String(newUserForm.password || '').trim() ? 'pointer' : 'not-allowed',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        نسخ
+                      </button>
+                    </div>
+                    <p style={{ marginTop: '8px', color: '#64748b', fontSize: '13px' }}>
+                      سيتم إرسال هذه الكلمة مع الحساب عند الإنشاء. إذا تركتها فارغة سيستخدم النظام الإعداد الافتراضي الحالي.
+                    </p>
                   </div>
                   <div className="form-group">
                     <label>الدور</label>

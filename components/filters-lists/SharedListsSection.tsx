@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchGovernorates } from '@/services/governorates';
 import { fetchAdminMakesWithIds } from '@/services/makes';
 import { Governorate } from '@/models/governorates';
 import { cache, CACHE_TIMES } from '@/utils/cache';
 import { Category } from '@/types/filters-lists';
 import { AUTOMOTIVE_SHARED_MODAL_TITLE } from './automotiveShared';
+import { FILTERS_LISTS_DATA_CHANGED_EVENT } from './events';
 
 interface SharedListsSectionProps {
     onRankClick?: (category: Category, fieldName?: string) => void;
@@ -26,19 +27,15 @@ export default function SharedListsSection({ onRankClick, onEditClick }: SharedL
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadGovernorates();
-    }, []);
-
-    const loadGovernorates = async () => {
+    const loadGovernorates = useCallback(async (forceFresh = false) => {
         try {
             setLoading(true);
             setError(null);
 
             const governoratesCacheKey = 'governorates:all';
             const automotiveCacheKey = 'shared:automotive-makes';
-            const cachedGovernorates = cache.get<Governorate[]>(governoratesCacheKey);
-            const cachedMakes = cache.get<{ id: number; name: string; models: string[] }[]>(automotiveCacheKey);
+            const cachedGovernorates = forceFresh ? null : cache.get<Governorate[]>(governoratesCacheKey);
+            const cachedMakes = forceFresh ? null : cache.get<{ id: number; name: string; models: string[] }[]>(automotiveCacheKey);
 
             const [governoratesData, makesData] = await Promise.all([
                 cachedGovernorates ?? fetchGovernorates(),
@@ -63,7 +60,23 @@ export default function SharedListsSection({ onRankClick, onEditClick }: SharedL
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        void loadGovernorates();
+
+        const handleSharedListsDataChanged = (event: Event) => {
+            const scope = (event as CustomEvent<{ scope?: string }>).detail?.scope;
+            if (!scope || scope === 'all' || scope === 'automotive' || scope === 'governorates') {
+                void loadGovernorates(true);
+            }
+        };
+
+        window.addEventListener(FILTERS_LISTS_DATA_CHANGED_EVENT, handleSharedListsDataChanged as EventListener);
+        return () => {
+            window.removeEventListener(FILTERS_LISTS_DATA_CHANGED_EVENT, handleSharedListsDataChanged as EventListener);
+        };
+    }, [loadGovernorates]);
 
     // Calculate total cities count
     const totalCitiesCount = governorates.reduce((sum, gov) => sum + (gov.cities?.length || 0), 0);

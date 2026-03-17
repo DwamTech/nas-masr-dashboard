@@ -23,19 +23,26 @@
     background: #fafafa;
     border-radius: 8px;
     min-height: 60px;
+    width: 100%;
 }
 
 /* Draggable Option Container - Enhanced with smooth transitions */
 .draggable-option {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     position: relative;
+    width: 100%;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform, opacity;
     transform: translateZ(0);
     /* Force GPU acceleration */
     backface-visibility: hidden;
     border-radius: 6px;
+}
+
+.draggable-option > :last-child {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 /* Hover state for better visual feedback */

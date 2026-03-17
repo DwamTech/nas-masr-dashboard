@@ -7,6 +7,16 @@ function getAdminMakesCacheKey(includeInactive: boolean): string {
   return includeInactive ? 'shared:automotive-makes:with-inactive' : 'shared:automotive-makes';
 }
 
+export function invalidateAutomotiveMakesCache(): void {
+  for (const key of [
+    getAdminMakesCacheKey(false),
+    getAdminMakesCacheKey(true),
+  ]) {
+    cache.invalidate(key);
+    adminMakesRequests.delete(key);
+  }
+}
+
 function toArray(x: unknown): unknown[] {
   return Array.isArray(x) ? x : [];
 }
@@ -603,7 +613,7 @@ export async function updateAdminMake(makeId: number, name: string, token?: stri
   const models = normalizeModels(o['models']);
   const created_at = typeof o['created_at'] === 'string' ? (o['created_at'] as string) : undefined;
   const updated_at = typeof o['updated_at'] === 'string' ? (o['updated_at'] as string) : undefined;
-  cache.invalidate('shared:automotive-makes');
+  invalidateAutomotiveMakesCache();
   return { id, name: String(nameOut), models, created_at, updated_at };
 }
 
@@ -620,7 +630,7 @@ export async function setAdminMakeVisibility(makeId: number, isActive: boolean, 
     throw new Error(message);
   }
 
-  cache.invalidate('shared:automotive-makes');
+  invalidateAutomotiveMakesCache();
 
   const o = raw as Record<string, unknown>;
   const id = typeof o['id'] === 'number' ? (o['id'] as number) : makeId;
@@ -641,7 +651,7 @@ export async function deleteAdminMake(makeId: number, token?: string): Promise<v
     const message = err?.error || err?.message || 'تعذر حذف الماركة';
     throw new Error(message);
   }
-  cache.invalidate('shared:automotive-makes');
+  invalidateAutomotiveMakesCache();
 }
 
 export async function updateAdminModel(modelId: number, name: string, make_id: number, token?: string): Promise<AdminModelRecord> {
@@ -663,7 +673,7 @@ export async function updateAdminModel(modelId: number, name: string, make_id: n
   const created_at = typeof o['created_at'] === 'string' ? (o['created_at'] as string) : undefined;
   const updated_at = typeof o['updated_at'] === 'string' ? (o['updated_at'] as string) : undefined;
   const is_active = typeof o['is_active'] === 'boolean' ? (o['is_active'] as boolean) : true;
-  cache.invalidate('shared:automotive-makes');
+  invalidateAutomotiveMakesCache();
   return { id, name: String(nameOut), make_id: mk, is_active, created_at, updated_at };
 }
 
@@ -680,7 +690,7 @@ export async function setAdminModelVisibility(modelId: number, isActive: boolean
     throw new Error(message);
   }
 
-  cache.invalidate('shared:automotive-makes');
+  invalidateAutomotiveMakesCache();
 
   const o = raw as Record<string, unknown>;
   const id = typeof o['id'] === 'number' ? (o['id'] as number) : modelId;
@@ -702,7 +712,7 @@ export async function deleteAdminModel(modelId: number, token?: string): Promise
     const message = err?.error || err?.message || 'تعذر حذف الموديل';
     throw new Error(message);
   }
-  cache.invalidate('shared:automotive-makes');
+  invalidateAutomotiveMakesCache();
 }
 
 export async function fetchMakeModels(makeId: number | string, token?: string): Promise<AdminModelRecord[]> {

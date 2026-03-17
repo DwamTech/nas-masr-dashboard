@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Category, CategoryField, FieldMetadata, OptionData } from '@/types/filters-lists';
+import { Category, CategoryField, FieldMetadata, MainSection, OptionData, SubSection } from '@/types/filters-lists';
 import { clearCategoryFieldsCache, fetchCategoryFields } from '@/services/categoryFields';
 import {
     fetchAdminMakesWithIds,
+    invalidateAutomotiveMakesCache,
     postAdminMake,
     postAdminMakeModels,
     setAdminMakeVisibility,
@@ -14,6 +15,17 @@ import {
     updateCategoryFieldOptions
 } from '@/services/makes';
 import { fetchGovernorates } from '@/services/governorates';
+import {
+    addSubSections,
+    createMainSection,
+    fetchMainSections,
+    setMainSectionVisibility,
+    setSubSectionVisibility,
+    updateMainSection,
+    updateMainSectionRanks,
+    updateSubSection,
+    updateSubSectionRanks,
+} from '@/services/sections';
 import { cache, INVALIDATION_PATTERNS } from '@/utils/cache';
 import { OptionsHelper } from '@/utils/optionsHelper';
 import BulkAddTextarea from './BulkAddTextarea';
@@ -22,6 +34,7 @@ import { filterFieldsByScope, FiltersFieldScope } from './automotiveShared';
 import { updateOptionRanks } from '@/services/optionRanks';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useFocusReturn } from '@/hooks/useFocusReturn';
+import { emitFiltersListsDataChanged } from './events';
 import {
     FiltersCrudAlert,
     FiltersCrudCard,
@@ -237,6 +250,33 @@ export default function EditModal({
         });
     }, []);
 
+    const buildMainSectionOptionsState = useCallback((sections: MainSection[]): OptionWithState[] => {
+        return sections
+            .filter((section) => section.name !== OptionsHelper.OTHER_OPTION && section.id !== null)
+            .map((section, index) => ({
+                value: section.name,
+                is_active: section.is_active !== false,
+                rank: index + 1,
+                isEditing: false,
+                sourceId: section.id ?? undefined,
+            }));
+    }, []);
+
+    const buildSubSectionOptionsState = useCallback((section: MainSection | null | undefined): OptionWithState[] => {
+        const subSections = (section?.subSections || section?.sub_sections || []) as SubSection[];
+
+        return subSections
+            .filter((subSection) => subSection.name !== OptionsHelper.OTHER_OPTION && subSection.id !== null)
+            .map((subSection, index) => ({
+                value: subSection.name,
+                is_active: subSection.is_active !== false,
+                rank: index + 1,
+                isEditing: false,
+                sourceId: subSection.id ?? undefined,
+                sourceParentId: subSection.main_section_id ?? section?.id ?? undefined,
+            }));
+    }, []);
+
     // Load all category fields for the tabs, then set active field
     useEffect(() => {
         if (!isOpen) return;
@@ -273,7 +313,6 @@ export default function EditModal({
         };
 
         loadFields();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, category.slug, requestedFieldName, fieldScope]);
 
     // Fetch options when modal opens or active field changes
@@ -328,6 +367,13 @@ export default function EditModal({
         try {
             if (!activeField) return;
             const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
+
+            if (activeField.field_name === 'main_section') {
+                const sections = Array.isArray(response.main_sections) ? response.main_sections as MainSection[] : [];
+                setOptions(buildMainSectionOptionsState(sections));
+                return;
+            }
+
             const targetField = response.data.find(f => f.field_name === activeField.field_name);
 
             if (!targetField) {
@@ -396,9 +442,10 @@ export default function EditModal({
                     setSelectedParent(parentNames[0]);
                 }
             } else if (metadata.parentField?.includes('main_section')) {
-                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
+                const response = await fetchMainSections(category.slug, { includeInactive: true });
                 const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
                 const mainNames = sections
+                    .filter((section) => section.name !== OptionsHelper.OTHER_OPTION && section.id !== null)
                     .map((s: any) => (s?.name ?? '').toString().trim())
                     .filter((v: string) => v.length > 0);
                 const uniqueMainNames = Array.from(new Set(mainNames));
@@ -455,20 +502,12 @@ export default function EditModal({
                     setOptions([]);
                 }
             } else if (fieldMetadata?.parentField?.includes('main_section')) {
-                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
+                const response = await fetchMainSections(category.slug, { includeInactive: true });
                 const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
                 const selectedMain = sections.find(
                     (s: any) => (s?.name ?? '').toString().trim() === parentValue
                 );
-
-                const subSections = Array.isArray(selectedMain?.sub_sections)
-                    ? selectedMain.sub_sections
-                    : [];
-                const subNames = subSections
-                    .map((s: any) => (s?.name ?? '').toString().trim())
-                    .filter((v: string) => v.length > 0);
-
-                setOptions(buildFieldOptionsState(Array.from(new Set(subNames)), activeField));
+                setOptions(buildSubSectionOptionsState(selectedMain));
             }
         } catch (err) {
             console.error('Error loading child options:', err);
@@ -476,7 +515,7 @@ export default function EditModal({
         } finally {
             setLoading(false);
         }
-    }, [activeField, buildFieldOptionsState, buildModelOptionsState, category.slug, fieldMetadata?.parentField, makesCache]);
+    }, [buildModelOptionsState, buildSubSectionOptionsState, category.slug, fieldMetadata?.parentField, makesCache]);
 
     // Task 13.1: Load parent options for hierarchical child fields
     // Requirements: 6.9, 6.10
@@ -763,7 +802,7 @@ export default function EditModal({
         );
     }, [options, persistOptionsSnapshot]);
 
-    const persistOptionsSnapshot = useCallback(async (nextOptions: OptionWithState[], successText: string) => {
+    async function persistOptionsSnapshot(nextOptions: OptionWithState[], successText: string) {
         if (!activeField) {
             return false;
         }
@@ -867,6 +906,88 @@ export default function EditModal({
                 const refreshedMakes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
                 setMakesCache(refreshedMakes);
                 setOptions(buildModelOptionsState(refreshedMakes.find((make) => make.name === selectedParent)));
+            } else if (normalizedFieldName === 'main_section') {
+                for (const opt of normalizedSnapshot) {
+                    if (opt.value === OptionsHelper.OTHER_OPTION) {
+                        continue;
+                    }
+
+                    if (opt.sourceId) {
+                        await updateMainSection(opt.sourceId, { name: opt.value });
+                        await setMainSectionVisibility(opt.sourceId, opt.is_active !== false);
+                        continue;
+                    }
+
+                    await createMainSection(category.slug, opt.value);
+                }
+
+                const refreshedSectionsResponse = await fetchMainSections(category.slug, { includeInactive: true });
+                const refreshedSections = Array.isArray(refreshedSectionsResponse.main_sections)
+                    ? refreshedSectionsResponse.main_sections.filter((section) => section.name !== OptionsHelper.OTHER_OPTION && section.id !== null)
+                    : [];
+
+                await updateMainSectionRanks(
+                    normalizedSnapshot
+                        .filter((opt) => opt.value !== OptionsHelper.OTHER_OPTION)
+                        .map((opt, index) => {
+                            const matchedSection = refreshedSections.find((section) => section.name === opt.value);
+                            return matchedSection?.id ? { id: matchedSection.id, rank: index + 1 } : null;
+                        })
+                        .filter((item): item is { id: number; rank: number } => item !== null)
+                );
+
+                setOptions(buildMainSectionOptionsState(refreshedSections));
+            } else if (normalizedFieldName === 'sub_section') {
+                if (!selectedParent) {
+                    throw new Error('يرجى اختيار القسم الرئيسي أولاً');
+                }
+
+                const refreshedSectionsResponse = await fetchMainSections(category.slug, { includeInactive: true });
+                const refreshedSections = Array.isArray(refreshedSectionsResponse.main_sections)
+                    ? refreshedSectionsResponse.main_sections
+                    : [];
+                const selectedMainSection = refreshedSections.find((section) => section.name === selectedParent);
+
+                if (!selectedMainSection?.id) {
+                    throw new Error('تعذر تحديد القسم الرئيسي الحالي');
+                }
+
+                const existingSubSections = (selectedMainSection.subSections || selectedMainSection.sub_sections || []) as SubSection[];
+                const newSubSections: string[] = [];
+
+                for (const opt of normalizedSnapshot) {
+                    if (opt.value === OptionsHelper.OTHER_OPTION) {
+                        continue;
+                    }
+
+                    if (opt.sourceId) {
+                        await updateSubSection(opt.sourceId, { name: opt.value });
+                        await setSubSectionVisibility(opt.sourceId, opt.is_active !== false);
+                        continue;
+                    }
+
+                    newSubSections.push(opt.value);
+                }
+
+                if (newSubSections.length > 0) {
+                    await addSubSections(selectedMainSection.id, newSubSections);
+                }
+
+                const refreshedAfterMutations = await fetchMainSections(category.slug, { includeInactive: true });
+                const nextSelectedMain = refreshedAfterMutations.main_sections.find((section) => section.name === selectedParent);
+                const nextSubSections = (nextSelectedMain?.subSections || nextSelectedMain?.sub_sections || []) as SubSection[];
+
+                await updateSubSectionRanks(
+                    normalizedSnapshot
+                        .filter((opt) => opt.value !== OptionsHelper.OTHER_OPTION)
+                        .map((opt, index) => {
+                            const matchedSubSection = nextSubSections.find((subSection) => subSection.name === opt.value);
+                            return matchedSubSection?.id ? { id: matchedSubSection.id, rank: index + 1 } : null;
+                        })
+                        .filter((item): item is { id: number; rank: number } => item !== null)
+                );
+
+                setOptions(buildSubSectionOptionsState(nextSelectedMain));
             } else {
                 const hiddenOptions = normalizedSnapshot
                     .filter((opt) => opt.is_active === false)
@@ -921,7 +1042,12 @@ export default function EditModal({
             }
 
             cache.invalidate(INVALIDATION_PATTERNS.RANK_UPDATE(category.slug));
-            cache.invalidate('shared:automotive-makes');
+            invalidateAutomotiveMakesCache();
+            emitFiltersListsDataChanged(
+                normalizedFieldName === 'brand' || normalizedFieldName === 'model'
+                    ? 'automotive'
+                    : 'fields'
+            );
 
             setSuccessMessage(successText);
             setTimeout(() => setSuccessMessage(null), 2500);
@@ -933,14 +1059,7 @@ export default function EditModal({
         } finally {
             setSaving(false);
         }
-    }, [
-        activeField,
-        buildBrandOptionsState,
-        buildModelOptionsState,
-        category.slug,
-        makesCache,
-        selectedParent,
-    ]);
+    }
 
     /**
      * Task 11.4: Handle toggling hide/show for an option
@@ -991,18 +1110,14 @@ export default function EditModal({
         return (
             <div
                 key={`${option.originalValue || option.value}-${index}`}
-                className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 shadow-sm transition-all ${isHidden
-                    ? 'border-amber-200 bg-amber-50/60'
-                    : 'border-slate-200 bg-white'
-                    }`}
+                className={`${styles.itemRow} ${isHidden ? styles.itemRowInactive : ''}`}
                 role="listitem"
                 aria-label={`${option.value}${isHidden ? ' - مخفي' : ''}${isOther ? ' - غير قابل للتعديل' : ''}`}
             >
-                {/* Option value or edit input */}
-                <div className="min-w-0 flex-1">
+                <div className={styles.editShell}>
                     {isEditing ? (
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2">
+                        <>
+                            <div className={styles.editRow}>
                                 <input
                                     type="text"
                                     value={option.value}
@@ -1024,32 +1139,35 @@ export default function EditModal({
                                             handleCancelEdit(index);
                                         }
                                     }}
-                                    className="min-w-0 flex-1 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-base text-slate-900 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                                    className={`${styles.fieldInput} ${styles.editInput}`}
                                     autoFocus
                                     disabled={saving}
                                 />
-                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                    حفظ تلقائي
-                                </span>
                             </div>
-                            <p className="text-xs text-slate-500">
+                            <p className={styles.autosaveHint}>
                                 سيتم الحفظ عند الضغط على Enter أو بمجرد الخروج من الحقل.
                             </p>
-                        </div>
+                        </>
                     ) : (
-                        <div className="flex min-w-0 items-center gap-2.5">
-                            <span className={`truncate text-base font-semibold ${isHidden ? 'text-slate-500' : 'text-slate-900'}`}>
+                        <div className={styles.itemMeta}>
+                            <span className={styles.itemName} style={isHidden ? { color: '#64748b' } : undefined}>
                                 {option.value}
                             </span>
 
-                            {/* "مخفي" badge for hidden options (Requirement 6.14) */}
                             {isHidden && (
-                                <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                                <span className={styles.statusBadge}>
                                     مخفي
                                 </span>
                             )}
                             {isOther && (
-                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                <span
+                                    className={styles.statusBadge}
+                                    style={{
+                                        color: '#475569',
+                                        background: '#f8fafc',
+                                        borderColor: '#cbd5e1',
+                                    }}
+                                >
                                     ثابت
                                 </span>
                             )}
@@ -1057,8 +1175,7 @@ export default function EditModal({
                     )}
                 </div>
 
-                {/* Action buttons */}
-                <div className="flex shrink-0 items-center gap-2">
+                <div className={styles.itemActions}>
                     {isEditing ? (
                         <>
                             <button
@@ -1067,11 +1184,11 @@ export default function EditModal({
                                 }}
                                 onClick={() => handleSaveEdit(index)}
                                 disabled={saving || !option.value.trim()}
-                                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                className={styles.saveButton}
                                 aria-label="حفظ التعديل"
                                 title="حفظ الآن"
                             >
-                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                                 حفظ
@@ -1082,11 +1199,11 @@ export default function EditModal({
                                 }}
                                 onClick={() => handleCancelEdit(index)}
                                 disabled={saving}
-                                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                className={styles.cancelButton}
                                 aria-label="إلغاء التعديل"
                                 title="إلغاء"
                             >
-                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                                 إلغاء
@@ -1094,45 +1211,34 @@ export default function EditModal({
                         </>
                     ) : (
                         <>
-                            {/* Edit button - disabled for "غير ذلك" (Requirement 6.12, 6.17) */}
                             <button
                                 onClick={() => handleStartEdit(index)}
                                 disabled={isOther || saving}
-                                className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${isOther
-                                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                                    : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                    }`}
+                                className={`${styles.actionButton} ${styles.actionEdit}`}
+                                style={isOther ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
                                 aria-label={`تعديل ${option.value}`}
                                 title={isOther ? 'لا يمكن تعديل "غير ذلك"' : 'تعديل'}
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                                 تعديل
                             </button>
 
-                            {/* Hide/Show toggle - disabled for "غير ذلك" (Requirement 6.13, 6.17) */}
-                            {/* Task 11.4: Implemented toggle functionality */}
                             <button
                                 onClick={() => handleToggleVisibility(index)}
                                 disabled={isOther || saving}
-                                className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${isOther
-                                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                                    : isHidden
-                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                        : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                                    }`}
+                                className={`${styles.actionButton} ${isHidden ? styles.actionShow : styles.actionHide}`}
+                                style={isOther ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
                                 aria-label={isHidden ? `إظهار ${option.value}` : `إخفاء ${option.value}`}
                                 title={isOther ? 'لا يمكن إخفاء "غير ذلك"' : isHidden ? 'إظهار' : 'إخفاء'}
                             >
                                 {isHidden ? (
-                                    // Eye-off icon for hidden options
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                                     </svg>
                                 ) : (
-                                    // Eye icon for visible options
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
@@ -1150,28 +1256,12 @@ export default function EditModal({
     if (!isOpen && !isClosing) return null;
 
     return (
-        <FiltersCrudShell onOverlayClick={handleClose}>
-            <div
-                ref={modalRef}
-                className={`bg-white rounded-lg shadow-xl max-w-2xl w-full flex flex-col sm:mx-4 mx-0 modal-content ${isClosing ? 'closing' : ''}`}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="edit-modal-title"
-                style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '20px',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-                    maxWidth: '42rem',
-                    width: '100%',
-                    maxHeight: 'calc(100dvh - 2rem)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    zIndex: 10000,
-                    overflow: 'hidden'
-                }}
-            >
-                {/* Header - category name, with close button */}
+        <FiltersCrudShell
+            onOverlayClick={handleClose}
+            contentRef={modalRef}
+            contentClassName={`modal-content ${isClosing ? 'closing' : ''}`}
+            contentStyle={{ maxWidth: '42rem', maxHeight: 'calc(100dvh - 2rem)' }}
+        >
                 <FiltersCrudHeader
                     title={fieldMetadata?.listType === 'hierarchical' && fieldMetadata.hasParent && selectedParent
                         ? `تعديل ${activeField?.display_name ?? ''} - ${selectedParent}`
@@ -1200,25 +1290,11 @@ export default function EditModal({
                     />
                 )}
 
-                {/* Content - scrollable area inside modal to prevent layout freeze on long forms */}
-                <div
-                    className="flex-1 overflow-y-auto p-4 sm:p-6"
-                    style={{
-                        flex: '1 1 auto',
-                        padding: '1.5rem',
-                        minHeight: 0,
-                        WebkitOverflowScrolling: 'touch',
-                        overscrollBehavior: 'contain',
-                        overflowX: 'hidden'
-                    }}
-                    onWheel={(e) => {
-                        e.stopPropagation();
-                    }}
-                >
+                <div className={styles.body} onWheel={(e) => e.stopPropagation()}>
                     {loading && (
-                        <div className="flex items-center justify-center py-12" role="status" aria-live="polite">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
-                            <span className="sr-only">جاري تحميل الخيارات...</span>
+                        <div className={styles.emptyState} role="status" aria-live="polite">
+                            <div className={styles.spinner} aria-hidden="true" />
+                            <p>جاري تحميل الخيارات...</p>
                         </div>
                     )}
 
@@ -1257,7 +1333,7 @@ export default function EditModal({
                             {fieldMetadata.listType === 'independent' || (fieldMetadata.listType === 'hierarchical' && !fieldMetadata.hasParent) ? (
                                 // Independent List Interface OR Hierarchical Parent Interface (Task 11.1)
                                 <div>
-                                    <p className="text-sm text-gray-600 mb-4">
+                                    <p className={styles.sectionMeta}>
                                         {fieldMetadata.listType === 'hierarchical' && !fieldMetadata.hasParent
                                             ? `قائمة هرمية (رئيسية) - ${options.length} خيار`
                                             : `قائمة مستقلة - ${options.length} خيار`
@@ -1308,13 +1384,12 @@ export default function EditModal({
                                         </p>
                                     </FiltersCrudCard>
 
-                                    {/* Options list - displays options with edit and hide/show buttons (Requirement 6.12, 6.13) */}
-                                    <div className="space-y-2" role="list" aria-label="قائمة الخيارات">
+                                    <div className={styles.itemsList} role="list" aria-label="قائمة الخيارات">
                                         {options.length > 0 ? (
                                             options.map((option, index) => renderOptionRow(option, index))
                                         ) : (
-                                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-slate-500" role="status">
-                                                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <div className={styles.emptyState} role="status">
+                                                <svg className={styles.emptyIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                 </svg>
                                                 <p>لا توجد خيارات متاحة</p>
@@ -1327,7 +1402,7 @@ export default function EditModal({
                                 <div>
                                     {selectedParent ? (
                                         <>
-                                            <p className="text-sm text-gray-600 mb-4">
+                                            <p className={styles.sectionMeta}>
                                                 قائمة هرمية (فرعية) - {options.length} خيار في {selectedParent}
                                             </p>
 
@@ -1375,13 +1450,12 @@ export default function EditModal({
                                                 </p>
                                             </FiltersCrudCard>
 
-                                            {/* Options list for child options */}
-                                            <div className="space-y-2" role="list" aria-label={`قائمة خيارات ${selectedParent}`}>
+                                            <div className={styles.itemsList} role="list" aria-label={`قائمة خيارات ${selectedParent}`}>
                                                 {options.length > 0 ? (
                                                     options.map((option, index) => renderOptionRow(option, index))
                                                 ) : (
-                                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-slate-500" role="status">
-                                                        <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <div className={styles.emptyState} role="status">
+                                                        <svg className={styles.emptyIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                         </svg>
                                                         <p>لا توجد خيارات متاحة في {selectedParent}</p>
@@ -1390,8 +1464,8 @@ export default function EditModal({
                                             </div>
                                         </>
                                     ) : (
-                                        <div className="text-center py-8 text-gray-500" role="status">
-                                            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <div className={styles.emptyState} role="status">
+                                            <svg className={styles.emptyIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                             </svg>
                                             <p>يرجى اختيار فئة رئيسية أولاً</p>
@@ -1408,7 +1482,6 @@ export default function EditModal({
                     disabled={saving}
                     label={saving ? 'جاري الحفظ...' : 'إغلاق'}
                 />
-            </div>
         </FiltersCrudShell>
     );
 }

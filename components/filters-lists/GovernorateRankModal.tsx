@@ -185,58 +185,80 @@ export default function GovernorateRankModal({ isOpen, onClose }: GovernorateRan
     if (!isOpen && !isClosing) return null;
 
     return (
-        <FiltersCrudShell onOverlayClick={handleClose} align="start">
-            <div
-                ref={modalRef}
-                style={{ width: '100%' }}
-                onClick={(event) => event.stopPropagation()}
-            >
-                <FiltersCrudHeader
-                    title={`ترتيب ${activeTab === 'gov' ? 'المحافظات' : `مدن ${selectedGov || ''}`}`}
-                    subtitle="اسحب العناصر لإعادة ترتيبها، وسيتم حفظ الترتيب تلقائيًا مباشرة بعد الإفلات."
-                    onClose={handleClose}
-                />
+        <FiltersCrudShell onOverlayClick={handleClose} align="start" contentRef={modalRef}>
+            <FiltersCrudHeader
+                title={`ترتيب ${activeTab === 'gov' ? 'المحافظات' : `مدن ${selectedGov || ''}`}`}
+                subtitle="اسحب العناصر لإعادة ترتيبها، وسيتم حفظ الترتيب تلقائيًا مباشرة بعد الإفلات."
+                onClose={handleClose}
+            />
 
-                <FiltersCrudTabs
-                    tabs={[
-                        { key: 'gov', label: 'المحافظات', active: activeTab === 'gov', onClick: () => setActiveTab('gov') },
-                        { key: 'city', label: 'المدن', active: activeTab === 'city', onClick: () => setActiveTab('city') },
-                    ]}
-                />
+            <FiltersCrudTabs
+                tabs={[
+                    { key: 'gov', label: 'المحافظات', active: activeTab === 'gov', onClick: () => setActiveTab('gov') },
+                    { key: 'city', label: 'المدن', active: activeTab === 'city', onClick: () => setActiveTab('city') },
+                ]}
+            />
 
-                <div className={styles.body}>
-                    {error && (
-                        <FiltersCrudAlert variant="error" title="تعذر تنفيذ العملية">
-                            <p>{error}</p>
+            <div className={styles.body}>
+                {error && (
+                    <FiltersCrudAlert variant="error" title="تعذر تنفيذ العملية">
+                        <p>{error}</p>
+                    </FiltersCrudAlert>
+                )}
+
+                {successMessage && (
+                    <FiltersCrudAlert variant="success" title="تم بنجاح">
+                        <p>{successMessage}</p>
+                    </FiltersCrudAlert>
+                )}
+
+                {loading && (
+                    <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
+                        <div className={styles.spinner} />
+                        <p>جاري التحميل...</p>
+                    </div>
+                )}
+
+                {!loading && (
+                    <>
+                        <FiltersCrudAlert variant="info" title="حفظ تلقائي بعد السحب">
+                            <p>رتب المحافظات أو المدن بالسحب فقط، وسيتم حفظ الترتيب تلقائيًا بدون زر إضافي.</p>
                         </FiltersCrudAlert>
-                    )}
 
-                    {successMessage && (
-                        <FiltersCrudAlert variant="success" title="تم بنجاح">
-                            <p>{successMessage}</p>
-                        </FiltersCrudAlert>
-                    )}
+                        {activeTab === 'gov' ? (
+                            <div>
+                                <p className={styles.sectionMeta}>المحافظات - {options.length} خيار</p>
+                                <p className={styles.helperText}>اسحب الخيارات لإعادة ترتيبها. سيتم حفظ التغييرات تلقائياً.</p>
+                                <DraggableOptionsList
+                                    key={`gov-${options.length}`}
+                                    options={options}
+                                    onReorder={handleReorder}
+                                    onSave={handleSave}
+                                    renderOption={renderOption}
+                                    otherOptionLabel="غير ذلك"
+                                    disabled={saving}
+                                />
+                            </div>
+                        ) : (
+                            <div>
+                                <p className={styles.sectionMeta}>المدن - تابعة لمحافظة مختارة</p>
 
-                    {loading && (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-                            <div className={styles.spinner} />
-                            <p>جاري التحميل...</p>
-                        </div>
-                    )}
+                                <ParentSelector
+                                    parents={governorates.map((gov) => gov.name)}
+                                    selectedParent={selectedGov}
+                                    onParentChange={handleParentChange}
+                                    label="اختر المحافظة"
+                                    disabled={saving}
+                                    loading={loading}
+                                />
 
-                    {!loading && (
-                        <>
-                            <FiltersCrudAlert variant="info" title="حفظ تلقائي بعد السحب">
-                                <p>رتب المحافظات أو المدن بالسحب فقط، وسيتم حفظ الترتيب تلقائيًا بدون زر إضافي.</p>
-                            </FiltersCrudAlert>
-
-                            {activeTab === 'gov' ? (
-                                <div>
-                                    <p className={styles.sectionMeta}>المحافظات - {options.length} خيار</p>
-                                    <p className={styles.helperText}>اسحب الخيارات لإعادة ترتيبها. سيتم حفظ التغييرات تلقائياً.</p>
-                                    <div style={{ maxHeight: 'min(42vh, 420px)', overflowY: 'auto', overflowX: 'hidden', paddingInlineEnd: '0.25rem', overscrollBehavior: 'contain' }}>
+                                {selectedGov ? (
+                                    <>
+                                        <p className={styles.helperText} style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+                                            اسحب الخيارات لإعادة ترتيبها. سيتم حفظ التغييرات تلقائياً.
+                                        </p>
                                         <DraggableOptionsList
-                                            key={`gov-${options.length}`}
+                                            key={`city-${selectedGov}-${options.length}`}
                                             options={options}
                                             onReorder={handleReorder}
                                             onSave={handleSave}
@@ -244,51 +266,19 @@ export default function GovernorateRankModal({ isOpen, onClose }: GovernorateRan
                                             otherOptionLabel="غير ذلك"
                                             disabled={saving}
                                         />
+                                    </>
+                                ) : (
+                                    <div className={styles.emptyState}>
+                                        <p>الرجاء اختيار المحافظة أولاً</p>
                                     </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <p className={styles.sectionMeta}>المدن - تابعة لمحافظة مختارة</p>
-
-                                    <ParentSelector
-                                        parents={governorates.map((gov) => gov.name)}
-                                        selectedParent={selectedGov}
-                                        onParentChange={handleParentChange}
-                                        label="اختر المحافظة"
-                                        disabled={saving}
-                                        loading={loading}
-                                    />
-
-                                    {selectedGov ? (
-                                        <>
-                                            <p className={styles.helperText} style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
-                                                اسحب الخيارات لإعادة ترتيبها. سيتم حفظ التغييرات تلقائياً.
-                                            </p>
-                                            <div style={{ maxHeight: 'min(42vh, 420px)', overflowY: 'auto', overflowX: 'hidden', paddingInlineEnd: '0.25rem', overscrollBehavior: 'contain' }}>
-                                                <DraggableOptionsList
-                                                    key={`city-${selectedGov}-${options.length}`}
-                                                    options={options}
-                                                    onReorder={handleReorder}
-                                                    onSave={handleSave}
-                                                    renderOption={renderOption}
-                                                    otherOptionLabel="غير ذلك"
-                                                    disabled={saving}
-                                                />
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className={styles.emptyState}>
-                                            <p>الرجاء اختيار المحافظة أولاً</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
-
-                <FiltersCrudFooter onClose={handleClose} disabled={saving} label={saving ? 'جاري الحفظ...' : 'إغلاق'} />
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
+
+            <FiltersCrudFooter onClose={handleClose} disabled={saving} label={saving ? 'جاري الحفظ...' : 'إغلاق'} />
         </FiltersCrudShell>
     );
 }

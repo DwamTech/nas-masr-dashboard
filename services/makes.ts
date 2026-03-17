@@ -1,4 +1,11 @@
 import type { CarMakesResponse, MakeItem, CategoryField, GovernorateItem, CityItem, CategorySlug, CategoryFieldMapBySlug, AdminCategoryFieldUpdateRequest, AdminCategoryFieldApiResponse, AdminMakeCreateResponse, AdminMakeModelsResponse, AdminMakeListItem, AdminMainSectionRecord, AdminSubSectionsResponse, AdminSubSectionRecord, AdminModelRecord, AdminCategoryListItem } from '@/models/makes';
+import { buildApiUrl } from '@/utils/api';
+import { cache, CACHE_TIMES } from '@/utils/cache';
+
+const adminMakesRequests = new Map<string, Promise<AdminMakeListItem[]>>();
+function getAdminMakesCacheKey(includeInactive: boolean): string {
+  return includeInactive ? 'shared:automotive-makes:with-inactive' : 'shared:automotive-makes';
+}
 
 function toArray(x: unknown): unknown[] {
   return Array.isArray(x) ? x : [];
@@ -92,7 +99,7 @@ export async function fetchCarMakes(token?: string): Promise<CarMakesResponse> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://back.nasmasr.app/api/makes', { method: 'GET', headers });
+  const res = await fetch(buildApiUrl('/admin/makes'), { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
     const err = raw as { error?: string; message?: string } | null;
@@ -144,9 +151,9 @@ export async function fetchCategoryFields(categorySlug: CategorySlug | string, t
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const urlAdmin = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
-  const urlOld = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
-  const urlNew = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(categorySlug)}`;
+  const urlAdmin = buildApiUrl(`/category-fields?category_slug=${encodeURIComponent(categorySlug)}`);
+  const urlOld = buildApiUrl(`/category-fields?category_slug=${encodeURIComponent(categorySlug)}`);
+  const urlNew = buildApiUrl(`/category-fields?category_slug=${encodeURIComponent(categorySlug)}`);
   let res = await fetch(t ? urlAdmin : urlOld, { method: 'GET', headers });
   let raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -252,9 +259,9 @@ export async function fetchCategoryMainSubs(slug: CategorySlug | string, token?:
       if (Object.keys(out).length) return out;
     }
   } catch { }
-  const urlAdmin = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
-  const urlOld = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
-  const urlNew = `https://back.nasmasr.app/api/category-fields?category_slug=${encodeURIComponent(String(slug))}`;
+  const urlAdmin = buildApiUrl(`/category-fields?category_slug=${encodeURIComponent(String(slug))}`);
+  const urlOld = buildApiUrl(`/category-fields?category_slug=${encodeURIComponent(String(slug))}`);
+  const urlNew = buildApiUrl(`/category-fields?category_slug=${encodeURIComponent(String(slug))}`);
   let res = await fetch(t ? urlAdmin : urlOld, { method: 'GET', headers });
   let raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -403,7 +410,7 @@ export async function postAdminCategoryFieldOptions(slug: CategorySlug | string,
     'Content-Type': 'application/json',
   };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/category-fields/${encodeURIComponent(String(slug))}`;
+  const url = buildApiUrl(`/admin/category-fields/${encodeURIComponent(String(slug))}`);
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -417,69 +424,104 @@ export async function postAdminCategoryFieldOptions(slug: CategorySlug | string,
   return { message, data };
 }
 
-export async function updateCategoryFieldOptions(slug: CategorySlug | string, field_name: string, options: string[], token?: string): Promise<string[]> {
+export async function updateCategoryFieldOptions(
+  slug: CategorySlug | string,
+  field_name: string,
+  options: string[],
+  token?: string,
+  hiddenOptions?: string[],
+): Promise<string[]> {
   const uniq = Array.from(new Set(options.map((x) => String(x).trim()).filter(Boolean)));
-  const resp = await postAdminCategoryFieldOptions(slug, { field_name, options: uniq }, token);
+  const normalizedHidden = Array.from(new Set((hiddenOptions ?? []).map((x) => String(x).trim()).filter(Boolean)));
+  const resp = await postAdminCategoryFieldOptions(
+    slug,
+    {
+      field_name,
+      options: uniq,
+      rules_json: normalizedHidden.length > 0 ? { hidden_options: normalizedHidden } : {},
+    },
+    token,
+  );
   return Array.isArray(resp.data?.options) ? resp.data.options : uniq;
 }
 
-export async function fetchAdminMakesWithIds(token?: string): Promise<AdminMakeListItem[]> {
-  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (t) headers.Authorization = `Bearer ${t}`;
-  const url = 'https://back.nasmasr.app/api/makes';
-  const res = await fetch(url, { method: 'GET', headers });
-  const raw = (await res.json().catch(() => null)) as unknown;
-  if (!res.ok || !raw) {
-    const err = raw as { error?: string; message?: string } | null;
-    const message = err?.error || err?.message || 'تعذر جلب الماركات';
-    throw new Error(message);
+export async function fetchAdminMakesWithIds(token?: string, options?: { includeInactive?: boolean }): Promise<AdminMakeListItem[]> {
+  const includeInactive = options?.includeInactive === true;
+  const cacheKey = getAdminMakesCacheKey(includeInactive);
+  const cached = cache.get<AdminMakeListItem[]>(cacheKey);
+  if (cached) {
+    return cached;
   }
-  const out: AdminMakeListItem[] = [];
-  const pushItem = (o: Record<string, unknown>) => {
-    const id = typeof o['id'] === 'number' ? (o['id'] as number) : undefined;
-    const nameRaw = o['name'] ?? o['make'] ?? o['brand'];
-    const name = typeof nameRaw === 'string' || typeof nameRaw === 'number' ? String(nameRaw).trim() : '';
-    const models = normalizeModels(o['models']);
-    const model_objects: AdminModelRecord[] = [];
-    const mRaw = o['models'];
-    if (Array.isArray(mRaw)) {
-      for (const m of mRaw) {
-        if (m && typeof m === 'object') {
-          const mo = m as Record<string, unknown>;
-          const mid = typeof mo['id'] === 'number' ? mo['id'] as number : undefined;
-          const mname = normalizeString(mo['name']);
-          const mmake = typeof mo['make_id'] === 'number' ? mo['make_id'] as number : (typeof id === 'number' ? id : 0);
-          if (mid && mname) {
-            model_objects.push({ id: mid, name: mname, make_id: mmake });
+
+  const inFlight = adminMakesRequests.get(cacheKey);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const request = (async () => {
+    const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (t) headers.Authorization = `Bearer ${t}`;
+    const url = buildApiUrl(`/admin/filter-lists/automotive${includeInactive ? '?include_inactive=1' : ''}`);
+    const res = await fetch(url, { method: 'GET', headers });
+    const raw = (await res.json().catch(() => null)) as unknown;
+    if (!res.ok || !raw) {
+      const err = raw as { error?: string; message?: string } | null;
+      const message = err?.error || err?.message || 'تعذر جلب الماركات';
+      throw new Error(message);
+    }
+    const out: AdminMakeListItem[] = [];
+    const pushItem = (o: Record<string, unknown>) => {
+      const id = typeof o['id'] === 'number' ? (o['id'] as number) : undefined;
+      const nameRaw = o['name'] ?? o['make'] ?? o['brand'];
+      const name = typeof nameRaw === 'string' || typeof nameRaw === 'number' ? String(nameRaw).trim() : '';
+      const is_active = typeof o['is_active'] === 'boolean' ? o['is_active'] as boolean : true;
+      const models = normalizeModels(o['models']);
+      const model_objects: AdminModelRecord[] = [];
+      const mRaw = o['models'];
+      if (Array.isArray(mRaw)) {
+        for (const m of mRaw) {
+          if (m && typeof m === 'object') {
+            const mo = m as Record<string, unknown>;
+            const mid = typeof mo['id'] === 'number' ? mo['id'] as number : undefined;
+            const mname = normalizeString(mo['name']);
+            const mmake = typeof mo['make_id'] === 'number' ? mo['make_id'] as number : (typeof id === 'number' ? id : 0);
+            const misActive = typeof mo['is_active'] === 'boolean' ? mo['is_active'] as boolean : true;
+            if (mid && mname) {
+              model_objects.push({ id: mid, name: mname, make_id: mmake, is_active: misActive });
+            }
+          }
+        }
+      }
+      if (typeof id === 'number' && name) out.push({ id, name, is_active, models, model_objects });
+    };
+    if (Array.isArray(raw)) {
+      for (const it of raw) {
+        if (it && typeof it === 'object') pushItem(it as Record<string, unknown>);
+      }
+    } else if (raw && typeof raw === 'object') {
+      const obj = raw as Record<string, unknown>;
+      const arr = obj['data'] ?? obj['makes'];
+      if (Array.isArray(arr)) {
+        for (const it of arr) {
+          if (it && typeof it === 'object') pushItem(it as Record<string, unknown>);
+        }
+      } else {
+        for (const [, v] of Object.entries(obj)) {
+          if (v && typeof v === 'object') {
+            pushItem(v as Record<string, unknown>);
           }
         }
       }
     }
-    if (typeof id === 'number' && name) out.push({ id, name, models, model_objects });
-  };
-  if (Array.isArray(raw)) {
-    for (const it of raw) {
-      if (it && typeof it === 'object') pushItem(it as Record<string, unknown>);
-    }
-  } else if (raw && typeof raw === 'object') {
-    const obj = raw as Record<string, unknown>;
-    const arr = obj['data'] ?? obj['makes'];
-    if (Array.isArray(arr)) {
-      for (const it of arr) {
-        if (it && typeof it === 'object') pushItem(it as Record<string, unknown>);
-      }
-    } else {
-      for (const [k, v] of Object.entries(obj)) {
-        const id = Number.isFinite(Number(k)) ? Number(k) : undefined;
-        if (v && typeof v === 'object') {
-          const o = v as Record<string, unknown>;
-          pushItem(o);
-        }
-      }
-    }
-  }
-  return out;
+    cache.set(cacheKey, out, CACHE_TIMES.GOVERNORATES);
+    return out;
+  })().finally(() => {
+    adminMakesRequests.delete(cacheKey);
+  });
+
+  adminMakesRequests.set(cacheKey, request);
+  return request;
 }
 
 export async function postAdminMake(name: string, token?: string): Promise<AdminMakeCreateResponse> {
@@ -489,7 +531,7 @@ export async function postAdminMake(name: string, token?: string): Promise<Admin
     'Content-Type': 'application/json',
   };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = 'https://back.nasmasr.app/api/admin/makes';
+  const url = buildApiUrl('/admin/makes');
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ name }) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -514,7 +556,7 @@ export async function postAdminMakeModels(makeId: number, models: string[], toke
   };
   if (t) headers.Authorization = `Bearer ${t}`;
   const uniq = Array.from(new Set(models.map((x) => String(x).trim()).filter(Boolean)));
-  const url = `https://back.nasmasr.app/api/admin/makes/${makeId}/models`;
+  const url = buildApiUrl(`/admin/makes/${makeId}/models`);
   const body = JSON.stringify({ models: uniq });
   const res = await fetch(url, { method: 'POST', headers, body });
   const raw = (await res.json().catch(() => null)) as unknown;
@@ -547,7 +589,7 @@ export async function updateAdminMake(makeId: number, name: string, token?: stri
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/makes/${makeId}`;
+  const url = buildApiUrl(`/admin/makes/${makeId}`);
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ name }) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -561,14 +603,37 @@ export async function updateAdminMake(makeId: number, name: string, token?: stri
   const models = normalizeModels(o['models']);
   const created_at = typeof o['created_at'] === 'string' ? (o['created_at'] as string) : undefined;
   const updated_at = typeof o['updated_at'] === 'string' ? (o['updated_at'] as string) : undefined;
+  cache.invalidate('shared:automotive-makes');
   return { id, name: String(nameOut), models, created_at, updated_at };
+}
+
+export async function setAdminMakeVisibility(makeId: number, isActive: boolean, token?: string): Promise<AdminMakeCreateResponse> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  const url = buildApiUrl(`/admin/makes/${makeId}/visibility`);
+  const res = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify({ is_active: isActive }) });
+  const raw = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok || !raw || typeof raw !== 'object') {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر تحديث حالة الماركة';
+    throw new Error(message);
+  }
+
+  cache.invalidate('shared:automotive-makes');
+
+  const o = raw as Record<string, unknown>;
+  const id = typeof o['id'] === 'number' ? (o['id'] as number) : makeId;
+  const nameOut = normalizeString(o['name']) ?? '';
+  const models = normalizeModels(o['models']);
+  return { id, name: nameOut, models };
 }
 
 export async function deleteAdminMake(makeId: number, token?: string): Promise<void> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/makes/${makeId}`;
+  const url = buildApiUrl(`/admin/makes/${makeId}`);
   const res = await fetch(url, { method: 'DELETE', headers });
   if (!res.ok) {
     const raw = (await res.json().catch(() => null)) as unknown;
@@ -576,13 +641,14 @@ export async function deleteAdminMake(makeId: number, token?: string): Promise<v
     const message = err?.error || err?.message || 'تعذر حذف الماركة';
     throw new Error(message);
   }
+  cache.invalidate('shared:automotive-makes');
 }
 
 export async function updateAdminModel(modelId: number, name: string, make_id: number, token?: string): Promise<AdminModelRecord> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/models/${modelId}`;
+  const url = buildApiUrl(`/admin/models/${modelId}`);
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ name, make_id }) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -596,14 +662,39 @@ export async function updateAdminModel(modelId: number, name: string, make_id: n
   const mk = typeof o['make_id'] === 'number' ? (o['make_id'] as number) : make_id;
   const created_at = typeof o['created_at'] === 'string' ? (o['created_at'] as string) : undefined;
   const updated_at = typeof o['updated_at'] === 'string' ? (o['updated_at'] as string) : undefined;
-  return { id, name: String(nameOut), make_id: mk, created_at, updated_at };
+  const is_active = typeof o['is_active'] === 'boolean' ? (o['is_active'] as boolean) : true;
+  cache.invalidate('shared:automotive-makes');
+  return { id, name: String(nameOut), make_id: mk, is_active, created_at, updated_at };
+}
+
+export async function setAdminModelVisibility(modelId: number, isActive: boolean, token?: string): Promise<AdminModelRecord> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  const url = buildApiUrl(`/admin/models/${modelId}/visibility`);
+  const res = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify({ is_active: isActive }) });
+  const raw = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok || !raw || typeof raw !== 'object') {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = err?.error || err?.message || 'تعذر تحديث حالة الموديل';
+    throw new Error(message);
+  }
+
+  cache.invalidate('shared:automotive-makes');
+
+  const o = raw as Record<string, unknown>;
+  const id = typeof o['id'] === 'number' ? (o['id'] as number) : modelId;
+  const nameOut = normalizeString(o['name']) ?? '';
+  const makeId = typeof o['make_id'] === 'number' ? (o['make_id'] as number) : 0;
+  const is_active = typeof o['is_active'] === 'boolean' ? (o['is_active'] as boolean) : isActive;
+  return { id, name: nameOut, make_id: makeId, is_active };
 }
 
 export async function deleteAdminModel(modelId: number, token?: string): Promise<void> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/models/${modelId}`;
+  const url = buildApiUrl(`/admin/models/${modelId}`);
   const res = await fetch(url, { method: 'DELETE', headers });
   if (!res.ok) {
     const raw = (await res.json().catch(() => null)) as unknown;
@@ -611,13 +702,14 @@ export async function deleteAdminModel(modelId: number, token?: string): Promise
     const message = err?.error || err?.message || 'تعذر حذف الموديل';
     throw new Error(message);
   }
+  cache.invalidate('shared:automotive-makes');
 }
 
 export async function fetchMakeModels(makeId: number | string, token?: string): Promise<AdminModelRecord[]> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/makes/${makeId}`;
+  const url = buildApiUrl(`/admin/makes/${makeId}`);
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -647,33 +739,33 @@ export async function fetchMakeModels(makeId: number | string, token?: string): 
 }
 
 export function buildAdminMainSectionUrl(slug: string): string {
-  return `https://back.nasmasr.app/api/admin/main-section/${encodeURIComponent(String(slug))}`;
+  return buildApiUrl(`/admin/main-section/${encodeURIComponent(String(slug))}`);
 }
 
 export function buildMainSectionsListUrl(slug: string): string {
-  const url = new URL('https://back.nasmasr.app/api/main-sections');
+  const url = new URL(buildApiUrl('/admin/main-sections'));
   url.searchParams.set('category_slug', String(slug));
   return url.toString();
 }
 
 export function buildAdminSubSectionUrl(mainSectionId: number | string): string {
-  return `https://back.nasmasr.app/api/admin/sub-section/${mainSectionId}`;
+  return buildApiUrl(`/admin/sub-section/${mainSectionId}`);
 }
 
 export function buildPublicSubSectionsUrl(mainSectionId: number | string): string {
-  return `https://back.nasmasr.app/api/sub-sections/${mainSectionId}`;
+  return buildApiUrl(`/admin/sub-section/${mainSectionId}`);
 }
 
 export function buildAdminMainSectionIdUrl(mainSectionId: number | string): string {
-  return `https://back.nasmasr.app/api/admin/main-section/${mainSectionId}`;
+  return buildApiUrl(`/admin/main-section/${mainSectionId}`);
 }
 
 export function buildAdminSubSectionIdUrl(subSectionId: number | string): string {
-  return `https://back.nasmasr.app/api/admin/sub-section/${subSectionId}`;
+  return buildApiUrl(`/admin/sub-section/${subSectionId}`);
 }
 
 export function buildAdminCategoryImageUrl(categoryId: number | string): string {
-  return `https://back.nasmasr.app/api/admin/categories/${categoryId}/image`;
+  return buildApiUrl(`/admin/categories/${categoryId}/image`);
 }
 
 export async function postAdminMainSection(slug: CategorySlug | string, name: string, token?: string): Promise<AdminMainSectionRecord> {
@@ -931,7 +1023,16 @@ export async function fetchAdminMainSections(slug: CategorySlug | string, token?
       pushParsed(raw);
     }
   }
+
   return out;
+}
+
+export async function prefetchAdminMakesWithIds(token?: string, options?: { includeInactive?: boolean }): Promise<void> {
+  try {
+    await fetchAdminMakesWithIds(token, options);
+  } catch {
+    // Best-effort prefetch only.
+  }
 }
 
 export async function fetchAdminMainSectionsBatch(slugs: (CategorySlug | string)[], token?: string): Promise<Record<string, AdminMainSectionRecord[]>> {
@@ -951,7 +1052,7 @@ export async function fetchAdminCategories(token?: string): Promise<AdminCategor
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = 'https://back.nasmasr.app/api/admin/categories';
+  const url = buildApiUrl('/admin/categories');
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -1091,7 +1192,7 @@ export async function updateAdminCategoryActive(categoryId: number | string, is_
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}`;
+  const url = buildApiUrl(`/admin/categories/${categoryId}`);
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ is_active }) });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw || typeof raw !== 'object') {
@@ -1243,8 +1344,8 @@ export async function fetchGovernorates(token?: string): Promise<GovernorateItem
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const adminUrl = 'https://back.nasmasr.app/api/governorates';
-  const publicUrl = 'https://back.nasmasr.app/api/governorates';
+  const adminUrl = buildApiUrl('/admin/governorates');
+  const publicUrl = buildApiUrl('/governorates');
   let res = await fetch(t ? adminUrl : publicUrl, { method: 'GET', headers });
   let raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
@@ -1393,7 +1494,7 @@ export async function postAdminGovernorates(payload: { name: string; cities: unk
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const body = JSON.stringify({ name: payload.name, cities: payload.cities });
-  const res = await fetch('https://back.nasmasr.app/api/admin/governorates', { method: 'POST', headers, body });
+  const res = await fetch(buildApiUrl('/admin/governorates'), { method: 'POST', headers, body });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
     const err = raw as { error?: string; message?: string } | null;
@@ -1445,7 +1546,7 @@ export async function createGovernorate(name: string, token?: string): Promise<G
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://back.nasmasr.app/api/admin/governorates', {
+  const res = await fetch(buildApiUrl('/admin/governorates'), {
     method: 'POST',
     headers,
     body: JSON.stringify({ name }),
@@ -1481,7 +1582,7 @@ export async function createCity(governorateId: number | string, name: string, t
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://back.nasmasr.app/api/admin/city/${governorateId}`, {
+  const res = await fetch(buildApiUrl(`/admin/city/${governorateId}`), {
     method: 'POST',
     headers,
     body: JSON.stringify({ name }),
@@ -1506,7 +1607,7 @@ export async function fetchGovernorateById(governorateId: number | string, token
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://back.nasmasr.app/api/admin/governorates/${governorateId}`, { method: 'GET', headers });
+  const res = await fetch(buildApiUrl(`/admin/governorates/${governorateId}`), { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
     const err = raw as { error?: string; message?: string } | null;
@@ -1546,7 +1647,7 @@ export async function updateCity(cityId: number | string, name: string, token?: 
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://back.nasmasr.app/api/admin/cities/${cityId}`, {
+  const res = await fetch(buildApiUrl(`/admin/cities/${cityId}`), {
     method: 'PUT',
     headers,
     body: JSON.stringify({ name }),
@@ -1571,7 +1672,7 @@ export async function deleteCity(cityId: number | string, token?: string): Promi
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/cities/${cityId}`;
+  const url = buildApiUrl(`/admin/cities/${cityId}`);
   const res = await fetch(url, { method: 'DELETE', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) {
@@ -1592,7 +1693,7 @@ export async function updateGovernorate(governorateId: number | string, name: st
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`https://back.nasmasr.app/api/admin/governorates/${governorateId}`, {
+  const res = await fetch(buildApiUrl(`/admin/governorates/${governorateId}`), {
     method: 'PUT',
     headers,
     body: JSON.stringify({ name }),
@@ -1617,7 +1718,7 @@ export async function deleteGovernorate(governorateId: number | string, token?: 
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/governorates/${governorateId}`;
+  const url = buildApiUrl(`/admin/governorates/${governorateId}`);
   const res = await fetch(url, { method: 'DELETE', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) {
@@ -1643,7 +1744,7 @@ export async function fetchCategoryHomepage(categoryId: number, token?: string):
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
 
-  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}`;
+  const url = buildApiUrl(`/admin/categories/${categoryId}`);
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
 
@@ -1692,7 +1793,7 @@ export async function updateCategoryHomepage(
     formData.append('is_active', activeValue);
   }
 
-  const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}`;
+  const url = buildApiUrl(`/admin/categories/${categoryId}`);
   const res = await fetch(url, { method: 'POST', headers, body: formData });
   const raw = (await res.json().catch(() => null)) as unknown;
 
@@ -1721,7 +1822,7 @@ export async function fetchCategoriesUsageReport(token?: string): Promise<import
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
 
-  const url = 'https://back.nasmasr.app/api/admin/categories/usage-report';
+  const url = buildApiUrl('/admin/categories/usage-report');
   const res = await fetch(url, { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
 
@@ -1775,7 +1876,7 @@ export async function toggleCategoryGlobalImage(
     };
     if (t) headers.Authorization = `Bearer ${t}`;
 
-    const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/toggle-global-image`;
+    const url = buildApiUrl(`/admin/categories/${categoryId}/toggle-global-image`);
     const res = await fetch(url, {
       method: 'PUT',
       headers,
@@ -1816,7 +1917,7 @@ export async function uploadCategoryGlobalImage(
     const formData = new FormData();
     formData.append('image', file);
 
-    const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/upload-global-image`;
+    const url = buildApiUrl(`/admin/categories/${categoryId}/upload-global-image`);
     const res = await fetch(url, {
       method: 'POST',
       headers,
@@ -1870,7 +1971,7 @@ export async function deleteCategoryGlobalImage(
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (t) headers.Authorization = `Bearer ${t}`;
 
-    const url = `https://back.nasmasr.app/api/admin/categories/${categoryId}/global-image`;
+    const url = buildApiUrl(`/admin/categories/${categoryId}/global-image`);
     const res = await fetch(url, {
       method: 'DELETE',
       headers,

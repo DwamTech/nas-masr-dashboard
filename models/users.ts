@@ -8,6 +8,7 @@ export interface UsersMeta {
 export interface UserSummary {
   id: number;
   name: string | null;
+  email?: string | null;
   phone: string;
   address: string | null;
   user_code: string;
@@ -17,6 +18,8 @@ export interface UserSummary {
   listings_count: number;
   role: string;
   phone_verified: boolean;
+  allowed_dashboard_pages?: string[];
+  profile_image_url?: string | null;
 }
 
 export interface UsersSummaryResponse {
@@ -26,10 +29,12 @@ export interface UsersSummaryResponse {
 
 export interface UpdateUserPayload {
   name?: string;
+  email?: string;
   phone?: string;
   role?: string;
   status?: string;
   delegate_code?: string;
+  allowed_dashboard_pages?: string[];
 }
 
 export interface UpdateUserResponse {
@@ -47,11 +52,13 @@ export interface DeleteUserResponse {
 
 export interface CreateUserPayload {
   name?: string;
+  email?: string;
   phone: string;
   role?: string;
   status?: string;
   delegate_code?: string;
   password?: string;
+  allowed_dashboard_pages?: string[];
 }
 
 export interface CreateUserResponse {

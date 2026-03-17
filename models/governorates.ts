@@ -4,12 +4,14 @@ export interface City {
     id: number;
     name: string;
     governorate_id: number;
+    is_active?: boolean;
 }
 
 export interface Governorate {
     id: number;
     name: string;
     cities: City[];
+    is_active?: boolean;
 }
 
 export interface GovernoratesResponse {

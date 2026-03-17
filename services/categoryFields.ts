@@ -5,9 +5,34 @@
  */
 
 import { CategoryField, CategoryFieldsResponse } from '@/types/filters-lists';
+import { API_BASE } from '@/utils/api';
+import { cache, CACHE_TIMES } from '@/utils/cache';
 import { retryWithBackoff } from '@/utils/retry';
 
-const API_BASE = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
+const categoryFieldsRequests = new Map<string, Promise<CategoryFieldsResponse>>();
+
+interface FetchCategoryFieldsOptions {
+    includeHidden?: boolean;
+}
+
+function getCategoryFieldsCacheKey(categorySlug: string, includeHidden: boolean): string {
+    return includeHidden ? `fields:${categorySlug}:with-hidden` : `fields:${categorySlug}`;
+}
+
+export function clearCategoryFieldsCache(categorySlug?: string): void {
+    if (categorySlug) {
+        const visibleCacheKey = getCategoryFieldsCacheKey(categorySlug, false);
+        const hiddenCacheKey = getCategoryFieldsCacheKey(categorySlug, true);
+        categoryFieldsRequests.delete(visibleCacheKey);
+        categoryFieldsRequests.delete(hiddenCacheKey);
+        cache.invalidate(visibleCacheKey);
+        cache.invalidate(hiddenCacheKey);
+        return;
+    }
+
+    categoryFieldsRequests.clear();
+    cache.invalidate('fields:');
+}
 
 /**
  * Fetch category fields for a specific category
@@ -17,14 +42,32 @@ const API_BASE = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
  */
 export async function fetchCategoryFields(
     categorySlug: string,
-    token?: string
+    token?: string,
+    options?: FetchCategoryFieldsOptions
 ): Promise<CategoryFieldsResponse> {
-    const operation = async () => {
+    const includeHidden = options?.includeHidden === true;
+    const cacheKey = getCategoryFieldsCacheKey(categorySlug, includeHidden);
+    const cached = cache.get<CategoryFieldsResponse>(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    const inFlight = categoryFieldsRequests.get(cacheKey);
+    if (inFlight) {
+        return inFlight;
+    }
+
+    const request = retryWithBackoff(async () => {
         const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
         const headers: Record<string, string> = { Accept: 'application/json' };
         if (t) headers.Authorization = `Bearer ${t}`;
 
-        const res = await fetch(`${API_BASE}/admin/category-fields?category_slug=${categorySlug}`, {
+        const search = new URLSearchParams({ category_slug: categorySlug });
+        if (includeHidden) {
+            search.set('include_hidden', '1');
+        }
+
+        const res = await fetch(`${API_BASE}/admin/filter-lists/field-category?${search.toString()}`, {
             method: 'GET',
             headers,
         });
@@ -48,10 +91,10 @@ export async function fetchCategoryFields(
         }
 
         const data = await res.json() as CategoryFieldsResponse;
-        return normalizeCategoryFieldsResponse(categorySlug, data);
-    };
-
-    return retryWithBackoff(operation, {
+        const normalized = normalizeCategoryFieldsResponse(categorySlug, data);
+        cache.set(cacheKey, normalized, CACHE_TIMES.CATEGORY_FIELDS);
+        return normalized;
+    }, {
         maxAttempts: 3,
         shouldRetry: (error: Error) => {
             // Don't retry on validation or auth errors
@@ -62,7 +105,20 @@ export async function fetchCategoryFields(
                 message.includes('غير موجود')
             );
         },
+    }).finally(() => {
+        categoryFieldsRequests.delete(cacheKey);
     });
+
+    categoryFieldsRequests.set(cacheKey, request);
+    return request;
+}
+
+export async function prefetchCategoryFields(categorySlug: string, token?: string, options?: FetchCategoryFieldsOptions): Promise<void> {
+    try {
+        await fetchCategoryFields(categorySlug, token, options);
+    } catch {
+        // Best-effort prefetch only.
+    }
 }
 
 function normalizeCategoryFieldsResponse(

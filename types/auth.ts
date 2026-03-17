@@ -6,7 +6,7 @@ export interface AuthToken {
 }
 
 export interface ValidationContext {
-    type: 'initial' | 'periodic';
+    type: 'initial' | 'periodic' | 'background';
     attempt: number;
     timestamp: Date;
 }
@@ -16,6 +16,7 @@ export interface ValidationResult {
     shouldRetry: boolean;
     error?: string;
     statusCode?: number;
+    session?: DashboardSessionResponse;
 }
 
 export interface SessionState {
@@ -38,4 +39,28 @@ export interface UseSessionMonitorOptions {
     onInvalidToken: () => void;
     enabled: boolean;
     interval?: number;
+}
+
+export interface DashboardUser {
+    id: number;
+    name: string | null;
+    email?: string | null;
+    phone?: string | null;
+    role: string;
+    status?: string;
+    profile_image_url?: string | null;
+    allowed_dashboard_pages?: string[];
+}
+
+export interface DashboardPageOption {
+    key: string;
+    label: string;
+    path: string | null;
+}
+
+export interface DashboardSessionResponse {
+    user: DashboardUser;
+    available_dashboard_pages?: DashboardPageOption[];
+    token?: string;
+    message?: string;
 }

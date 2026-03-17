@@ -44,6 +44,9 @@ import {
     uploadCategoryGlobalImage,
 } from '@/services/makes';
 
+const API_BASE = process.env.LARAVEL_API_URL || 'http://localhost:8000/api';
+const BACKEND_BASE = API_BASE.replace(/\/api$/, '');
+
 interface Category {
     id: number;
     slug: string;
@@ -58,7 +61,7 @@ interface Category {
 
 describe('Unified Images Integration Tests - Dashboard', () => {
     const mockAuthToken = 'test-auth-token-123';
-    const baseUrl = 'https://back.nasmasr.app/api';
+    const baseUrl = API_BASE;
 
     beforeEach(() => {
         // Reset mocks
@@ -138,7 +141,7 @@ describe('Unified Images Integration Tests - Dashboard', () => {
             is_global_image_active: true,
             global_image_url: 'uploads/categories/global/1_1704123456.webp',
             global_image_full_url:
-                'https://back.nasmasr.app/storage/uploads/categories/global/1_1704123456.webp',
+                `${BACKEND_BASE}/storage/uploads/categories/global/1_1704123456.webp`,
         };
 
         mockFetch.mockResolvedValueOnce({
@@ -197,7 +200,7 @@ describe('Unified Images Integration Tests - Dashboard', () => {
                 is_global_image_active: true,
                 global_image_url: 'uploads/categories/global/1_1704123456.webp',
                 global_image_full_url:
-                    'https://back.nasmasr.app/storage/uploads/categories/global/1_1704123456.webp',
+                    `${BACKEND_BASE}/storage/uploads/categories/global/1_1704123456.webp`,
                 sort_order: 1,
             },
             {
@@ -295,7 +298,7 @@ describe('Unified Images Integration Tests - Dashboard', () => {
             is_global_image_active: true,
             global_image_url: 'uploads/categories/global/1_1704123456.webp',
             global_image_full_url:
-                'https://back.nasmasr.app/storage/uploads/categories/global/1_1704123456.webp',
+                `${BACKEND_BASE}/storage/uploads/categories/global/1_1704123456.webp`,
             sort_order: 1,
         };
 
@@ -436,7 +439,7 @@ describe('Unified Images Integration Tests - Dashboard', () => {
                 is_global_image_active: true,
                 global_image_url: 'uploads/categories/global/1_1704123456.webp',
                 global_image_full_url:
-                    'https://back.nasmasr.app/storage/uploads/categories/global/1_1704123456.webp',
+                    `${BACKEND_BASE}/storage/uploads/categories/global/1_1704123456.webp`,
                 message: 'تم رفع الصورة الموحدة بنجاح',
             }),
         });

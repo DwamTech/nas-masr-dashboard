@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { fetchGovernorates } from '@/services/governorates';
+import { fetchAdminMakesWithIds } from '@/services/makes';
 import { Governorate } from '@/models/governorates';
 import { cache, CACHE_TIMES } from '@/utils/cache';
 import { Category } from '@/types/filters-lists';
+import { AUTOMOTIVE_SHARED_MODAL_TITLE } from './automotiveShared';
 
 interface SharedListsSectionProps {
-    onRankClick?: (category: Category) => void;
-    onEditClick?: (category: Category) => void;
+    onRankClick?: (category: Category, fieldName?: string) => void;
+    onEditClick?: (category: Category, fieldName?: string) => void;
 }
 
 /**
@@ -20,6 +22,7 @@ interface SharedListsSectionProps {
  */
 export default function SharedListsSection({ onRankClick, onEditClick }: SharedListsSectionProps) {
     const [governorates, setGovernorates] = useState<Governorate[]>([]);
+    const [automotiveCounts, setAutomotiveCounts] = useState({ makes: 0, models: 0 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,23 +35,29 @@ export default function SharedListsSection({ onRankClick, onEditClick }: SharedL
             setLoading(true);
             setError(null);
 
-            // Check cache first
-            const cacheKey = 'governorates:all';
-            const cached = cache.get<Governorate[]>(cacheKey);
+            const governoratesCacheKey = 'governorates:all';
+            const automotiveCacheKey = 'shared:automotive-makes';
+            const cachedGovernorates = cache.get<Governorate[]>(governoratesCacheKey);
+            const cachedMakes = cache.get<{ id: number; name: string; models: string[] }[]>(automotiveCacheKey);
 
-            if (cached) {
-                setGovernorates(cached);
-                setLoading(false);
-                return;
+            const [governoratesData, makesData] = await Promise.all([
+                cachedGovernorates ?? fetchGovernorates(),
+                cachedMakes ?? fetchAdminMakesWithIds(),
+            ]);
+
+            if (!cachedGovernorates) {
+                cache.set(governoratesCacheKey, governoratesData, CACHE_TIMES.GOVERNORATES);
             }
 
-            // Fetch from API
-            const data = await fetchGovernorates();
+            if (!cachedMakes) {
+                cache.set(automotiveCacheKey, makesData, CACHE_TIMES.GOVERNORATES);
+            }
 
-            // Cache the data
-            cache.set(cacheKey, data, CACHE_TIMES.GOVERNORATES);
-
-            setGovernorates(data);
+            setGovernorates(governoratesData);
+            setAutomotiveCounts({
+                makes: makesData.length,
+                models: makesData.reduce((sum, make) => sum + make.models.length, 0),
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'حدث خطأ أثناء تحميل البيانات');
         } finally {
@@ -58,6 +67,14 @@ export default function SharedListsSection({ onRankClick, onEditClick }: SharedL
 
     // Calculate total cities count
     const totalCitiesCount = governorates.reduce((sum, gov) => sum + (gov.cities?.length || 0), 0);
+    const sharedAutomotiveCategory: Category = {
+        id: 0,
+        slug: 'cars',
+        name: AUTOMOTIVE_SHARED_MODAL_TITLE,
+        is_active: true,
+        created_at: '',
+        updated_at: '',
+    };
 
     return (
         <div className="shared-lists-section">
@@ -85,6 +102,54 @@ export default function SharedListsSection({ onRankClick, onEditClick }: SharedL
 
             {!loading && !error && (
                 <div className="shared-lists-grid" role="list" aria-label="القوائم المشتركة">
+                    <div className="list-card hierarchical automotive-shared" role="listitem">
+                        <div className="list-header">
+                            <h3 className="list-title">الماركات والموديلات</h3>
+                            <span className="list-type-badge" aria-label="نوع القائمة: مشتركة بين عدة أقسام">مشتركة</span>
+                        </div>
+                        <div className="list-content">
+                            <div className="count-display" role="group" aria-label="إحصائيات الماركات والموديلات">
+                                <div className="count-item parent">
+                                    <span className="count-label">الماركات</span>
+                                    <span className="count-value" aria-label={`${automotiveCounts.makes} ماركة`}>
+                                        {automotiveCounts.makes}
+                                    </span>
+                                </div>
+                                <span className="count-separator" aria-hidden="true">←</span>
+                                <div className="count-item child">
+                                    <span className="count-label">الموديلات</span>
+                                    <span className="count-value" aria-label={`${automotiveCounts.models} موديل`}>
+                                        {automotiveCounts.models}
+                                    </span>
+                                </div>
+                            </div>
+                            <p className="list-description">
+                                مصدر موحد للمركبات يظهر بنفس الترتيب في السيارات، إيجار السيارات، وقطع الغيار.
+                            </p>
+                            <div className="list-meta">
+                                <span className="list-chip">السيارات</span>
+                                <span className="list-chip">إيجار السيارات</span>
+                                <span className="list-chip">قطع الغيار</span>
+                            </div>
+                            <div className="card-actions">
+                                <button
+                                    className="action-button rank-button"
+                                    onClick={() => onRankClick?.(sharedAutomotiveCategory, 'brand')}
+                                    aria-label="ترتيب الماركات والموديلات المشتركة"
+                                >
+                                    📊 ترتيب الاختيارات
+                                </button>
+                                <button
+                                    className="action-button edit-button"
+                                    onClick={() => onEditClick?.(sharedAutomotiveCategory, 'brand')}
+                                    aria-label="إضافة أو تعديل الماركات والموديلات المشتركة"
+                                >
+                                    ✏️ اضافة/تعديل الاختيارات
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Governorates and Cities - Hierarchical List */}
                     <div className="list-card hierarchical" role="listitem">
                         <div className="list-header">
@@ -237,6 +302,10 @@ export default function SharedListsSection({ onRankClick, onEditClick }: SharedL
                     border-right: 4px solid #805ad5;
                 }
 
+                .list-card.automotive-shared {
+                    border-right-color: #0f766e;
+                }
+
                 .list-header {
                     display: flex;
                     justify-content: space-between;
@@ -310,6 +379,24 @@ export default function SharedListsSection({ onRankClick, onEditClick }: SharedL
                     font-size: 0.875rem;
                     color: #718096;
                     line-height: 1.5;
+                }
+
+                .list-meta {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+
+                .list-chip {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0.35rem 0.75rem;
+                    border-radius: 999px;
+                    background: #f0fdfa;
+                    color: #0f766e;
+                    font-size: 0.75rem;
+                    font-weight: 600;
                 }
 
                 .card-actions {

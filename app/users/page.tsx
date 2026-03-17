@@ -4,15 +4,19 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import ManagedSelect from '@/components/ManagedSelect';
 import { CATEGORY_LABELS_AR } from '@/constants/categories';
+import { DASHBOARD_PERMISSION_OPTIONS } from '@/constants/dashboardPermissions';
 import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Search, RefreshCw, Calendar } from 'lucide-react';
 import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, fetchCategories, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage, fetchUserFeaturedCategories } from '@/services/users';
 import { fetchAdminCategories } from '@/services/makes';
 import { CATEGORY_SLUGS, CategorySlug } from '@/models/makes';
 import { UsersMeta, AssignUserPackagePayload, UsersSummaryResponse, DelegateClient } from '@/models/users';
+import { buildBackendUrl } from '@/utils/api';
+import { readDashboardUser } from '@/utils/dashboardSession';
 
 interface User {
   id: string;
   name: string;
+  email?: string | null;
   phone: string;
   address?: string | null;
   userCode: string;
@@ -24,6 +28,8 @@ interface User {
   lastLogin: string;
   phoneVerified?: boolean;
   package?: UserPackage;
+  allowedDashboardPages?: string[];
+  profileImageUrl?: string | null;
 }
 
 interface Toast {
@@ -140,7 +146,7 @@ const toImageUrl = (src: string | null | undefined): string => {
   if (!src || src === 'NULL') return '/file.svg';
   if (src.startsWith('http://') || src.startsWith('https://')) return src;
   const trimmed = src.startsWith('/') ? src.slice(1) : src;
-  return `https://back.nasmasr.app/${trimmed}`;
+  return buildBackendUrl(`/${trimmed}`);
 };
 
 const normalizeCategorySlug = (slug: string): CategorySlug | null => {
@@ -192,7 +198,7 @@ const loadPackageFromCache = (userId: string): PackageCacheData | null => {
   }
 };
 
-const saveCategoriesToCache = (categories: Category[]): void => {
+  const saveCategoriesToCache = (categories: Category[]): void => {
   try {
     const cacheData: CategoriesCacheData = {
       timestamp: Date.now(),
@@ -204,7 +210,7 @@ const saveCategoriesToCache = (categories: Category[]): void => {
   }
 };
 
-const loadCategoriesFromCache = (): Category[] | null => {
+  const loadCategoriesFromCache = (): Category[] | null => {
   try {
     const raw = localStorage.getItem('categoriesCache');
     if (!raw) return null;
@@ -457,10 +463,10 @@ const formatDate = (dateString: string): string => {
   return `${day}-${month}-${year}`;
 };
 
-export default function UsersPage() {
+  export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'users' | 'advertisers' | 'delegates'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'users' | 'advertisers' | 'delegates' | 'employees'>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [activeTab, setActiveTab] = useState('data');
@@ -481,6 +487,7 @@ export default function UsersPage() {
   type TransactionItem = { title: string; annualFee: number; paidAmount: number; date: string };
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [allUsersCache, setAllUsersCache] = useState<User[] | null>(null);
+  const [viewerRole, setViewerRole] = useState('');
   const isFilterActive = (roleFilter !== 'all') || (searchTerm.trim() !== '');
 
   const formatDateDDMMYYYY = (s?: string | null) => {
@@ -494,11 +501,39 @@ export default function UsersPage() {
   const normalizeRole = (role?: string | null) =>
     String(role || '').toLowerCase().trim();
 
+  const isEmployeeRole = (role?: string | null) =>
+    normalizeRole(role) === 'employee';
+
+  const isPrivilegedDashboardRole = (role?: string | null) =>
+    ['employee', 'admin', 'reviewer'].includes(normalizeRole(role));
+
+  const isCurrentAdmin = normalizeRole(viewerRole) === 'admin';
+
   const isAdvertiserRole = (role?: string | null) =>
     ['advertiser', 'معلن'].includes(normalizeRole(role));
 
   const isDelegateRole = (role?: string | null) =>
     ['delegate', 'representative', 'مندوب'].includes(normalizeRole(role));
+
+  const mapRoleToApi = (role?: string | null) => {
+    const value = String(role || '').trim();
+    if (value === 'معلن') return 'advertiser';
+    if (value === 'مستخدم') return 'user';
+    if (value === 'موظف') return 'employee';
+    if (value === 'مشرف') return 'admin';
+    if (value === 'مراجع') return 'reviewer';
+    return value || undefined;
+  };
+
+  const mapRoleToLabel = (role?: string | null) => {
+    const value = normalizeRole(role);
+    if (value === 'advertiser') return 'معلن';
+    if (value === 'user') return 'مستخدم';
+    if (value === 'employee') return 'موظف';
+    if (value === 'admin') return 'مشرف';
+    if (value === 'reviewer') return 'مراجع';
+    return String(role || '');
+  };
 
   const hasDelegateCode = (user?: User | null) =>
     Boolean(String(user?.delegateCode || '').trim());
@@ -510,6 +545,26 @@ export default function UsersPage() {
   const canShowDelegateClientsTab = (user?: User | null) =>
     Boolean(user) &&
     (isDelegateRole(user?.role) || hasDelegateCode(user));
+
+  const canManageEmployeeRecord = (user?: User | null) =>
+    Boolean(user) && isCurrentAdmin && isEmployeeRole(user?.role);
+
+  const editableRoleOptions = isCurrentAdmin
+    ? ['معلن', 'مستخدم', 'موظف', 'مشرف', 'مراجع']
+    : ['معلن', 'مستخدم'];
+
+  useEffect(() => {
+    const syncViewerRole = () => {
+      setViewerRole(String(readDashboardUser()?.role || ''));
+    };
+
+    syncViewerRole();
+    window.addEventListener('dashboard-user-updated', syncViewerRole);
+
+    return () => {
+      window.removeEventListener('dashboard-user-updated', syncViewerRole);
+    };
+  }, []);
 
   // Sub-components for enhanced packages modal
   const PackageLoadingSkeleton = () => (
@@ -882,6 +937,7 @@ export default function UsersPage() {
         const mapped = resp.users.map(u => ({
           id: String(u.id),
           name: u.name ?? '',
+          email: u.email ?? null,
           phone: u.phone,
           address: u.address,
           userCode: u.user_code,
@@ -892,6 +948,8 @@ export default function UsersPage() {
           role: u.role,
           lastLogin: u.registered_at,
           phoneVerified: u.phone_verified,
+          allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
+          profileImageUrl: u.profile_image_url ?? null,
         } as User));
         setUsers(mapped);
         setUsersMeta(resp.meta);
@@ -1255,17 +1313,26 @@ export default function UsersPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     name: '',
+    email: '',
     phone: '',
     role: 'مستخدم',
     status: 'active' as User['status'],
+    allowedDashboardPages: [] as string[],
     adsCount: 0,
     registrationDate: new Date().toISOString().split('T')[0],
     lastLogin: new Date().toISOString().split('T')[0],
   });
 
-  const openAddUserModal = () => setIsAddModalOpen(true);
+  const openAddUserModal = () => {
+    setNewUserForm((prev) => ({
+      ...prev,
+      role: editableRoleOptions.includes(prev.role) ? prev.role : 'مستخدم',
+      allowedDashboardPages: isCurrentAdmin && prev.role === 'موظف' ? prev.allowedDashboardPages : [],
+    }));
+    setIsAddModalOpen(true);
+  };
   const closeAddUserModal = () => setIsAddModalOpen(false);
-  const handleNewUserChange = (field: keyof typeof newUserForm, value: string | number) => {
+  const handleNewUserChange = (field: keyof typeof newUserForm, value: string | number | string[]) => {
     setNewUserForm(prev => ({ ...prev, [field]: value }));
   };
   const saveNewUser = async () => {
@@ -1274,19 +1341,21 @@ export default function UsersPage() {
       return;
     }
     try {
-      const roleRaw = newUserForm.role?.trim();
-      const roleMapped = roleRaw === 'معلن' ? 'advertiser' : roleRaw === 'مستخدم' ? 'user' : roleRaw || undefined;
+      const roleMapped = mapRoleToApi(newUserForm.role);
       const payload = {
         name: newUserForm.name?.trim() || undefined,
+        email: newUserForm.email?.trim() || undefined,
         phone: newUserForm.phone.trim(),
         role: roleMapped,
         status: newUserForm.status === 'banned' ? 'blocked' : 'active',
+        allowed_dashboard_pages: roleMapped === 'employee' ? newUserForm.allowedDashboardPages : [],
       };
       const resp = await createUser(payload);
       const u = resp.user;
       const created: User = {
         id: String(u.id),
         name: u.name ?? '',
+        email: u.email ?? null,
         phone: u.phone,
         address: u.address,
         userCode: u.user_code,
@@ -1297,22 +1366,26 @@ export default function UsersPage() {
         role: u.role,
         lastLogin: u.registered_at,
         phoneVerified: false,
+        allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
+        profileImageUrl: u.profile_image_url ?? null,
       };
       setUsers(prev => [created, ...prev]);
       setCurrentPage(1);
       setIsAddModalOpen(false);
       setNewUserForm({
         name: '',
+        email: '',
         phone: '',
         role: 'مستخدم',
         status: 'active',
+        allowedDashboardPages: [],
         adsCount: 0,
         registrationDate: new Date().toISOString().split('T')[0],
         lastLogin: new Date().toISOString().split('T')[0],
       });
       showToast(resp?.message || 'تم إضافة المستخدم بنجاح', 'success');
     } catch (e) {
-      showToast('تعذر إضافة المستخدم', 'error');
+      showToast(e instanceof Error ? e.message : 'تعذر إضافة المستخدم', 'error');
     }
   };
 
@@ -1374,6 +1447,7 @@ export default function UsersPage() {
       if (roleFilter === 'users') return user.role === 'user';
       if (roleFilter === 'advertisers') return user.role === 'advertiser';
       if (roleFilter === 'delegates') return user.role === 'delegate' || user.role === 'representative';
+      if (roleFilter === 'employees') return user.role === 'employee';
       return true;
     })
     .filter(user =>
@@ -1422,6 +1496,12 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
+    if (!isCurrentAdmin && roleFilter === 'employees') {
+      setRoleFilter('all');
+    }
+  }, [isCurrentAdmin, roleFilter]);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, roleFilter]);
 
@@ -1440,6 +1520,7 @@ export default function UsersPage() {
         let aggregated: User[] = first.users.map(u => ({
           id: String(u.id),
           name: u.name ?? '',
+          email: u.email ?? null,
           phone: u.phone,
           userCode: String(u.id),
           delegateCode: u.delegate_code,
@@ -1449,6 +1530,8 @@ export default function UsersPage() {
           role: u.role,
           lastLogin: u.registered_at,
           phoneVerified: u.phone_verified,
+          allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
+          profileImageUrl: u.profile_image_url ?? null,
         } as User));
         const last = Math.max(1, Number(first.meta?.last_page || 1));
         if (last > 1) {
@@ -1461,6 +1544,7 @@ export default function UsersPage() {
             const mapped = resp.users.map(u => ({
               id: String(u.id),
               name: u.name ?? '',
+              email: u.email ?? null,
               phone: u.phone,
               userCode: String(u.id),
               delegateCode: u.delegate_code,
@@ -1470,6 +1554,8 @@ export default function UsersPage() {
               role: u.role,
               lastLogin: u.registered_at,
               phoneVerified: u.phone_verified,
+              allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
+              profileImageUrl: u.profile_image_url ?? null,
             } as User));
             aggregated = aggregated.concat(mapped);
           });
@@ -2000,10 +2086,22 @@ export default function UsersPage() {
     }
   }, [countdownTick, packagesForm.startFeaturedNow, packagesForm.featuredExpiryDate, packagesForm.featuredStartDate, packagesForm.startStandardNow, packagesForm.standardExpiryDate, packagesForm.standardStartDate]);
 
-  const handleViewProfile = (user: User) => {
+  const handleViewProfile = (user: User, initialTab: string = 'data') => {
     setSelectedUser(user);
     setShowUserProfile(true);
-    setActiveTab('data'); // Reset tab to data when opening profile
+    setActiveTab(initialTab);
+    if (initialTab === 'employee' && canManageEmployeeRecord(user)) {
+      setIsEditing(true);
+      setEditForm({ ...user });
+      return;
+    }
+    setIsEditing(false);
+    setEditForm(null);
+  };
+
+  const openEmployeePermissionsEditor = (user: User) => {
+    if (!canManageEmployeeRecord(user)) return;
+    handleViewProfile(user, 'employee');
   };
 
   // Fetch delegate clients when activeTab is 'clients'
@@ -2038,6 +2136,7 @@ export default function UsersPage() {
     const isAdvertiser = role === 'advertiser' || role === 'معلن';
     const isDelegate =
       role === 'delegate' || role === 'representative' || role === 'مندوب';
+    const isManagedEmployee = isCurrentAdmin && role === 'employee';
     const hasCode = Boolean(String(selectedUser.delegateCode || '').trim());
     const hasAds = Number(selectedUser.adsCount || 0) > 0;
     const canOpenAdsTab = isAdvertiser || hasAds;
@@ -2050,10 +2149,17 @@ export default function UsersPage() {
     if (activeTab === 'clients' && !canOpenClientsTab) {
       setActiveTab('data');
     }
-  }, [activeTab, selectedUser]);
+    if (activeTab === 'employee' && !isManagedEmployee) {
+      setActiveTab('data');
+    }
+  }, [activeTab, selectedUser, isCurrentAdmin]);
 
   const enableEdit = () => {
     if (!selectedUser) return;
+    if (!isCurrentAdmin && isPrivilegedDashboardRole(selectedUser.role)) {
+      showToast('لا يمكنك تعديل حسابات فريق الداشبورد.', 'warning');
+      return;
+    }
     setIsEditing(true);
     setEditForm({ ...selectedUser });
   };
@@ -2061,20 +2167,22 @@ export default function UsersPage() {
   const saveEdit = async () => {
     if (!selectedUser || !editForm) return;
     try {
-      const roleRaw = editForm.role?.trim();
-      const roleMapped = roleRaw === 'معلن' ? 'advertiser' : roleRaw === 'مستخدم' ? 'user' : roleRaw || undefined;
+      const roleMapped = mapRoleToApi(editForm.role);
       const payload = {
         name: editForm.name?.trim() || undefined,
+        email: editForm.email?.trim() || undefined,
         phone: editForm.phone?.trim() || undefined,
         role: roleMapped,
         status: editForm.status === 'banned' ? 'blocked' : 'active',
         delegate_code: editForm.delegateCode?.trim() || undefined,
+        allowed_dashboard_pages: roleMapped === 'employee' ? (editForm.allowedDashboardPages || []) : [],
       };
       const resp = await updateUser(Number(selectedUser.id), payload);
       const u = resp.user;
       const updated: User = {
         id: String(u.id),
         name: u.name ?? '',
+        email: u.email ?? null,
         phone: u.phone,
         address: u.address,
         userCode: u.user_code,
@@ -2085,6 +2193,8 @@ export default function UsersPage() {
         role: u.role,
         lastLogin: u.registered_at,
         phoneVerified: selectedUser.phoneVerified,
+        allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
+        profileImageUrl: u.profile_image_url ?? null,
       };
       setUsers(prev => prev.map(x => (x.id === selectedUser.id ? updated : x)));
       setSelectedUser(updated);
@@ -2092,7 +2202,7 @@ export default function UsersPage() {
       setEditForm(null);
       showToast('تم حفظ التعديلات بنجاح', 'success');
     } catch (e) {
-      showToast('تعذر حفظ التعديلات', 'error');
+      showToast(e instanceof Error ? e.message : 'تعذر حفظ التعديلات', 'error');
     }
   };
 
@@ -2219,6 +2329,7 @@ export default function UsersPage() {
           let aggregated: User[] = first.users.map(u => ({
             id: String(u.id),
             name: u.name ?? '',
+            email: u.email ?? null,
             phone: u.phone,
             userCode: u.user_code,
             delegateCode: u.delegate_code,
@@ -2228,6 +2339,8 @@ export default function UsersPage() {
             role: u.role,
             lastLogin: u.registered_at,
             phoneVerified: u.phone_verified,
+            allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
+            profileImageUrl: u.profile_image_url ?? null,
           } as User));
 
           const last = Math.max(1, Number(first.meta?.last_page || 1));
@@ -2241,6 +2354,7 @@ export default function UsersPage() {
               const mapped = resp.users.map(u => ({
                 id: String(u.id),
                 name: u.name ?? '',
+                email: u.email ?? null,
                 phone: u.phone,
                 userCode: u.user_code,
                 delegateCode: u.delegate_code,
@@ -2250,6 +2364,8 @@ export default function UsersPage() {
                 role: u.role,
                 lastLogin: u.registered_at,
                 phoneVerified: u.phone_verified,
+                allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
+                profileImageUrl: u.profile_image_url ?? null,
               } as User));
               aggregated = aggregated.concat(mapped);
             });
@@ -2406,6 +2522,14 @@ export default function UsersPage() {
             >
               البيانات
             </button>
+            {canManageEmployeeRecord(selectedUser) && (
+              <button
+                className={`tab-btn ${activeTab === 'employee' ? 'active' : ''}`}
+                onClick={() => setActiveTab('employee')}
+              >
+                صلاحيات الموظف
+              </button>
+            )}
             {canShowAdsTab(selectedUser) && (
               <button
                 className={`tab-btn ${activeTab === 'ads' ? 'active' : ''}`}
@@ -2595,20 +2719,67 @@ export default function UsersPage() {
                     )}
                   </div> */}
                   <div className="data-item">
-                    <label>الدور:</label>
+                    <label>البريد الإلكتروني:</label>
                     {isEditing ? (
                       <input
-                        type="text"
-                        value={editForm?.role ?? ''}
+                        type="email"
+                        value={editForm?.email ?? ''}
                         onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, role: e.target.value } : prev))
+                          setEditForm((prev) => (prev ? { ...prev, email: e.target.value } : prev))
                         }
                         className="input"
                       />
                     ) : (
-                      <span>{selectedUser.role}</span>
+                      <span>{selectedUser.email || '-'}</span>
                     )}
                   </div>
+                  <div className="data-item">
+                    <label>الدور:</label>
+                    {isEditing ? (
+                      <select
+                        value={mapRoleToLabel(editForm?.role)}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, role: e.target.value } : prev))
+                        }
+                        className="input"
+                      >
+                        {editableRoleOptions.map((roleOption) => (
+                          <option key={roleOption} value={roleOption}>{roleOption}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{mapRoleToLabel(selectedUser.role)}</span>
+                    )}
+                  </div>
+                  {isEditing && mapRoleToApi(editForm?.role) === 'employee' && (
+                    <div className="data-item" style={{ gridColumn: '1 / -1' }}>
+                      <label>صلاحيات الصفحات:</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                        {DASHBOARD_PERMISSION_OPTIONS.map((option) => {
+                          const selected = Boolean(editForm?.allowedDashboardPages?.includes(option.key));
+                          return (
+                            <label key={option.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', border: selected ? '1px solid #14b8a6' : '1px solid #e5e7eb', borderRadius: '10px', padding: '10px 12px', background: selected ? '#f0fdfa' : '#fff' }}>
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(e) =>
+                                  setEditForm((prev) => {
+                                    if (!prev) return prev;
+                                    const current = prev.allowedDashboardPages || [];
+                                    const next = e.target.checked
+                                      ? [...current, option.key]
+                                      : current.filter((item) => item !== option.key);
+                                    return { ...prev, allowedDashboardPages: Array.from(new Set(next)) };
+                                  })
+                                }
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <div className="data-item">
                     <label>عدد الإعلانات:</label>
                     {isEditing ? (
@@ -2626,6 +2797,91 @@ export default function UsersPage() {
                     ) : (
                       <span>{selectedUser.adsCount}</span>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'employee' && canManageEmployeeRecord(selectedUser) && (
+              <div className={`user-data-tab ${isEditing ? 'edit-mode' : ''}`}>
+                <div className="tab-actions">
+                  {!isEditing ? (
+                    <button className="btn-edit" onClick={enableEdit}>
+                      تعديل صلاحيات الموظف
+                    </button>
+                  ) : (
+                    <button className="btn-save" onClick={saveEdit}>
+                      حفظ صلاحيات الموظف
+                    </button>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    marginBottom: '20px',
+                    padding: '18px 20px',
+                    borderRadius: '16px',
+                    border: '1px solid #dbeafe',
+                    background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', color: '#475569', marginBottom: '6px' }}>الحساب الموظف</div>
+                      <div style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a' }}>{selectedUser.name}</div>
+                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>{selectedUser.phone}</div>
+                    </div>
+                    <div style={{ minWidth: '180px' }}>
+                      <div style={{ fontSize: '13px', color: '#475569', marginBottom: '6px' }}>إجمالي الصفحات المسموح بها</div>
+                      <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f766e' }}>
+                        {editForm?.allowedDashboardPages?.length ?? selectedUser.allowedDashboardPages?.length ?? 0}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="data-item" style={{ gridColumn: '1 / -1' }}>
+                  <label>قائمة الصفحات المسموح بها للموظف</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                    {DASHBOARD_PERMISSION_OPTIONS.map((option) => {
+                      const source = isEditing ? editForm?.allowedDashboardPages : selectedUser.allowedDashboardPages;
+                      const selected = Boolean(source?.includes(option.key));
+                      return (
+                        <label
+                          key={option.key}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            border: selected ? '1px solid #14b8a6' : '1px solid #e5e7eb',
+                            borderRadius: '10px',
+                            padding: '10px 12px',
+                            background: selected ? '#f0fdfa' : '#fff',
+                            opacity: !isEditing ? 0.92 : 1,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={!isEditing}
+                            onChange={(e) =>
+                              setEditForm((prev) => {
+                                if (!prev) return prev;
+                                const current = prev.allowedDashboardPages || [];
+                                const next = e.target.checked
+                                  ? [...current, option.key]
+                                  : current.filter((item) => item !== option.key);
+                                return { ...prev, allowedDashboardPages: Array.from(new Set(next)) };
+                              })
+                            }
+                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span>{option.label}</span>
+                            <span style={{ fontSize: '12px', color: '#64748b', direction: 'ltr', textAlign: 'right' }}>{option.key}</span>
+                          </div>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -3060,16 +3316,25 @@ export default function UsersPage() {
                     />
                   </div>
                   <div className="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      value={newUserForm.email}
+                      onChange={(e) => handleNewUserChange('email', e.target.value)}
+                      placeholder="employee@example.com"
+                    />
+                  </div>
+                  <div className="form-group">
                     <label>الدور</label>
                     <select
                       className="form-select"
                       value={newUserForm.role}
                       onChange={(e) => handleNewUserChange('role', e.target.value)}
                     >
-                      <option value="معلن">معلن</option>
-                      <option value="مستخدم">مستخدم</option>
-                      <option value="مشرف">مشرف</option>
-                      <option value="مراجع">مراجع</option>
+                      {editableRoleOptions.map((roleOption) => (
+                        <option key={roleOption} value={roleOption}>{roleOption}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">
@@ -3083,6 +3348,31 @@ export default function UsersPage() {
                       <option value="banned">محظور</option>
                     </select>
                   </div>
+                  {isCurrentAdmin && mapRoleToApi(newUserForm.role) === 'employee' && (
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label>الصفحات المسموح بها للموظف</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
+                        {DASHBOARD_PERMISSION_OPTIONS.map((option) => {
+                          const selected = newUserForm.allowedDashboardPages.includes(option.key);
+                          return (
+                            <label key={option.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', border: selected ? '1px solid #14b8a6' : '1px solid #e5e7eb', borderRadius: '10px', padding: '10px 12px', background: selected ? '#f0fdfa' : '#fff' }}>
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(e) => {
+                                  const next = e.target.checked
+                                    ? [...newUserForm.allowedDashboardPages, option.key]
+                                    : newUserForm.allowedDashboardPages.filter((item) => item !== option.key);
+                                  handleNewUserChange('allowedDashboardPages', next);
+                                }}
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <div className="form-group">
                     <label>تاريخ التسجيل</label>
                     <input
@@ -3717,6 +4007,14 @@ export default function UsersPage() {
           >
             المناديب
           </button>
+          {isCurrentAdmin && (
+            <button
+              className={`tab-btn ${roleFilter === 'employees' ? 'active' : ''}`}
+              onClick={() => setRoleFilter('employees')}
+            >
+              الموظفون
+            </button>
+          )}
         </div>
 
         {/* Results Info */}
@@ -3828,7 +4126,7 @@ export default function UsersPage() {
                   </td>
                   <td className="registration-date">{formatDateDDMMYYYY(user.registrationDate)}</td>
                   <td className="ads-count">{user.adsCount}</td>
-                  <td className="user-role">{user.role}</td>
+                  <td className="user-role">{mapRoleToLabel(user.role)}</td>
                   <td>
                     <div className="action-buttons">
                       <button
@@ -3838,6 +4136,29 @@ export default function UsersPage() {
                       >
                         عرض
                       </button>
+                      {canManageEmployeeRecord(user) && (
+                        <button
+                          type="button"
+                          onClick={() => openEmployeePermissionsEditor(user)}
+                          title="إدارة الصفحات المسموح بها"
+                          style={{
+                            background: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '11px',
+                            padding: '4px 10px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            marginRight: '4px',
+                          }}
+                        >
+                          صلاحيات
+                        </button>
+                      )}
                       <button
                         className={`btn-ban ${user.status === 'banned' ? 'unban' : ''}`}
                         onClick={() => handleBanUser(user.id)}
@@ -4046,7 +4367,7 @@ export default function UsersPage() {
                   </div>
                   <div className="info-item">
                     <span className="info-label">الدور:</span>
-                    <span className="info-value">{user.role}</span>
+                    <span className="info-value">{mapRoleToLabel(user.role)}</span>
                   </div>
                   <div className="info-item">
                     <span className="info-label">تاريخ التسجيل:</span>
@@ -4067,6 +4388,28 @@ export default function UsersPage() {
                 >
                   عرض الملف
                 </button>
+                {canManageEmployeeRecord(user) && (
+                  <button
+                    type="button"
+                    onClick={() => openEmployeePermissionsEditor(user)}
+                    title="إدارة الصفحات المسموح بها"
+                    style={{
+                      background: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '11px',
+                      padding: '8px 16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                    }}
+                  >
+                    صلاحيات الموظف
+                  </button>
+                )}
                 <button
                   className={`btn-ban ${user.status === 'banned' ? 'unban' : ''}`}
                   onClick={() => handleBanUser(user.id)}

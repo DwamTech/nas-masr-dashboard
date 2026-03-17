@@ -5,9 +5,8 @@
  */
 
 import { RankData, RankUpdateResponse } from '@/types/filters-lists';
+import { API_BASE } from '@/utils/api';
 import { retryWithBackoff } from '@/utils/retry';
-
-const API_BASE = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
 
 /**
  * Update option ranks for a category field

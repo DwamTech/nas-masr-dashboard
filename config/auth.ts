@@ -28,6 +28,7 @@ export const AUTH_CONFIG = {
         USER_EMAIL: 'userEmail',
         USER_PHONE: 'userPhone',
         USER_ROLE: 'userRole',
+        DASHBOARD_USER: 'dashboardUser',
         REMEMBER_ME: 'rememberMe'
     },
 

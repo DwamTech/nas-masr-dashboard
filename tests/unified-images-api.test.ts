@@ -11,6 +11,9 @@ import {
     deleteCategoryGlobalImage,
 } from '@/services/makes';
 
+const API_BASE = process.env.LARAVEL_API_URL || 'http://localhost:8000/api';
+const BACKEND_BASE = API_BASE.replace(/\/api$/, '');
+
 // Mock fetch globally
 global.fetch = vi.fn();
 
@@ -53,7 +56,7 @@ describe('Unified Category Images API Service Functions', () => {
                     is_active: true,
                     is_global_image_active: true,
                     global_image_url: 'uploads/categories/global/2_1234567890.webp',
-                    global_image_full_url: 'https://back.nasmasr.app/storage/uploads/categories/global/2_1234567890.webp',
+                    global_image_full_url: `${BACKEND_BASE}/storage/uploads/categories/global/2_1234567890.webp`,
                 },
             ];
 
@@ -65,7 +68,7 @@ describe('Unified Category Images API Service Functions', () => {
             const result = await fetchAdminCategories('test-token');
 
             expect(global.fetch).toHaveBeenCalledWith(
-                'https://back.nasmasr.app/api/admin/categories',
+                `${API_BASE}/admin/categories`,
                 expect.objectContaining({
                     method: 'GET',
                     headers: expect.objectContaining({
@@ -105,7 +108,7 @@ describe('Unified Category Images API Service Functions', () => {
             await toggleCategoryGlobalImage(1, true, 'test-token');
 
             expect(global.fetch).toHaveBeenCalledWith(
-                'https://back.nasmasr.app/api/admin/categories/1/toggle-global-image',
+                `${API_BASE}/admin/categories/1/toggle-global-image`,
                 expect.objectContaining({
                     method: 'PUT',
                     headers: expect.objectContaining({
@@ -131,7 +134,7 @@ describe('Unified Category Images API Service Functions', () => {
             await toggleCategoryGlobalImage(1, false, 'test-token');
 
             expect(global.fetch).toHaveBeenCalledWith(
-                'https://back.nasmasr.app/api/admin/categories/1/toggle-global-image',
+                `${API_BASE}/admin/categories/1/toggle-global-image`,
                 expect.objectContaining({
                     method: 'PUT',
                     body: JSON.stringify({ is_global_image_active: false }),
@@ -168,7 +171,7 @@ describe('Unified Category Images API Service Functions', () => {
             const mockResponse = {
                 id: 1,
                 global_image_url: 'uploads/categories/global/1_1234567890.webp',
-                global_image_full_url: 'https://back.nasmasr.app/storage/uploads/categories/global/1_1234567890.webp',
+                global_image_full_url: `${BACKEND_BASE}/storage/uploads/categories/global/1_1234567890.webp`,
                 is_global_image_active: true,
                 message: 'تم رفع الصورة الموحدة بنجاح',
             };
@@ -181,7 +184,7 @@ describe('Unified Category Images API Service Functions', () => {
             const result = await uploadCategoryGlobalImage(1, mockFile, 'test-token');
 
             expect(global.fetch).toHaveBeenCalledWith(
-                'https://back.nasmasr.app/api/admin/categories/1/upload-global-image',
+                `${API_BASE}/admin/categories/1/upload-global-image`,
                 expect.objectContaining({
                     method: 'POST',
                     headers: expect.objectContaining({
@@ -247,7 +250,7 @@ describe('Unified Category Images API Service Functions', () => {
             await deleteCategoryGlobalImage(1, 'test-token');
 
             expect(global.fetch).toHaveBeenCalledWith(
-                'https://back.nasmasr.app/api/admin/categories/1/global-image',
+                `${API_BASE}/admin/categories/1/global-image`,
                 expect.objectContaining({
                     method: 'DELETE',
                     headers: expect.objectContaining({

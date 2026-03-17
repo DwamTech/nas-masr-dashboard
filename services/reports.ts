@@ -1,5 +1,6 @@
 import { ListingReportsResponse, ListingReport } from '@/models/reports';
 import type { ListingReportAcceptResponse, ListingReportDismissResponse, ListingReportReadResponse, ListingDetailsData, ListingDetailsUserInline, ListingDetailsUser } from '@/models/reports';
+import { buildApiUrl } from '@/utils/api';
 
 const normalizeString = (v: unknown): string | null => {
   if (v === null || v === undefined) return null;
@@ -87,7 +88,7 @@ export async function fetchListingReports(page: number = 1, perPage: number = 20
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/listing-reports?page=${encodeURIComponent(String(page))}&per_page=${encodeURIComponent(String(perPage))}`;
+  const url = buildApiUrl(`/admin/listing-reports?page=${encodeURIComponent(String(page))}&per_page=${encodeURIComponent(String(perPage))}`);
   const res = await fetch(url, { method: 'GET', headers });
   let raw: unknown = null;
   try { raw = await res.json(); } catch { }
@@ -119,7 +120,7 @@ export async function acceptListingReport(reportId: number | string, token?: str
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(reportId));
-  const url = `https://back.nasmasr.app/api/admin/listing-reports/${id}/accept`;
+  const url = buildApiUrl(`/admin/listing-reports/${id}/accept`);
   const res = await fetch(url, { method: 'POST', headers });
   let raw: unknown = null;
   try { raw = await res.json(); } catch { }
@@ -143,7 +144,7 @@ export async function dismissListingReport(reportId: number | string, token?: st
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(reportId));
-  const url = `https://back.nasmasr.app/api/admin/listing-reports/${id}/dismiss`;
+  const url = buildApiUrl(`/admin/listing-reports/${id}/dismiss`);
   const res = await fetch(url, { method: 'POST', headers });
   let raw: unknown = null;
   try { raw = await res.json(); } catch { }
@@ -167,7 +168,7 @@ export async function markListingReportsReadAndFetch(listingId: number | string,
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(listingId));
-  const url = `https://back.nasmasr.app/api/admin/listing-reports/${id}/read`;
+  const url = buildApiUrl(`/admin/listing-reports/${id}/read`);
   const res = await fetch(url, { method: 'PATCH', headers });
   let raw: unknown = null;
   try { raw = await res.json(); } catch { }

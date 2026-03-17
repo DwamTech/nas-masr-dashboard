@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchCategoryFields } from '../categoryFields';
+import { clearCategoryFieldsCache, fetchCategoryFields } from '../categoryFields';
 import * as retryModule from '@/utils/retry';
 
 // Mock the retry utility
@@ -36,6 +36,7 @@ describe('Category Fields API Service', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        clearCategoryFieldsCache();
         global.fetch = vi.fn();
     });
 
@@ -54,7 +55,7 @@ describe('Category Fields API Service', () => {
             const result = await fetchCategoryFields(mockCategorySlug, mockToken);
 
             expect(global.fetch).toHaveBeenCalledWith(
-                expect.stringContaining(`/admin/category-fields?category_slug=${mockCategorySlug}`),
+                expect.stringContaining(`/admin/filter-lists/field-category?category_slug=${mockCategorySlug}`),
                 expect.objectContaining({
                     method: 'GET',
                     headers: expect.objectContaining({
@@ -76,7 +77,7 @@ describe('Category Fields API Service', () => {
             const result = await fetchCategoryFields(mockCategorySlug);
 
             expect(global.fetch).toHaveBeenCalledWith(
-                expect.stringContaining(`/admin/category-fields?category_slug=${mockCategorySlug}`),
+                expect.stringContaining(`/admin/filter-lists/field-category?category_slug=${mockCategorySlug}`),
                 expect.objectContaining({
                     method: 'GET',
                     headers: expect.objectContaining({

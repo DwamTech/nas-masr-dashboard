@@ -1,8 +1,7 @@
 // services/banners.ts
 
 import type { BannersResponse, UpdateBannerResponse } from '@/models/banners';
-
-const API_BASE_URL = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
+import { API_BASE as API_BASE_URL } from '@/utils/api';
 
 /**
  * Fetch all banners

@@ -140,6 +140,7 @@ describe('EditModal - Hierarchical Lists', () => {
         expect(governoratesService.fetchGovernorates).toHaveBeenCalled();
     });
 
+
     /**
      * Test: Parent selector functionality
      * Requirement 6.10: Fetch parent options and allow selection

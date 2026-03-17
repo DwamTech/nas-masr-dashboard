@@ -28,8 +28,9 @@ import {
   PaginationParams,
   DateRangeParams
 } from '@/models/dashboardReports';
+import { buildApiUrl } from '@/utils/api';
 
-const BASE_URL = 'https://back.nasmasr.app/api/admin';
+const BASE_URL = buildApiUrl('/admin');
 
 async function fetchWithAuth<T>(endpoint: string, params: Record<string, any> = {}, token?: string): Promise<T> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);

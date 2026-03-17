@@ -1,17 +1,36 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Category, CategoryField, FieldMetadata, OptionData } from '@/types/filters-lists';
-import { fetchCategoryFields } from '@/services/categoryFields';
-import { fetchAdminMakesWithIds } from '@/services/makes';
+import { clearCategoryFieldsCache, fetchCategoryFields } from '@/services/categoryFields';
+import {
+    fetchAdminMakesWithIds,
+    postAdminMake,
+    postAdminMakeModels,
+    setAdminMakeVisibility,
+    setAdminModelVisibility,
+    updateAdminMake,
+    updateAdminModel,
+    updateCategoryFieldOptions
+} from '@/services/makes';
 import { fetchGovernorates } from '@/services/governorates';
-import { updateCategoryFieldOptions, postAdminMakeModels } from '@/services/makes';
 import { cache, INVALIDATION_PATTERNS } from '@/utils/cache';
 import { OptionsHelper } from '@/utils/optionsHelper';
 import BulkAddTextarea from './BulkAddTextarea';
 import { ParentSelector } from './ParentSelector';
+import { filterFieldsByScope, FiltersFieldScope } from './automotiveShared';
+import { updateOptionRanks } from '@/services/optionRanks';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useFocusReturn } from '@/hooks/useFocusReturn';
+import {
+    FiltersCrudAlert,
+    FiltersCrudCard,
+    FiltersCrudFooter,
+    FiltersCrudHeader,
+    FiltersCrudShell,
+    FiltersCrudTabs,
+    filtersCrudStyles as styles,
+} from './FiltersCrudPrimitives';
 import '@/components/DraggableOptions/styles.css';
 import './animations.css';
 import './tailwind-shim.css';
@@ -39,13 +58,18 @@ interface EditModalProps {
     isOpen: boolean;
     onClose: () => void;
     category: Category;
-    field?: CategoryField; // Optional - if not provided, the first field is used
+    field?: CategoryField;
+    initialFieldName?: string;
+    fieldScope?: FiltersFieldScope;
+    titleOverride?: string;
     parent?: string; // For hierarchical lists
 }
 
 interface OptionWithState extends OptionData {
     isEditing?: boolean;
     originalValue?: string;
+    sourceId?: number;
+    sourceParentId?: number;
 }
 
 /**
@@ -88,7 +112,17 @@ function detectListType(f: CategoryField): FieldMetadata {
     };
 }
 
-export default function EditModal({ isOpen, onClose, category, field: initialField, parent }: EditModalProps) {
+export default function EditModal({
+    isOpen,
+    onClose,
+    category,
+    field,
+    initialFieldName,
+    fieldScope = 'all',
+    titleOverride,
+    parent,
+}: EditModalProps) {
+    const requestedFieldName = initialFieldName || field?.field_name;
     const [options, setOptions] = useState<OptionWithState[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -100,7 +134,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
 
     // Fields management — load all category fields, select one as active
     const [allFields, setAllFields] = useState<CategoryField[]>([]);
-    const [activeField, setActiveField] = useState<CategoryField | null>(initialField || null);
+    const [activeField, setActiveField] = useState<CategoryField | null>(null);
 
     // Task 13.1: State for hierarchical lists
     const [parentOptions, setParentOptions] = useState<string[]>([]);
@@ -119,6 +153,17 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
 
     // Return focus to trigger element on modal close (Requirement 11.6)
     useFocusReturn(isOpen);
+    const saveOnBlurSkipIndexRef = useRef<number | null>(null);
+
+    // Task 23.2: Handle animated modal close
+    const handleClose = useCallback(() => {
+        setIsClosing(true);
+        // Wait for animation to complete before actually closing
+        setTimeout(() => {
+            setIsClosing(false);
+            onClose();
+        }, 200); // Match animation duration
+    }, [onClose]);
 
     // Task 18.1: Handle Escape key to close modal (Requirement 11.5)
     useEffect(() => {
@@ -135,17 +180,62 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
         return () => {
             document.removeEventListener('keydown', handleEscape);
         };
-    }, [isOpen]);
+    }, [isOpen, handleClose]);
 
-    // Task 23.2: Handle animated modal close
-    const handleClose = useCallback(() => {
-        setIsClosing(true);
-        // Wait for animation to complete before actually closing
-        setTimeout(() => {
-            setIsClosing(false);
-            onClose();
-        }, 200); // Match animation duration
-    }, [onClose]);
+    const getHiddenOptions = useCallback((targetField: CategoryField | null | undefined): string[] => {
+        const hiddenOptions = targetField?.rules_json?.hidden_options;
+
+        if (!Array.isArray(hiddenOptions)) {
+            return [];
+        }
+
+        return Array.from(new Set(hiddenOptions
+            .map((option) => String(option ?? '').trim())
+            .filter((option) => option.length > 0 && option !== OptionsHelper.OTHER_OPTION)));
+    }, []);
+
+    const buildFieldOptionsState = useCallback((fieldOptions: string[], targetField: CategoryField | null | undefined): OptionWithState[] => {
+        const hiddenSet = new Set(getHiddenOptions(targetField));
+
+        return fieldOptions.map((opt, index) => ({
+            value: opt,
+            is_active: !hiddenSet.has(opt),
+            rank: index + 1,
+            isEditing: false,
+        }));
+    }, [getHiddenOptions]);
+
+    const buildBrandOptionsState = useCallback((makes: { id: number; name: string; is_active?: boolean }[]): OptionWithState[] => {
+        return makes.map((make, index) => ({
+            value: make.name,
+            is_active: make.is_active !== false,
+            rank: index + 1,
+            isEditing: false,
+            sourceId: make.id,
+        }));
+    }, []);
+
+    const buildModelOptionsState = useCallback((make: { id: number; model_objects?: { id: number; name: string; is_active?: boolean }[]; models?: string[] } | undefined): OptionWithState[] => {
+        if (!make) {
+            return [];
+        }
+
+        const modelNames = make.models ?? [];
+        const modelObjects = make.model_objects ?? [];
+
+        return modelNames.map((model, index) => {
+            const matchedModel = modelObjects.find((item) => item.name === model);
+
+            return {
+                value: model,
+                is_active: matchedModel?.is_active !== false,
+                rank: index + 1,
+                isEditing: false,
+                sourceId: matchedModel?.id,
+                sourceParentId: make.id,
+            };
+        });
+    }, []);
 
     // Load all category fields for the tabs, then set active field
     useEffect(() => {
@@ -153,20 +243,30 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
 
         const loadFields = async () => {
             try {
-                const response = await fetchCategoryFields(category.slug);
+                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
                 // Filter out 'name' fields — free-text entered by ad creators, not selectable options
                 const fields = (response.data || []).filter(
                     (f: CategoryField) => f.field_name !== 'name'
                 );
-                setAllFields(fields);
+                const filteredFields = filterFieldsByScope(fields, fieldScope);
+                setAllFields(filteredFields);
+                setActiveField((previousActiveField) => {
+                    if (requestedFieldName) {
+                        const preferredField = filteredFields.find((f) => f.field_name === requestedFieldName);
+                        if (preferredField) {
+                            return preferredField;
+                        }
+                    }
 
-                // Set active field: prefer the one passed via prop, otherwise the first field
-                if (!activeField && fields.length > 0) {
-                    setActiveField(fields[0]);
-                } else if (activeField && !fields.some(f => f.field_name === activeField.field_name)) {
-                    // Active field no longer in the list, default to first
-                    setActiveField(fields[0] || null);
-                }
+                    if (previousActiveField) {
+                        const persistedField = filteredFields.find((f) => f.field_name === previousActiveField.field_name);
+                        if (persistedField) {
+                            return persistedField;
+                        }
+                    }
+
+                    return filteredFields[0] || null;
+                });
             } catch (err) {
                 console.error('Error loading category fields for tabs:', err);
             }
@@ -174,7 +274,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
 
         loadFields();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, category.slug]);
+    }, [isOpen, category.slug, requestedFieldName, fieldScope]);
 
     // Fetch options when modal opens or active field changes
     useEffect(() => {
@@ -220,16 +320,6 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, category.slug, activeField?.field_name]);
 
-    // Task 13.1: Load parent options for hierarchical child fields
-    // Requirements: 6.9, 6.10
-    useEffect(() => {
-        if (!isOpen || !fieldMetadata || !selectedParent) return;
-        if (fieldMetadata.listType !== 'hierarchical' || !fieldMetadata.hasParent) return;
-
-        // Load child options when parent is selected
-        loadChildOptions(selectedParent);
-    }, [selectedParent, isOpen, fieldMetadata]);
-
     /**
      * Load options for independent lists
      * Fetches current options sorted by rank (Requirement 6.8)
@@ -237,7 +327,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
     const loadIndependentOptions = async () => {
         try {
             if (!activeField) return;
-            const response = await fetchCategoryFields(category.slug);
+            const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
             const targetField = response.data.find(f => f.field_name === activeField.field_name);
 
             if (!targetField) {
@@ -245,18 +335,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
             }
 
             const fieldOptions = targetField.options || [];
-
-            // Convert to OptionWithState format
-            // For now, all options are active (is_active: true)
-            // Hidden option support will be added in Task 11.4
-            const optionsWithState: OptionWithState[] = fieldOptions.map((opt, index) => ({
-                value: opt,
-                is_active: true,
-                rank: index + 1,
-                isEditing: false,
-            }));
-
-            setOptions(optionsWithState);
+            setOptions(buildFieldOptionsState(fieldOptions, targetField));
         } finally {
             setLoading(false);
         }
@@ -270,16 +349,10 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
         try {
             let makes = makesCache;
             if (makes.length === 0) {
-                makes = await fetchAdminMakesWithIds();
+                makes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
                 setMakesCache(makes);
             }
-            const brandOptions: OptionWithState[] = makes.map((m, index) => ({
-                value: m.name,
-                is_active: true,
-                rank: index + 1,
-                isEditing: false,
-            }));
-            setOptions(brandOptions);
+            setOptions(buildBrandOptionsState(makes));
         } catch (err) {
             console.error('Error loading brand options:', err);
             throw new Error('فشل تحميل قائمة الماركات');
@@ -301,7 +374,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                 // Fetch brands from /api/makes (the authoritative source)
                 let makes = makesCache;
                 if (makes.length === 0) {
-                    makes = await fetchAdminMakesWithIds();
+                    makes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
                     setMakesCache(makes);
                 }
                 const brandNames = makes.map(m => m.name);
@@ -323,7 +396,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     setSelectedParent(parentNames[0]);
                 }
             } else if (metadata.parentField?.includes('main_section')) {
-                const response = await fetchCategoryFields(category.slug);
+                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
                 const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
                 const mainNames = sections
                     .map((s: any) => (s?.name ?? '').toString().trim())
@@ -352,7 +425,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
      * 
      * Fetches child options (e.g., cities for a governorate) based on selected parent
      */
-    const loadChildOptions = async (parentValue: string) => {
+    const loadChildOptions = useCallback(async (parentValue: string) => {
         setLoading(true);
         setError(null);
 
@@ -361,18 +434,11 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                 // Fetch models for the selected brand from /api/makes cache
                 let makes = makesCache;
                 if (makes.length === 0) {
-                    makes = await fetchAdminMakesWithIds();
+                    makes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
                     setMakesCache(makes);
                 }
                 const selectedMake = makes.find(m => m.name === parentValue);
-                const modelNames = selectedMake?.models ?? [];
-                const modelOptions: OptionWithState[] = modelNames.map((model, index) => ({
-                    value: model,
-                    is_active: true,
-                    rank: index + 1,
-                    isEditing: false,
-                }));
-                setOptions(modelOptions);
+                setOptions(buildModelOptionsState(selectedMake));
             } else if (fieldMetadata?.parentField?.includes('governorate')) {
                 const governorates = await fetchGovernorates();
                 const selectedGov = governorates.find(g => g.name === parentValue);
@@ -389,7 +455,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     setOptions([]);
                 }
             } else if (fieldMetadata?.parentField?.includes('main_section')) {
-                const response = await fetchCategoryFields(category.slug);
+                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
                 const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
                 const selectedMain = sections.find(
                     (s: any) => (s?.name ?? '').toString().trim() === parentValue
@@ -402,13 +468,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     .map((s: any) => (s?.name ?? '').toString().trim())
                     .filter((v: string) => v.length > 0);
 
-                const subOptions: OptionWithState[] = Array.from(new Set(subNames)).map((name, index) => ({
-                    value: name,
-                    is_active: true,
-                    rank: index + 1,
-                    isEditing: false,
-                }));
-                setOptions(subOptions);
+                setOptions(buildFieldOptionsState(Array.from(new Set(subNames)), activeField));
             }
         } catch (err) {
             console.error('Error loading child options:', err);
@@ -416,7 +476,17 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeField, buildFieldOptionsState, buildModelOptionsState, category.slug, fieldMetadata?.parentField, makesCache]);
+
+    // Task 13.1: Load parent options for hierarchical child fields
+    // Requirements: 6.9, 6.10
+    useEffect(() => {
+        if (!isOpen || !fieldMetadata || !selectedParent) return;
+        if (fieldMetadata.listType !== 'hierarchical' || !fieldMetadata.hasParent) return;
+
+        // Load child options when parent is selected
+        void loadChildOptions(selectedParent);
+    }, [selectedParent, isOpen, fieldMetadata, loadChildOptions]);
 
     /**
      * Task 13.1: Handle parent selection change
@@ -495,11 +565,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
             return;
         }
 
-        // Clear any previous errors
-        setError(null);
-
-        // Update the option value and exit editing mode
-        setOptions(prevOptions => prevOptions.map((opt, i) => {
+        const nextOptions = options.map((opt, i) => {
             if (i === index) {
                 return {
                     ...opt,
@@ -508,12 +574,12 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     originalValue: undefined,
                 };
             }
-            return opt;
-        }));
 
-        setSuccessMessage(`تم تعديل الخيار بنجاح`);
-        setTimeout(() => setSuccessMessage(null), 3000);
-    }, [options]);
+            return opt;
+        });
+
+        void persistOptionsSnapshot(nextOptions, 'تم تعديل الخيار بنجاح');
+    }, [options, persistOptionsSnapshot]);
 
     /**
      * Task 11.3: Handle canceling inline edit for an option
@@ -632,18 +698,16 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
             rank: index + 1,
         }));
 
-        setOptions(finalOptions);
-        setNewOptionValue(''); // Clear input field
-
         // Task 13.2: Show success message with parent context for hierarchical child lists
         const successMsg = fieldMetadata?.listType === 'hierarchical' && fieldMetadata.hasParent && selectedParent
             ? `تمت إضافة "${trimmedValue}" في ${selectedParent} بنجاح`
             : `تمت إضافة "${trimmedValue}" بنجاح`;
-        setSuccessMessage(successMsg);
-
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000);
-    }, [newOptionValue, options, fieldMetadata, selectedParent]);
+        void persistOptionsSnapshot(finalOptions, successMsg).then((saved) => {
+            if (saved) {
+                setNewOptionValue('');
+            }
+        });
+    }, [newOptionValue, options, fieldMetadata, selectedParent, persistOptionsSnapshot]);
 
     /**
      * Task 12.2: Handle bulk add of multiple options
@@ -693,53 +757,190 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
             rank: index + 1,
         }));
 
-        setOptions(finalOptions);
+        void persistOptionsSnapshot(
+            finalOptions,
+            `تمت إضافة ${newOptions.length} خيار بنجاح`
+        );
+    }, [options, persistOptionsSnapshot]);
 
-        // Display success message with count (Requirement 6.25)
-        setSuccessMessage(`تمت إضافة ${newOptions.length} خيار بنجاح`);
+    const persistOptionsSnapshot = useCallback(async (nextOptions: OptionWithState[], successText: string) => {
+        if (!activeField) {
+            return false;
+        }
 
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000);
-    }, [options]);
-
-    /**
-     * Handle saving all changes
-     * - Submits the current options to the backend API
-     */
-    const handleSave = useCallback(async () => {
-        if (!activeField) return;
         setSaving(true);
         setError(null);
         setSuccessMessage(null);
 
+        const normalizedSnapshot = nextOptions.map((opt, index) => ({
+            ...opt,
+            rank: index + 1,
+            isEditing: false,
+            originalValue: undefined,
+        }));
+
         try {
-            // Extract the string values from options
-            const optionsToSave = options.map(opt => opt.value);
+            const normalizedFieldName = activeField.field_name.trim().toLowerCase();
+            const orderedOptions = normalizedSnapshot.map((opt) => opt.value);
+            const optionsForRanks = normalizedSnapshot
+                .filter((opt) => opt.value !== OptionsHelper.OTHER_OPTION)
+                .map((opt, index) => ({ option: opt.value, rank: index + 1 }));
 
-            // Save to backend using category fields API
-            await updateCategoryFieldOptions(
-                category.slug,
-                activeField.field_name,
-                optionsToSave
-            );
+            if (normalizedFieldName === 'brand') {
+                const currentMakes = (makesCache.length > 0
+                    ? makesCache
+                    : await fetchAdminMakesWithIds(undefined, { includeInactive: true }))
+                    .filter((make) => typeof make.id === 'number');
 
-            // Invalidate cache
-            const pattern = INVALIDATION_PATTERNS.RANK_UPDATE(category.slug);
-            cache.invalidate(pattern);
+                for (const opt of normalizedSnapshot) {
+                    if (opt.value === OptionsHelper.OTHER_OPTION) {
+                        continue;
+                    }
 
-            setSuccessMessage('تم حفظ التغييرات بنجاح');
+                    if (opt.sourceId) {
+                        const existingMake = currentMakes.find((make) => make.id === opt.sourceId);
 
-            // Close modal after short delay
-            setTimeout(() => {
-                handleClose();
-            }, 1000);
+                        if (existingMake && existingMake.name !== opt.value) {
+                            await updateAdminMake(opt.sourceId, opt.value);
+                        }
+
+                        if (existingMake && existingMake.is_active !== (opt.is_active !== false)) {
+                            await setAdminMakeVisibility(opt.sourceId, opt.is_active !== false);
+                        }
+
+                        continue;
+                    }
+
+                    await postAdminMake(opt.value);
+                }
+
+                await updateOptionRanks('cars', 'brand', optionsForRanks);
+
+                const refreshedMakes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
+                setMakesCache(refreshedMakes);
+                setOptions(buildBrandOptionsState(refreshedMakes));
+            } else if (normalizedFieldName === 'model') {
+                if (!selectedParent) {
+                    throw new Error('يرجى اختيار الماركة أولاً');
+                }
+
+                const currentMakes = makesCache.length > 0
+                    ? makesCache
+                    : await fetchAdminMakesWithIds(undefined, { includeInactive: true });
+                const selectedMake = currentMakes.find((make) => make.name === selectedParent);
+
+                if (!selectedMake?.id) {
+                    throw new Error('تعذر تحديد الماركة الحالية لحفظ الموديلات');
+                }
+
+                const existingModels = selectedMake.model_objects ?? [];
+                const newModels: string[] = [];
+
+                for (const opt of normalizedSnapshot) {
+                    if (opt.value === OptionsHelper.OTHER_OPTION) {
+                        continue;
+                    }
+
+                    if (opt.sourceId) {
+                        const existingModel = existingModels.find((model) => model.id === opt.sourceId);
+
+                        if (existingModel && existingModel.name !== opt.value) {
+                            await updateAdminModel(opt.sourceId, opt.value, selectedMake.id);
+                        }
+
+                        if (existingModel && existingModel.is_active !== (opt.is_active !== false)) {
+                            await setAdminModelVisibility(opt.sourceId, opt.is_active !== false);
+                        }
+
+                        continue;
+                    }
+
+                    newModels.push(opt.value);
+                }
+
+                if (newModels.length > 0) {
+                    await postAdminMakeModels(selectedMake.id, newModels);
+                }
+
+                await updateOptionRanks('cars', 'model', optionsForRanks, selectedParent);
+
+                const refreshedMakes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
+                setMakesCache(refreshedMakes);
+                setOptions(buildModelOptionsState(refreshedMakes.find((make) => make.name === selectedParent)));
+            } else {
+                const hiddenOptions = normalizedSnapshot
+                    .filter((opt) => opt.is_active === false)
+                    .map((opt) => opt.value);
+
+                await updateCategoryFieldOptions(
+                    category.slug,
+                    activeField.field_name,
+                    orderedOptions,
+                    undefined,
+                    hiddenOptions
+                );
+
+                clearCategoryFieldsCache(category.slug);
+                setOptions(normalizedSnapshot);
+                setActiveField((prevField) => {
+                    if (!prevField || prevField.field_name !== activeField.field_name) {
+                        return prevField;
+                    }
+
+                    const nextRules = { ...(prevField.rules_json ?? {}) };
+                    if (hiddenOptions.length > 0) {
+                        nextRules.hidden_options = hiddenOptions;
+                    } else {
+                        delete nextRules.hidden_options;
+                    }
+
+                    return {
+                        ...prevField,
+                        options: orderedOptions,
+                        rules_json: nextRules,
+                    };
+                });
+                setAllFields((prevFields) => prevFields.map((fieldItem) => {
+                    if (fieldItem.field_name !== activeField.field_name) {
+                        return fieldItem;
+                    }
+
+                    const nextRules = { ...(fieldItem.rules_json ?? {}) };
+                    if (hiddenOptions.length > 0) {
+                        nextRules.hidden_options = hiddenOptions;
+                    } else {
+                        delete nextRules.hidden_options;
+                    }
+
+                    return {
+                        ...fieldItem,
+                        options: orderedOptions,
+                        rules_json: nextRules,
+                    };
+                }));
+            }
+
+            cache.invalidate(INVALIDATION_PATTERNS.RANK_UPDATE(category.slug));
+            cache.invalidate('shared:automotive-makes');
+
+            setSuccessMessage(successText);
+            setTimeout(() => setSuccessMessage(null), 2500);
+            return true;
         } catch (err) {
             console.error('Error saving options:', err);
             setError(err instanceof Error ? err.message : 'حدث خطأ أثناء حفظ التغييرات');
+            return false;
         } finally {
             setSaving(false);
         }
-    }, [category.slug, activeField?.field_name, options, handleClose]);
+    }, [
+        activeField,
+        buildBrandOptionsState,
+        buildModelOptionsState,
+        category.slug,
+        makesCache,
+        selectedParent,
+    ]);
 
     /**
      * Task 11.4: Handle toggling hide/show for an option
@@ -758,31 +959,23 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
             return;
         }
 
-        // Clear any previous errors
-        setError(null);
-
-        // Toggle is_active flag (Requirements 6.15, 6.16)
-        setOptions(prevOptions => prevOptions.map((opt, i) => {
-            if (i === index) {
-                const newIsActive = !opt.is_active;
-                return {
-                    ...opt,
-                    is_active: newIsActive,
-                };
-            }
-            return opt;
-        }));
-
-        // Show success message
         const newState = !option.is_active;
         const message = newState
             ? `تم إظهار "${option.value}" بنجاح`
             : `تم إخفاء "${option.value}" بنجاح`;
-        setSuccessMessage(message);
+        const nextOptions = options.map((opt, i) => {
+            if (i === index) {
+                return {
+                    ...opt,
+                    is_active: !opt.is_active,
+                };
+            }
 
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000);
-    }, [options, isOtherOption]);
+            return opt;
+        });
+
+        void persistOptionsSnapshot(nextOptions, message);
+    }, [options, isOtherOption, persistOptionsSnapshot]);
 
     /**
      * Render a single option row
@@ -798,77 +991,105 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
         return (
             <div
                 key={`${option.originalValue || option.value}-${index}`}
-                className={`flex items-center gap-3 p-3 rounded-lg border ${isHidden
-                    ? 'bg-gray-50 border-gray-200 opacity-50' // Reduced opacity for hidden options (Requirement 6.14)
-                    : 'bg-white border-gray-200'
+                className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 shadow-sm transition-all ${isHidden
+                    ? 'border-amber-200 bg-amber-50/60'
+                    : 'border-slate-200 bg-white'
                     }`}
                 role="listitem"
                 aria-label={`${option.value}${isHidden ? ' - مخفي' : ''}${isOther ? ' - غير قابل للتعديل' : ''}`}
             >
                 {/* Option value or edit input */}
-                <div className="flex-1 flex items-center gap-2">
+                <div className="min-w-0 flex-1">
                     {isEditing ? (
-                        // Task 11.3: Inline editing input
-                        <input
-                            type="text"
-                            value={option.value}
-                            onChange={(e) => handleEditValueChange(index, e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleSaveEdit(index);
-                                } else if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    handleCancelEdit(index);
-                                }
-                            }}
-                            className="flex-1 px-3 py-1.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            style={{ color: '#111827', background: 'white' }}
-                            autoFocus
-                            disabled={saving}
-                        />
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={option.value}
+                                    onChange={(e) => handleEditValueChange(index, e.target.value)}
+                                    onBlur={() => {
+                                        if (saveOnBlurSkipIndexRef.current === index) {
+                                            saveOnBlurSkipIndexRef.current = null;
+                                            return;
+                                        }
+
+                                        handleSaveEdit(index);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSaveEdit(index);
+                                        } else if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            handleCancelEdit(index);
+                                        }
+                                    }}
+                                    className="min-w-0 flex-1 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-base text-slate-900 shadow-inner transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                                    autoFocus
+                                    disabled={saving}
+                                />
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                    حفظ تلقائي
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                                سيتم الحفظ عند الضغط على Enter أو بمجرد الخروج من الحقل.
+                            </p>
+                        </div>
                     ) : (
-                        <>
-                            <span className="text-gray-900">{option.value}</span>
+                        <div className="flex min-w-0 items-center gap-2.5">
+                            <span className={`truncate text-base font-semibold ${isHidden ? 'text-slate-500' : 'text-slate-900'}`}>
+                                {option.value}
+                            </span>
 
                             {/* "مخفي" badge for hidden options (Requirement 6.14) */}
                             {isHidden && (
-                                <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-700 rounded">
+                                <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
                                     مخفي
                                 </span>
                             )}
-                        </>
+                            {isOther && (
+                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                    ثابت
+                                </span>
+                            )}
+                        </div>
                     )}
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                     {isEditing ? (
-                        // Task 11.3: Save and Cancel buttons when editing
                         <>
                             <button
+                                onMouseDown={() => {
+                                    saveOnBlurSkipIndexRef.current = index;
+                                }}
                                 onClick={() => handleSaveEdit(index)}
-                                disabled={saving}
-                                className="p-2 rounded-lg text-green-600 hover:bg-green-50 active:bg-green-100 transition-colors"
-                                style={{ minWidth: '44px', minHeight: '44px' }}
+                                disabled={saving || !option.value.trim()}
+                                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label="حفظ التعديل"
-                                title="حفظ"
+                                title="حفظ الآن"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
+                                حفظ
                             </button>
                             <button
+                                onMouseDown={() => {
+                                    saveOnBlurSkipIndexRef.current = index;
+                                }}
                                 onClick={() => handleCancelEdit(index)}
                                 disabled={saving}
-                                className="p-2 rounded-lg text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors"
-                                style={{ minWidth: '44px', minHeight: '44px' }}
+                                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label="إلغاء التعديل"
                                 title="إلغاء"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
+                                إلغاء
                             </button>
                         </>
                     ) : (
@@ -877,17 +1098,17 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                             <button
                                 onClick={() => handleStartEdit(index)}
                                 disabled={isOther || saving}
-                                className={`p-2 rounded-lg transition-colors ${isOther
-                                    ? 'text-gray-300 cursor-not-allowed'
-                                    : 'text-blue-600 hover:bg-blue-50 active:bg-blue-100'
+                                className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${isOther
+                                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                    : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
                                     }`}
-                                style={{ minWidth: '44px', minHeight: '44px' }}
                                 aria-label={`تعديل ${option.value}`}
                                 title={isOther ? 'لا يمكن تعديل "غير ذلك"' : 'تعديل'}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
+                                تعديل
                             </button>
 
                             {/* Hide/Show toggle - disabled for "غير ذلك" (Requirement 6.13, 6.17) */}
@@ -895,13 +1116,12 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                             <button
                                 onClick={() => handleToggleVisibility(index)}
                                 disabled={isOther || saving}
-                                className={`p-2 rounded-lg transition-colors ${isOther
-                                    ? 'text-gray-300 cursor-not-allowed'
+                                className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${isOther
+                                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
                                     : isHidden
-                                        ? 'text-gray-600 hover:bg-gray-50 active:bg-gray-100'
-                                        : 'text-green-600 hover:bg-green-50 active:bg-green-100'
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                        : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
                                     }`}
-                                style={{ minWidth: '44px', minHeight: '44px' }}
                                 aria-label={isHidden ? `إظهار ${option.value}` : `إخفاء ${option.value}`}
                                 title={isOther ? 'لا يمكن إخفاء "غير ذلك"' : isHidden ? 'إظهار' : 'إخفاء'}
                             >
@@ -917,6 +1137,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
                                 )}
+                                {isHidden ? 'إظهار' : 'إخفاء'}
                             </button>
                         </>
                     )}
@@ -929,22 +1150,7 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
     if (!isOpen && !isClosing) return null;
 
     return (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop ${isClosing ? 'closing' : ''}`}
-            style={{ 
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                backdropFilter: 'blur(4px)',
-                zIndex: 9999,
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'center',
-                padding: '1rem',
-                overflowY: 'auto'
-            }}>
+        <FiltersCrudShell onOverlayClick={handleClose}>
             <div
                 ref={modalRef}
                 className={`bg-white rounded-lg shadow-xl max-w-2xl w-full flex flex-col sm:mx-4 mx-0 modal-content ${isClosing ? 'closing' : ''}`}
@@ -966,76 +1172,32 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                 }}
             >
                 {/* Header - category name, with close button */}
-                <div className="flex items-center justify-between p-4 sm:p-6 border-b flex-shrink-0" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
-                    <h2 id="edit-modal-title" className="text-lg sm:text-xl font-bold text-gray-900 truncate pr-2">
-                        {fieldMetadata?.listType === 'hierarchical' && fieldMetadata.hasParent && selectedParent
-                            ? `تعديل ${activeField?.display_name ?? ''} - ${selectedParent}`
-                            : `اضافة/تعديل خيارات ${category.name}`
-                        }
-                    </h2>
-                    <button
-                        onClick={handleClose}
-                        className="text-gray-400 hover:text-gray-600 transition-all duration-200 p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 flex-shrink-0 button-primary"
-                        style={{ minWidth: '44px', minHeight: '44px' }}
-                        aria-label="إغلاق نافذة التعديل"
-                        title="إغلاق (Esc)"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+                <FiltersCrudHeader
+                    title={fieldMetadata?.listType === 'hierarchical' && fieldMetadata.hasParent && selectedParent
+                        ? `تعديل ${activeField?.display_name ?? ''} - ${selectedParent}`
+                        : `اضافة/تعديل خيارات ${titleOverride || category.name}`
+                    }
+                    subtitle="تعديل هادئ وسريع مع حفظ تلقائي لكل إضافة أو تغيير أو إخفاء."
+                    onClose={handleClose}
+                />
 
                 {/* Field Tabs - horizontal scrollable tab bar for switching between category fields */}
                 {allFields.length > 1 && (
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            overflowX: 'auto',
-                            borderBottom: '2px solid #e5e7eb',
-                            padding: '0 1.5rem',
-                            gap: '0.25rem',
-                            flexShrink: 0,
-                            WebkitOverflowScrolling: 'touch',
-                        }}
-                        role="tablist"
-                        aria-label="حقول القسم"
-                    >
-                        {allFields.map((f) => {
-                            const isActive = activeField?.field_name === f.field_name;
-                            return (
-                                <button
-                                    key={f.field_name}
-                                    role="tab"
-                                    aria-selected={isActive}
-                                    onClick={() => {
-                                        setActiveField(f);
-                                        setOptions([]);
-                                        setError(null);
-                                        setSuccessMessage(null);
-                                        setSelectedParent(null);
-                                        setNewOptionValue('');
-                                    }}
-                                    style={{
-                                        padding: '0.65rem 1.1rem',
-                                        whiteSpace: 'nowrap',
-                                        border: 'none',
-                                        borderBottom: isActive ? '2px solid #2563eb' : '2px solid transparent',
-                                        background: 'none',
-                                        color: isActive ? '#2563eb' : '#6b7280',
-                                        fontWeight: isActive ? 600 : 400,
-                                        fontSize: '0.875rem',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s ease',
-                                        marginBottom: '-2px',
-                                    }}
-                                >
-                                    {f.display_name}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <FiltersCrudTabs
+                        tabs={allFields.map((f) => ({
+                            key: f.field_name,
+                            label: f.display_name,
+                            active: activeField?.field_name === f.field_name,
+                            onClick: () => {
+                                setActiveField(f);
+                                setOptions([]);
+                                setError(null);
+                                setSuccessMessage(null);
+                                setSelectedParent(null);
+                                setNewOptionValue('');
+                            },
+                        }))}
+                    />
                 )}
 
                 {/* Content - scrollable area inside modal to prevent layout freeze on long forms */}
@@ -1061,17 +1223,21 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     )}
 
                     {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 mb-4 alert-enter" role="alert" aria-live="assertive">
-                            <p className="font-medium">خطأ</p>
-                            <p className="text-sm mt-1">{error}</p>
-                        </div>
+                        <FiltersCrudAlert variant="error" title="تعذر تنفيذ العملية">
+                            <p>{error}</p>
+                        </FiltersCrudAlert>
                     )}
 
                     {successMessage && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 mb-4 alert-enter" role="status" aria-live="polite">
-                            <p className="font-medium">نجح</p>
-                            <p className="text-sm mt-1">{successMessage}</p>
-                        </div>
+                        <FiltersCrudAlert variant="success" title="تم التحديث بنجاح">
+                            <p>{successMessage}</p>
+                        </FiltersCrudAlert>
+                    )}
+
+                    {!loading && (
+                        <FiltersCrudAlert variant="info" title="تجربة أسرع وأوضح">
+                            <p>التعديل يحفظ تلقائيًا عند الخروج من الحقل أو الضغط على Enter، ويمكنك أيضًا الضغط على زر حفظ أثناء التعديل إذا كنت تفضّل خطوة واضحة.</p>
+                        </FiltersCrudAlert>
                     )}
 
                     {!loading && fieldMetadata && (
@@ -1106,11 +1272,11 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                                     />
 
                                     {/* Task 11.2: Single option add input (Requirement 6.27) */}
-                                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <label htmlFor="new-option-input" className="block text-sm font-medium text-gray-700 mb-2">
+                                    <FiltersCrudCard title="إضافة خيار جديد" muted>
+                                        <label htmlFor="new-option-input" className="mb-2 block text-sm font-semibold text-slate-800">
                                             إضافة خيار جديد
                                         </label>
-                                        <div className="flex gap-2">
+                                        <div className={styles.row}>
                                             <input
                                                 id="new-option-input"
                                                 type="text"
@@ -1123,32 +1289,31 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                                                     }
                                                 }}
                                                 placeholder="أدخل اسم الخيار الجديد"
-                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                style={{ color: '#111827', background: 'white' }}
+                                                className={styles.fieldInput}
                                                 disabled={saving}
                                                 aria-describedby="new-option-help"
                                             />
                                             <button
                                                 onClick={handleAddOption}
                                                 disabled={saving || !newOptionValue.trim()}
-                                                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                                className={styles.primaryButton}
                                                 style={{ minHeight: '44px' }}
                                                 aria-label="إضافة الخيار الجديد"
                                             >
                                                 إضافة
                                             </button>
                                         </div>
-                                        <p id="new-option-help" className="text-xs text-gray-500 mt-2">
+                                        <p id="new-option-help" className="mt-2 text-xs leading-6 text-slate-500">
                                             سيتم إضافة الخيار الجديد في المرتبة الأولى وسيتم تحديث ترتيب الخيارات الموجودة تلقائياً
                                         </p>
-                                    </div>
+                                    </FiltersCrudCard>
 
                                     {/* Options list - displays options with edit and hide/show buttons (Requirement 6.12, 6.13) */}
                                     <div className="space-y-2" role="list" aria-label="قائمة الخيارات">
                                         {options.length > 0 ? (
                                             options.map((option, index) => renderOptionRow(option, index))
                                         ) : (
-                                            <div className="text-center py-8 text-gray-500" role="status">
+                                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-slate-500" role="status">
                                                 <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                 </svg>
@@ -1174,11 +1339,11 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                                             />
 
                                             {/* Task 11.2: Single option add input for child options */}
-                                            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                                <label htmlFor="new-child-option-input" className="block text-sm font-medium text-gray-700 mb-2">
+                                            <FiltersCrudCard title={`إضافة خيار جديد في ${selectedParent}`} muted>
+                                                <label htmlFor="new-child-option-input" className="mb-2 block text-sm font-semibold text-slate-800">
                                                     إضافة خيار جديد في {selectedParent}
                                                 </label>
-                                                <div className="flex gap-2">
+                                                <div className={styles.row}>
                                                     <input
                                                         id="new-child-option-input"
                                                         type="text"
@@ -1191,32 +1356,31 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                                                             }
                                                         }}
                                                         placeholder="أدخل اسم الخيار الجديد"
-                                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        style={{ color: '#111827', background: 'white' }}
+                                                        className={styles.fieldInput}
                                                         disabled={saving}
                                                         aria-describedby="new-child-option-help"
                                                     />
                                                     <button
                                                         onClick={handleAddOption}
                                                         disabled={saving || !newOptionValue.trim()}
-                                                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                                        className={styles.primaryButton}
                                                         style={{ minHeight: '44px' }}
                                                         aria-label={`إضافة خيار جديد في ${selectedParent}`}
                                                     >
                                                         إضافة
                                                     </button>
                                                 </div>
-                                                <p id="new-child-option-help" className="text-xs text-gray-500 mt-2">
+                                                <p id="new-child-option-help" className="mt-2 text-xs leading-6 text-slate-500">
                                                     سيتم إضافة الخيار الجديد في المرتبة الأولى ضمن {selectedParent}
                                                 </p>
-                                            </div>
+                                            </FiltersCrudCard>
 
                                             {/* Options list for child options */}
                                             <div className="space-y-2" role="list" aria-label={`قائمة خيارات ${selectedParent}`}>
                                                 {options.length > 0 ? (
                                                     options.map((option, index) => renderOptionRow(option, index))
                                                 ) : (
-                                                    <div className="text-center py-8 text-gray-500" role="status">
+                                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-slate-500" role="status">
                                                         <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                         </svg>
@@ -1239,30 +1403,12 @@ export default function EditModal({ isOpen, onClose, category, field: initialFie
                     )}
                 </div>
 
-                {/* Footer - Responsive padding and layout */}
-                <div className="flex items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t flex-shrink-0 flex-wrap sm:flex-nowrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', padding: '1.5rem', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
-                    <button
-                        onClick={handleClose}
-                        disabled={saving}
-                        className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed button-primary"
-                        style={{ minHeight: '44px' }}
-                        aria-label={saving ? 'جاري حفظ التغييرات، الرجاء الانتظار' : 'إغلاق نافذة التعديل'}
-                    >
-                        {saving ? 'جاري الحفظ...' : 'إغلاق'}
-                    </button>
-
-                    {/* Save button */}
-                    <button
-                        onClick={handleSave}
-                        disabled={saving || loading}
-                        className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base text-white bg-blue-600 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed button-primary"
-                        style={{ minHeight: '44px' }}
-                        aria-label={saving ? 'جاري حفظ التغييرات' : 'حفظ جميع التغييرات'}
-                    >
-                        {saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
-                    </button>
-                </div>
+                <FiltersCrudFooter
+                    onClose={handleClose}
+                    disabled={saving}
+                    label={saving ? 'جاري الحفظ...' : 'إغلاق'}
+                />
             </div>
-        </div>
+        </FiltersCrudShell>
     );
 }

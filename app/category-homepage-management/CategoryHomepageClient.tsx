@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { fetchAdminCategories, fetchCategoryHomepage, updateCategoryHomepage } from '@/services/makes';
 import type { AdminCategoryListItem, CategoryHomepageItem } from '@/models/makes';
+import { resolveBackendAssetUrl } from '@/utils/api';
 
 interface Toast {
   id: string;
@@ -44,10 +45,10 @@ export default function CategoryHomepageManagementClient() {
       u = '/' + u.replace(/^\.?\/?/, '');
     }
 
-    if (u.startsWith('/defaults/')) {
-      u = `https://back.nasmasr.app/storage${u}`;
-    } else if (u.startsWith('/')) {
-      u = `https://back.nasmasr.app${u}`;
+    if (u.startsWith('/')) {
+      const resolved = resolveBackendAssetUrl(u);
+      if (!resolved) return null;
+      u = resolved;
     }
 
     try {

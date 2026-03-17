@@ -1,10 +1,11 @@
 import type { CategoryPlanPrice, CategoryPlanPriceUpdateRequest } from '../models/category-plans';
+import { buildApiUrl } from '@/utils/api';
 
 export async function fetchCategoryPlanPrices(token?: string): Promise<CategoryPlanPrice[]> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://back.nasmasr.app/api/admin/category-plan-prices', { method: 'GET', headers });
+  const res = await fetch(buildApiUrl('/admin/category-plan-prices'), { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   const data = raw as CategoryPlanPrice[] | null;
   if (!res.ok || !data) {
@@ -23,7 +24,7 @@ export async function updateCategoryPlanPrices(payload: CategoryPlanPriceUpdateR
   };
   if (t) headers.Authorization = `Bearer ${t}`;
 
-  const res = await fetch('https://back.nasmasr.app/api/admin/category-plan-prices', {
+  const res = await fetch(buildApiUrl('/admin/category-plan-prices'), {
     method: 'POST',
     headers,
     body: JSON.stringify(payload)

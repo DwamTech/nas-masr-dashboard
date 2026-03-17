@@ -5,6 +5,8 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { AdminCategoryListItem } from '@/models/makes';
 import '@testing-library/jest-dom';
 
+const BACKEND_BASE = (process.env.LARAVEL_API_URL || 'http://localhost:8000/api').replace(/\/api$/, '');
+
 // Mock the service
 vi.mock('@/services/makes', () => ({
     uploadCategoryGlobalImage: vi.fn(),
@@ -253,7 +255,7 @@ describe('ImageUploadModal', () => {
             const updatedCategory: AdminCategoryListItem = {
                 ...mockCategory,
                 global_image_url: 'uploads/categories/global/1_1234567890.webp',
-                global_image_full_url: 'https://back.nasmasr.app/storage/uploads/categories/global/1_1234567890.webp',
+                global_image_full_url: `${BACKEND_BASE}/storage/uploads/categories/global/1_1234567890.webp`,
                 is_global_image_active: true,
             };
 

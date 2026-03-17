@@ -1,5 +1,6 @@
 import type { AdminNotificationReadResponse, AdminNotificationsCountResponse, AdminNotificationsResponse, NotificationPayload, NotificationResponse } from '@/models/notifications';
 import type { UsersSummaryResponse, UserSummary } from '@/models/users';
+import { buildApiUrl } from '@/utils/api';
 
 async function readJsonOrText(res: Response): Promise<{ json: unknown | null; text: string | null }> {
   try {
@@ -25,7 +26,7 @@ export async function sendNotification(payload: NotificationPayload, token?: str
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://back.nasmasr.app/api/notifications', {
+  const res = await fetch(buildApiUrl('/admin/admin-notifications'), {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -56,7 +57,7 @@ export async function fetchAllUsersSummary(
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const base = new URL('https://back.nasmasr.app/api/admin/users-summary');
+  const base = new URL(buildApiUrl('/admin/users-summary'));
   const perPage = params?.per_page ?? 100;
   base.searchParams.set('per_page', String(perPage));
   if (params?.q) base.searchParams.set('q', params.q);
@@ -86,7 +87,10 @@ export async function fetchAllUsersSummary(
     const results = await Promise.all(promises);
     for (const arr of results) all.push(...arr);
   }
-  return all;
+  return all.filter((user) => {
+    const role = String(user.role || '').toLowerCase().trim();
+    return !['admin', 'employee', 'reviewer'].includes(role);
+  });
 }
 
 export async function fetchAdminNotifications(page = 1, token?: string): Promise<AdminNotificationsResponse> {
@@ -94,7 +98,7 @@ export async function fetchAdminNotifications(page = 1, token?: string): Promise
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
 
-  const url = new URL('https://back.nasmasr.app/api/admin/admin-notifications');
+  const url = new URL(buildApiUrl('/admin/admin-notifications'));
   url.searchParams.set('page', String(Math.max(1, page || 1)));
 
   const res = await fetch(url.toString(), { method: 'GET', headers });
@@ -110,7 +114,7 @@ export async function fetchAdminNotificationsCount(token?: string): Promise<numb
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://back.nasmasr.app/api/admin/admin-notifications/count', { method: 'GET', headers });
+  const res = await fetch(buildApiUrl('/admin/admin-notifications/count'), { method: 'GET', headers });
   const { json, text } = await readJsonOrText(res);
   if (!res.ok || !json || typeof json !== 'object') {
     const message = pickErrorMessage(json, text || 'تعذر جلب عدد الإشعارات غير المقروءة');
@@ -125,7 +129,7 @@ export async function markAdminNotificationRead(id: number, token?: string): Pro
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const safeId = Number(id);
-  const res = await fetch(`https://back.nasmasr.app/api/admin/admin-notifications/${safeId}/read`, { method: 'PATCH', headers });
+  const res = await fetch(buildApiUrl(`/admin/admin-notifications/${safeId}/read`), { method: 'PATCH', headers });
   const { json, text } = await readJsonOrText(res);
   if (!res.ok || !json || typeof json !== 'object') {
     const message = pickErrorMessage(json, text || 'تعذر تعليم الإشعار كمقروء');

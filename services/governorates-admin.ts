@@ -5,31 +5,68 @@
  * Uses the dedicated admin endpoints from GovernorateController.
  *
  * API Endpoints:
- * - GET    /api/governorates                           → list all (with cities)
+ * - GET    /api/admin/filter-lists/governorates       → dashboard read model
  * - POST   /api/admin/governorates                     → create governorate
  * - PUT    /api/admin/governorates/{id}                → update governorate
- * - DELETE /api/admin/governorates/{id}                → delete governorate
+ * - PATCH  /api/admin/governorates/{id}/visibility     → toggle governorate visibility
  * - POST   /api/admin/city/{governorateId}             → add city
  * - PUT    /api/admin/cities/{id}                      → update city
- * - DELETE /api/admin/cities/{id}                      → delete city
+ * - PATCH  /api/admin/cities/{id}/visibility           → toggle city visibility
  */
 
 import { API_BASE, API_ADMIN_BASE, getAuthHeaders } from '@/utils/api';
 import { Governorate } from '@/models/governorates';
+import { cache, CACHE_TIMES } from '@/utils/cache';
+
+const adminGovernoratesRequests = new Map<string, Promise<Governorate[]>>();
+
+function getAdminGovernoratesCacheKey(includeInactive: boolean): string {
+    return includeInactive ? 'admin-governorates:all:with-inactive' : 'admin-governorates:all';
+}
 
 /**
  * Fetch all governorates with their cities
  * Filters out the virtual "غير ذلك" entry
  */
-export async function fetchAllGovernorates(): Promise<Governorate[]> {
-    const res = await fetch(`${API_BASE}/governorates`, {
-        headers: getAuthHeaders(),
+export async function fetchAllGovernorates(options?: { includeInactive?: boolean }): Promise<Governorate[]> {
+    const includeInactive = options?.includeInactive === true;
+    const cacheKey = getAdminGovernoratesCacheKey(includeInactive);
+    const cached = cache.get<Governorate[]>(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    const inFlight = adminGovernoratesRequests.get(cacheKey);
+    if (inFlight) {
+        return inFlight;
+    }
+
+    const request = (async () => {
+        const search = includeInactive ? '?include_inactive=1' : '';
+        const res = await fetch(`${API_BASE}/admin/filter-lists/governorates${search}`, {
+            headers: getAuthHeaders(),
+        });
+
+        if (!res.ok) throw new Error('فشل تحميل المحافظات');
+
+        const data: Governorate[] = await res.json();
+        const normalized = data.filter(g => g.name !== 'غير ذلك' && g.id !== null);
+        cache.set(cacheKey, normalized, CACHE_TIMES.GOVERNORATES);
+        return normalized;
+    })().finally(() => {
+        adminGovernoratesRequests.delete(cacheKey);
     });
 
-    if (!res.ok) throw new Error('فشل تحميل المحافظات');
+    adminGovernoratesRequests.set(cacheKey, request);
+    return request;
+}
 
-    const data: Governorate[] = await res.json();
-    return data.filter(g => g.name !== 'غير ذلك' && g.id !== null);
+export async function prefetchAllGovernorates(options?: { includeInactive?: boolean }): Promise<void> {
+    try {
+        await fetchAllGovernorates(options);
+    } catch {
+        // Best-effort prefetch only.
+    }
 }
 
 /**
@@ -47,7 +84,10 @@ export async function createGovernorate(name: string): Promise<Governorate> {
         throw new Error(data.message || 'فشل إضافة المحافظة');
     }
 
-    return res.json();
+    const data = await res.json();
+    cache.invalidate('governorates');
+    cache.invalidate('admin-governorates');
+    return data;
 }
 
 /**
@@ -65,22 +105,28 @@ export async function updateGovernorate(id: number, name: string): Promise<Gover
         throw new Error(data.message || 'فشل تعديل المحافظة');
     }
 
-    return res.json();
+    const data = await res.json();
+    cache.invalidate('governorates');
+    cache.invalidate('admin-governorates');
+    return data;
 }
 
-/**
- * Delete a governorate (fails if used by listings)
- */
-export async function deleteGovernorate(id: number): Promise<void> {
-    const res = await fetch(`${API_ADMIN_BASE}/api/admin/governorates/${id}`, {
-        method: 'DELETE',
+export async function setGovernorateVisibility(id: number, isActive: boolean): Promise<Governorate> {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/governorates/${id}/visibility`, {
+        method: 'PATCH',
         headers: getAuthHeaders(),
+        body: JSON.stringify({ is_active: isActive }),
     });
 
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'فشل حذف المحافظة');
+        throw new Error(data.message || 'فشل تحديث حالة المحافظة');
     }
+
+    const data = await res.json();
+    cache.invalidate('governorates');
+    cache.invalidate('admin-governorates');
+    return data;
 }
 
 /**
@@ -98,7 +144,10 @@ export async function createCity(governorateId: number, name: string): Promise<{
         throw new Error(data.message || 'فشل إضافة المدينة');
     }
 
-    return res.json();
+    const data = await res.json();
+    cache.invalidate('governorates');
+    cache.invalidate('admin-governorates');
+    return data;
 }
 
 /**
@@ -116,22 +165,28 @@ export async function updateCity(id: number, name: string): Promise<{ id: number
         throw new Error(data.message || 'فشل تعديل المدينة');
     }
 
-    return res.json();
+    const data = await res.json();
+    cache.invalidate('governorates');
+    cache.invalidate('admin-governorates');
+    return data;
 }
 
-/**
- * Delete a city (fails if used by listings)
- */
-export async function deleteCity(id: number): Promise<void> {
-    const res = await fetch(`${API_ADMIN_BASE}/api/admin/cities/${id}`, {
-        method: 'DELETE',
+export async function setCityVisibility(id: number, isActive: boolean): Promise<{ id: number; name: string; governorate_id: number; is_active?: boolean }> {
+    const res = await fetch(`${API_ADMIN_BASE}/api/admin/cities/${id}/visibility`, {
+        method: 'PATCH',
         headers: getAuthHeaders(),
+        body: JSON.stringify({ is_active: isActive }),
     });
 
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'فشل حذف المدينة');
+        throw new Error(data.message || 'فشل تحديث حالة المدينة');
     }
+
+    const data = await res.json();
+    cache.invalidate('governorates');
+    cache.invalidate('admin-governorates');
+    return data;
 }
 
 /**
@@ -157,6 +212,9 @@ export async function updateGovernorateRanks(ranks: { id: number; rank: number }
         console.error('Error response:', data);
         throw new Error(data.message || `فشل حفظ ترتيب المحافظات (${res.status})`);
     }
+
+    cache.invalidate('governorates');
+    cache.invalidate('admin-governorates');
 }
 
 /**
@@ -182,4 +240,7 @@ export async function updateCityRanks(ranks: { id: number; rank: number }[]): Pr
         console.error('Error response:', data);
         throw new Error(data.message || `فشل حفظ ترتيب المدن (${res.status})`);
     }
+
+    cache.invalidate('governorates');
+    cache.invalidate('admin-governorates');
 }

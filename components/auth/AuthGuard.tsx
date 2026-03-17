@@ -7,6 +7,7 @@ import { validateWithRetry } from '@/services/tokenValidator';
 import { useSessionMonitor } from './useSessionMonitor';
 import LoadingState from './LoadingState';
 import type { AuthGuardProps } from '@/types/auth';
+import { clearDashboardUser, getFirstAllowedPath, hasPageAccess, readDashboardUser, storeDashboardUser } from '@/utils/dashboardSession';
 
 /**
  * Authentication guard component that protects routes by validating tokens
@@ -28,17 +29,31 @@ export default function AuthGuard({ children }: AuthGuardProps) {
             localStorage.removeItem(AUTH_CONFIG.STORAGE_KEYS.USER_EMAIL);
             localStorage.removeItem(AUTH_CONFIG.STORAGE_KEYS.USER_PHONE);
             localStorage.removeItem(AUTH_CONFIG.STORAGE_KEYS.USER_ROLE);
+            localStorage.removeItem(AUTH_CONFIG.STORAGE_KEYS.DASHBOARD_USER);
         }
     }, []);
 
     // Handle invalid token - clear data and redirect
     const handleInvalidToken = useCallback(() => {
         clearAuthData();
+        clearDashboardUser();
         setIsAuthenticated(false);
         setAuthToken(null);
         hasValidatedRef.current = false;
         router.push('/auth/login');
     }, [clearAuthData, router]);
+
+    const allowLocalSession = useCallback((token: string) => {
+        hasValidatedRef.current = true;
+        setIsAuthenticated(true);
+        setAuthToken(token);
+        setIsValidating(false);
+
+        const storedUser = readDashboardUser();
+        if (storedUser && !hasPageAccess(storedUser, pathname)) {
+            router.push(getFirstAllowedPath(storedUser));
+        }
+    }, [pathname, router]);
 
     // Initial token validation on mount or route change
     useEffect(() => {
@@ -71,6 +86,15 @@ export default function AuthGuard({ children }: AuthGuardProps) {
                 if (!result.isValid && !result.shouldRetry) {
                     console.warn('Background token validation failed');
                     handleInvalidToken();
+                    return;
+                }
+
+                if (result.session?.user) {
+                    storeDashboardUser(result.session.user);
+
+                    if (!hasPageAccess(result.session.user, pathname)) {
+                        router.push(getFirstAllowedPath(result.session.user));
+                    }
                 }
             }).catch(err => {
                 console.error('Background validation error:', err);
@@ -91,7 +115,19 @@ export default function AuthGuard({ children }: AuthGuardProps) {
                     hasValidatedRef.current = true;
                     setIsAuthenticated(true);
                     setAuthToken(token);
+                    if (result.session?.user) {
+                        storeDashboardUser(result.session.user);
+
+                        if (!hasPageAccess(result.session.user, pathname)) {
+                            router.push(getFirstAllowedPath(result.session.user));
+                            return;
+                        }
+                    }
                     setIsValidating(false);
+                } else if (result.shouldRetry) {
+                    // Local/dev transient failure: keep current session unless backend explicitly rejects it.
+                    console.warn('Transient token validation failure, keeping local session:', result.error);
+                    allowLocalSession(token);
                 } else {
                     // Token invalid - clear data and redirect
                     console.warn('Token validation failed:', result.error);
@@ -105,7 +141,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
         };
 
         validateAuth();
-    }, [pathname, router, clearAuthData, handleInvalidToken, authToken]);
+    }, [pathname, router, clearAuthData, handleInvalidToken, authToken, allowLocalSession]);
 
     // Start session monitoring after successful authentication
     useSessionMonitor({

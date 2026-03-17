@@ -1,22 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Category } from '@/types/filters-lists';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Governorate } from '@/models/governorates';
 import {
     fetchAllGovernorates,
     createGovernorate,
     updateGovernorate,
-    deleteGovernorate,
+    setGovernorateVisibility,
     createCity,
     updateCity,
-    deleteCity,
+    setCityVisibility,
 } from '@/services/governorates-admin';
+import {
+    FiltersCrudAlert,
+    FiltersCrudCard,
+    FiltersCrudFooter,
+    FiltersCrudHeader,
+    FiltersCrudShell,
+    FiltersCrudTabs,
+    filtersCrudStyles as styles,
+} from './FiltersCrudPrimitives';
 
 interface GovernorateEditModalProps {
     isOpen: boolean;
     onClose: () => void;
-    category: Category;
 }
 
 /**
@@ -25,7 +32,7 @@ interface GovernorateEditModalProps {
  * Dedicated modal for CRUD operations on governorates and cities.
  * Two tabs: governorates (parents) and cities (children).
  */
-export default function GovernorateEditModal({ isOpen, onClose, category }: GovernorateEditModalProps) {
+export default function GovernorateEditModal({ isOpen, onClose }: GovernorateEditModalProps) {
     const [governorates, setGovernorates] = useState<Governorate[]>([]);
     const [selectedGov, setSelectedGov] = useState<Governorate | null>(null);
     const [activeTab, setActiveTab] = useState<'gov' | 'city'>('gov');
@@ -37,30 +44,26 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
     const [bulkInput, setBulkInput] = useState('');
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
+    const skipBlurSaveRef = useRef<number | null>(null);
 
-    useEffect(() => {
-        if (!isOpen) return;
-        // Reset state when modal opens
-        setLoading(true);
-        setError(null);
-        setSuccessMessage(null);
-        loadData();
-    }, [isOpen]);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await fetchAllGovernorates();
+            const data = await fetchAllGovernorates({ includeInactive: true });
             setGovernorates(data);
-            if (data.length > 0) {
-                if (selectedGov) {
-                    const updated = data.find(g => g.id === selectedGov.id);
-                    setSelectedGov(updated || data[0]);
-                } else {
-                    setSelectedGov(data[0]);
+            setSelectedGov(prev => {
+                if (data.length === 0) {
+                    return null;
                 }
-            }
+
+                if (prev) {
+                    const updated = data.find(g => g.id === prev.id);
+                    return updated || data[0];
+                }
+
+                return data[0];
+            });
             // Small delay to ensure DOM is ready
             await new Promise(resolve => setTimeout(resolve, 50));
         } catch (err) {
@@ -68,10 +71,19 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const currentItems: Array<{ id: number | null; name: string }> = activeTab === 'gov'
-        ? governorates
+    useEffect(() => {
+        if (!isOpen) return;
+        // Reset state when modal opens
+        setLoading(true);
+        setError(null);
+        setSuccessMessage(null);
+        void loadData();
+    }, [isOpen, loadData]);
+
+    const currentItems: Array<{ id: number | null; name: string; is_active?: boolean }> = activeTab === 'gov'
+        ? governorates.filter(g => g.name !== 'غير ذلك' && g.id !== null)
         : (selectedGov?.cities || []).filter(c => c.name !== 'غير ذلك' && c.id !== null);
 
     const handleAddItem = async () => {
@@ -141,24 +153,28 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
         }
     };
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('هل أنت متأكد من الحذف؟')) return;
+    const handleToggleVisibility = async (id: number, isActive: boolean) => {
         setSaving(true);
         setError(null);
         try {
             if (activeTab === 'gov') {
-                await deleteGovernorate(id);
+                await setGovernorateVisibility(id, !isActive);
             } else {
-                await deleteCity(id);
+                await setCityVisibility(id, !isActive);
             }
-            setSuccessMessage('تم الحذف بنجاح');
+            setSuccessMessage(!isActive ? 'تم إظهار العنصر بنجاح' : 'تم إخفاء العنصر بنجاح');
             await loadData();
             setTimeout(() => setSuccessMessage(null), 2000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'فشل الحذف');
+            setError(err instanceof Error ? err.message : 'فشل تحديث الحالة');
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setEditingName('');
     };
 
     const resetTabState = () => {
@@ -180,44 +196,59 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={handleClose} role="dialog" aria-modal="true">
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <button onClick={handleClose} className="close-button" aria-label="إغلاق">×</button>
-                    <h2 className="modal-title">
-                        اضافة/تعديل {activeTab === 'gov' ? 'المحافظات' : `مدن ${selectedGov?.name || ''}`}
-                    </h2>
-                </div>
+        <FiltersCrudShell onOverlayClick={handleClose}>
+            <FiltersCrudHeader
+                title={`اضافة/تعديل ${activeTab === 'gov' ? 'المحافظات' : `مدن ${selectedGov?.name || ''}`}`}
+                subtitle="إدارة أنظف للمحافظات والمدن مع إظهار وإخفاء واضحين وحفظ سريع بدون تشتيت."
+                onClose={handleClose}
+            />
 
-                <div className="tabs-container">
-                    <button
-                        className={`tab-button ${activeTab === 'gov' ? 'active' : ''}`}
-                        onClick={() => { setActiveTab('gov'); resetTabState(); }}
-                    >
-                        المحافظات
-                    </button>
-                    <button
-                        className={`tab-button ${activeTab === 'city' ? 'active' : ''}`}
-                        onClick={() => {
+            <FiltersCrudTabs
+                tabs={[
+                    {
+                        key: 'gov',
+                        label: 'المحافظات',
+                        active: activeTab === 'gov',
+                        onClick: () => {
+                            setActiveTab('gov');
+                            resetTabState();
+                        },
+                    },
+                    {
+                        key: 'city',
+                        label: 'المدن',
+                        active: activeTab === 'city',
+                        onClick: () => {
                             setActiveTab('city');
                             resetTabState();
                             if (governorates.length > 0 && !selectedGov) setSelectedGov(governorates[0]);
-                        }}
-                    >
-                        المدن
-                    </button>
-                </div>
+                        },
+                    },
+                ]}
+            />
 
-                <div className="modal-body">
-                    {error && <div className="error-box"><strong>خطأ</strong><p>{error}</p></div>}
-                    {successMessage && <div className="success-toast">✓ {successMessage}</div>}
-                    {loading && <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}><div className="spinner" /><p>جاري التحميل...</p></div>}
+            <div className={styles.body}>
+                    {error && (
+                        <FiltersCrudAlert variant="error" title="تعذر تنفيذ العملية">
+                            <p>{error}</p>
+                        </FiltersCrudAlert>
+                    )}
+                    {successMessage && (
+                        <FiltersCrudAlert variant="success" title="تم بنجاح">
+                            <p>{successMessage}</p>
+                        </FiltersCrudAlert>
+                    )}
+                    {loading && <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}><div className={styles.spinner} /><p>جاري التحميل...</p></div>}
 
                     {!loading && (
                         <>
+                            <FiltersCrudAlert variant="info" title="تجربة أوضح">
+                                <p>الإضافة والإخفاء يحفظان فورًا، وأثناء تعديل الاسم يمكنك الضغط على حفظ أو الاكتفاء بالخروج من الحقل.</p>
+                            </FiltersCrudAlert>
+
                             {activeTab === 'city' && (
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '0.5rem' }}>اختر المحافظة</p>
+                                <div className={styles.selectorCard}>
+                                    <p className={styles.sectionLabel}>اختر المحافظة</p>
                                     <select
                                         value={selectedGov?.name || ''}
                                         onChange={e => {
@@ -225,76 +256,112 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
                                             if (found) setSelectedGov(found);
                                         }}
                                         disabled={saving}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.95rem', direction: 'rtl', background: 'white', color: '#111827' }}
+                                        className={styles.fieldSelect}
                                     >
-                                        {governorates.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+                                        {governorates.map(g => (
+                                            <option key={g.id} value={g.name}>
+                                                {g.name}{g.is_active === false ? ' (مخفية)' : ''}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             )}
 
-                            <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            <p className={styles.sectionMeta}>
                                 {activeTab === 'gov' ? 'المحافظات' : 'المدن'} — {currentItems.length} عنصر
                             </p>
 
                             {/* Bulk Add */}
-                            <div className="add-section">
-                                <h4>إضافة خيارات متعددة (Bulk Add)</h4>
+                            <FiltersCrudCard title="إضافة خيارات متعددة" chip="Bulk Add">
                                 <textarea
                                     value={bulkInput}
                                     onChange={e => setBulkInput(e.target.value)}
                                     placeholder="أدخل الخيارات مفصولة بفواصل أو كل خيار في سطر جديد..."
                                     disabled={saving}
                                     rows={3}
-                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', direction: 'rtl', fontFamily: 'inherit', resize: 'vertical', fontSize: '0.875rem', background: 'white', color: '#111827' }}
+                                    className={styles.fieldTextarea}
                                 />
-                                <button onClick={handleBulkAdd} disabled={saving || !bulkInput.trim()} className="add-btn" style={{ marginTop: '0.5rem' }}>
+                                <button onClick={handleBulkAdd} disabled={saving || !bulkInput.trim()} className={styles.primaryButton} style={{ marginTop: '0.5rem' }}>
                                     {saving ? '...' : 'إضافة'}
                                 </button>
-                            </div>
+                            </FiltersCrudCard>
 
                             {/* Single Add */}
-                            <div className="add-section" style={{ marginTop: '1rem' }}>
-                                <h4>إضافة {activeTab === 'gov' ? 'محافظة' : 'مدينة'} جديدة</h4>
-                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <div style={{ marginTop: '1rem' }}>
+                                <FiltersCrudCard title={`إضافة ${activeTab === 'gov' ? 'محافظة' : 'مدينة'} جديدة`} muted>
+                                <div className={styles.row}>
                                     <input
                                         value={newItemName}
                                         onChange={e => setNewItemName(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && handleAddItem()}
                                         placeholder={`اسم ${activeTab === 'gov' ? 'المحافظة' : 'المدينة'} الجديدة`}
                                         disabled={saving}
-                                        style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', direction: 'rtl', fontSize: '0.875rem', background: 'white', color: '#111827' }}
+                                        className={styles.fieldInput}
                                     />
-                                    <button onClick={handleAddItem} disabled={saving || !newItemName.trim()} className="add-btn">إضافة</button>
+                                    <button onClick={handleAddItem} disabled={saving || !newItemName.trim()} className={styles.primaryButton}>إضافة</button>
                                 </div>
+                                </FiltersCrudCard>
                             </div>
 
                             {/* Items List */}
                             <div style={{ marginTop: '1.5rem' }}>
-                                <h4 style={{ color: '#374151', marginBottom: '0.75rem', fontSize: '0.95rem' }}>العناصر الحالية ({currentItems.length})</h4>
+                                <h4 className={styles.itemsTitle}>العناصر الحالية ({currentItems.length})</h4>
                                 {currentItems.length === 0 ? (
-                                    <div style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>لا توجد عناصر حالياً</div>
+                                    <div className={styles.emptyState}>لا توجد عناصر حالياً</div>
                                 ) : (
-                                    <div className="items-list">
+                                    <div className={styles.itemsList}>
                                         {currentItems.map(item => (
-                                            <div key={item.id} className="item-row">
+                                            <div key={item.id} className={`${styles.itemRow} ${item.is_active === false ? styles.itemRowInactive : ''}`}>
                                                 {editingId === item.id ? (
-                                                    <div style={{ display: 'flex', gap: '0.5rem', flex: 1, alignItems: 'center' }}>
-                                                        <input
-                                                            value={editingName}
-                                                            onChange={e => setEditingName(e.target.value)}
+                                                    <div className={styles.editShell}>
+                                                        <div className={styles.editRow}>
+                                                            <input
+                                                                value={editingName}
+                                                                onChange={e => setEditingName(e.target.value)}
+                                                            onBlur={() => {
+                                                                if (skipBlurSaveRef.current === item.id) {
+                                                                    skipBlurSaveRef.current = null;
+                                                                    return;
+                                                                }
+
+                                                                void handleSaveEdit();
+                                                            }}
                                                             onKeyDown={e => e.key === 'Enter' && handleSaveEdit()}
                                                             autoFocus
-                                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #3b82f6', direction: 'rtl', fontSize: '0.875rem', background: 'white', color: '#111827' }}
+                                                            className={`${styles.fieldInput} ${styles.editInput}`}
                                                         />
-                                                        <button onClick={handleSaveEdit} className="save-edit-btn" disabled={saving}>حفظ</button>
-                                                        <button onClick={() => setEditingId(null)} className="cancel-btn">إلغاء</button>
+                                                        <button
+                                                            onMouseDown={() => { skipBlurSaveRef.current = item.id; }}
+                                                            onClick={() => void handleSaveEdit()}
+                                                            className={styles.saveButton}
+                                                            disabled={saving || !editingName.trim()}
+                                                        >
+                                                            حفظ
+                                                        </button>
+                                                        <button onMouseDown={() => { skipBlurSaveRef.current = item.id; }} onClick={handleCancelEdit} className={styles.cancelButton}>إلغاء</button>
+                                                        </div>
+                                                        <span className={styles.autosaveHint}>يحفظ تلقائيا عند الخروج من الحقل أو الضغط على Enter</span>
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <span className="item-name">{item.name}</span>
-                                                        <div className="item-actions">
-                                                            <button onClick={() => { setEditingId(item.id); setEditingName(item.name); }} className="action-btn edit" disabled={saving}>✏️</button>
-                                                            <button onClick={() => item.id && handleDelete(item.id)} className="action-btn delete" disabled={saving}>🗑</button>
+                                                        <div className={styles.itemMeta}>
+                                                            <span className={styles.itemName}>{item.name}</span>
+                                                            {item.is_active === false && <span className={styles.statusBadge}>مخفي</span>}
+                                                        </div>
+                                                        <div className={styles.itemActions}>
+                                                            <button onClick={() => { setEditingId(item.id); setEditingName(item.name); }} className={`${styles.actionButton} ${styles.actionEdit}`} disabled={saving}>
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                </svg>
+                                                                تعديل
+                                                            </button>
+                                                            <button
+                                                                onClick={() => item.id && handleToggleVisibility(item.id, item.is_active !== false)}
+                                                                className={`${styles.actionButton} ${item.is_active === false ? styles.actionShow : styles.actionHide}`}
+                                                                disabled={saving}
+                                                            >
+                                                                {item.is_active === false ? 'إظهار' : 'إخفاء'}
+                                                            </button>
                                                         </div>
                                                     </>
                                                 )}
@@ -307,45 +374,7 @@ export default function GovernorateEditModal({ isOpen, onClose, category }: Gove
                     )}
                 </div>
 
-                <div className="modal-footer">
-                    <button onClick={handleClose} disabled={saving} className="close-btn">إغلاق</button>
-                </div>
-            </div>
-
-            <style jsx>{`
-                .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-                .modal-content { background: white; border-radius: 16px; width: 95%; max-width: 700px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
-                .modal-header { padding: 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; gap: 1rem; background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%); border-radius: 16px 16px 0 0; }
-                .close-button { background: #f3f4f6; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6b7280; }
-                .close-button:hover { background: #e5e7eb; }
-                .modal-title { font-size: 1.25rem; font-weight: 700; color: #1f2937; flex: 1; text-align: center; }
-                .tabs-container { display: flex; gap: 0; padding: 0 1.5rem; border-bottom: 1px solid #e5e7eb; background: #f9fafb; }
-                .tab-button { padding: 0.75rem 1.25rem; border: none; background: none; font-size: 0.875rem; font-weight: 500; color: #6b7280; cursor: pointer; }
-                .tab-button.active { color: #2563eb; font-weight: 600; border-bottom: 2px solid #2563eb; }
-                .modal-body { padding: 1.5rem; flex: 1; overflow-y: auto; max-height: calc(100vh - 320px); min-height: 300px; }
-                .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; border-radius: 0 0 16px 16px; }
-                .close-btn { padding: 0.75rem 2rem; background: #f3f4f6; border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; color: #374151; }
-                .close-btn:hover { background: #e5e7eb; }
-                .error-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; color: #dc2626; text-align: right; }
-                .success-toast { background: #dcfce7; color: #166534; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 0.875rem; }
-                .spinner { width: 32px; height: 32px; border: 3px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-                .add-section { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; }
-                .add-section h4 { font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem; text-align: right; }
-                .add-btn { padding: 0.5rem 1.5rem; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.875rem; font-weight: 500; }
-                .add-btn:hover { background: #1d4ed8; }
-                .add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                .items-list { display: flex; flex-direction: column; gap: 0.5rem; }
-                .item-row { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; background: white; border: 1px solid #e5e7eb; border-radius: 8px; direction: rtl; }
-                .item-name { font-size: 0.95rem; font-weight: 500; color: #1f2937; }
-                .item-actions { display: flex; gap: 0.25rem; }
-                .action-btn { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0.25rem 0.5rem; border-radius: 4px; }
-                .action-btn.edit:hover { background: #eff6ff; }
-                .action-btn.delete:hover { background: #fef2f2; }
-                .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-                .save-edit-btn { padding: 0.4rem 1rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-                .cancel-btn { padding: 0.4rem 1rem; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-            `}</style>
-        </div>
+            <FiltersCrudFooter onClose={handleClose} disabled={saving} />
+        </FiltersCrudShell>
     );
 }

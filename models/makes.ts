@@ -111,6 +111,7 @@ export type CategoryFieldMapBySlug = Partial<Record<CategorySlug, CategoryFieldM
 export interface AdminCategoryFieldUpdateRequest {
   field_name: string;
   options: string[];
+  rules_json?: unknown;
 }
 
 export interface AdminCategoryFieldRecord {
@@ -146,6 +147,7 @@ export interface AdminModelRecord {
   id: number;
   name: string;
   make_id: number;
+  is_active?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -158,6 +160,7 @@ export interface AdminMakeModelsResponse {
 export interface AdminMakeListItem {
   id: number;
   name: string;
+  is_active?: boolean;
   models: string[];
   model_objects?: AdminModelRecord[];
 }

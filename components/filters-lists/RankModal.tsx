@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Category, CategoryField, FieldMetadata, RankData } from '@/types/filters-lists';
 import type { AdminMakeListItem } from '@/models/makes';
 import { fetchCategoryFields } from '@/services/categoryFields';
@@ -8,33 +8,23 @@ import { fetchAdminMakesWithIds } from '@/services/makes';
 import { updateOptionRanks } from '@/services/optionRanks';
 import { fetchGovernorates } from '@/services/governorates';
 import { ParentSelector } from './ParentSelector';
+import { filterFieldsByScope, FiltersFieldScope } from './automotiveShared';
 import { cache, INVALIDATION_PATTERNS } from '@/utils/cache';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useFocusReturn } from '@/hooks/useFocusReturn';
+import { DraggableOptionsList } from '@/components/DraggableOptions/DraggableOptionsList';
 import '@/components/DraggableOptions/styles.css';
 import './animations.css';
 import './tailwind-shim.css';
-
-const DraggableOptionsList = lazy(() =>
-    import('@/components/DraggableOptions/DraggableOptionsList').then(module => ({
-        default: module.DraggableOptionsList
-    }))
-);
-
-function DraggableListLoading() {
-    return (
-        <div className="flex flex-col items-center justify-center p-12 gap-4">
-            <div className="w-8 h-8 border-3 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-            <p className="text-sm text-gray-600">جاري تحميل القائمة...</p>
-        </div>
-    );
-}
 
 interface RankModalProps {
     isOpen: boolean;
     onClose: () => void;
     category: Category;
-    field?: CategoryField; // Optional - if not provided, used internally from allFields
+    field?: CategoryField;
+    initialFieldName?: string;
+    fieldScope?: FiltersFieldScope;
+    titleOverride?: string;
     parent?: string;
 }
 
@@ -70,7 +60,17 @@ function detectListType(field: CategoryField): FieldMetadata {
     };
 }
 
-export default function RankModal({ isOpen, onClose, category, field: initialField, parent }: RankModalProps) {
+export default function RankModal({
+    isOpen,
+    onClose,
+    category,
+    field,
+    initialFieldName,
+    fieldScope = 'all',
+    titleOverride,
+    parent,
+}: RankModalProps) {
+    const requestedFieldName = initialFieldName || field?.field_name;
     const [options, setOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
 
     // All fields for the category (for tabs)
     const [allFields, setAllFields] = useState<CategoryField[]>([]);
-    const [activeField, setActiveField] = useState<CategoryField | null>(initialField || null);
+    const [activeField, setActiveField] = useState<CategoryField | null>(null);
 
     const [parentOptions, setParentOptions] = useState<string[]>([]);
     const [selectedParent, setSelectedParent] = useState<string | null>(parent || null);
@@ -95,6 +95,14 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
 
     const modalRef = useFocusTrap<HTMLDivElement>(isOpen);
     useFocusReturn(isOpen);
+
+    const handleClose = useCallback(() => {
+        setIsClosing(true);
+        setTimeout(() => {
+            setIsClosing(false);
+            onClose();
+        }, 200);
+    }, [onClose]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -116,15 +124,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
             // Restore body scroll when modal closes
             document.body.style.overflow = originalOverflow;
         };
-    }, [isOpen]);
-
-    const handleClose = useCallback(() => {
-        setIsClosing(true);
-        setTimeout(() => {
-            setIsClosing(false);
-            onClose();
-        }, 200);
-    }, [onClose]);
+    }, [isOpen, handleClose]);
 
     // Load all category fields for tabs on mount
     useEffect(() => {
@@ -132,26 +132,36 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
 
         const loadFields = async () => {
             try {
-                const response = await fetchCategoryFields(category.slug);
+                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
                 // Filter out 'name' fields — free-text entered by ad creators, not selectable options
                 const fields = (response.data || []).filter(
                     (f: CategoryField) => f.field_name !== 'name'
                 );
-                setAllFields(fields);
+                const filteredFields = filterFieldsByScope(fields, fieldScope);
+                setAllFields(filteredFields);
+                setActiveField((previousActiveField) => {
+                    if (requestedFieldName) {
+                        const preferredField = filteredFields.find((f) => f.field_name === requestedFieldName);
+                        if (preferredField) {
+                            return preferredField;
+                        }
+                    }
 
-                if (!activeField && fields.length > 0) {
-                    setActiveField(fields[0]);
-                } else if (activeField && !fields.some((f: CategoryField) => f.field_name === activeField.field_name)) {
-                    setActiveField(fields[0] || null);
-                }
+                    if (previousActiveField) {
+                        const persistedField = filteredFields.find((f) => f.field_name === previousActiveField.field_name);
+                        if (persistedField) {
+                            return persistedField;
+                        }
+                    }
+
+                    return filteredFields[0] || null;
+                });
             } catch (err) {
                 console.error('Error loading category fields for tabs:', err);
             }
         };
-
         loadFields();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, category.slug]);
+    }, [isOpen, category.slug, requestedFieldName, fieldScope]);
 
     // Reload options when modal opens or active field changes
     useEffect(() => {
@@ -208,7 +218,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
         try {
             let makes = makesCache;
             if (makes.length === 0) {
-                makes = await fetchAdminMakesWithIds();
+                makes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
                 setMakesCache(makes);
             }
             const brandNames = makes.map(m => m.name);
@@ -234,7 +244,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                 // Fetch makes from /api/makes and cache them
                 let makes = makesCache;
                 if (makes.length === 0) {
-                    makes = await fetchAdminMakesWithIds();
+                    makes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
                     setMakesCache(makes);
                 }
                 const brandNames = makes.map(m => m.name);
@@ -253,7 +263,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                     setSelectedParent(parentNames[0]);
                 }
             } else if (metadata.parentField === 'main_section') {
-                const response = await fetchCategoryFields(category.slug);
+                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
                 const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
                 const mainNames = sections
                     .map((s: any) => (s?.name ?? '').toString().trim())
@@ -266,7 +276,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                 }
             } else {
                 // Generic: look for parent field in category fields
-                const response = await fetchCategoryFields(category.slug);
+                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
                 const parentFieldName = metadata.parentField || '';
                 const parentField = response.data.find((f: CategoryField) => f.field_name === parentFieldName);
 
@@ -295,7 +305,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                 // Get models for the selected brand from the makes cache
                 let makes = makesCache;
                 if (makes.length === 0) {
-                    makes = await fetchAdminMakesWithIds();
+                    makes = await fetchAdminMakesWithIds(undefined, { includeInactive: true });
                     setMakesCache(makes);
                 }
                 const selectedMake = makes.find(m => m.name === parentValue);
@@ -311,7 +321,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                     setOptions([]);
                 }
             } else if (metadata.parentField === 'main_section') {
-                const response = await fetchCategoryFields(category.slug);
+                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
                 const sections = Array.isArray(response.main_sections) ? response.main_sections : [];
                 const selectedMain = sections.find(
                     (s: any) => (s?.name ?? '').toString().trim() === parentValue
@@ -325,7 +335,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                 setOptions(Array.from(new Set(subNames)));
             } else {
                 // Generic: load the child field options from category fields
-                const response = await fetchCategoryFields(category.slug);
+                const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
                 const targetField = response.data.find(
                     (f: CategoryField) => f.field_name === activeField?.field_name
                 );
@@ -342,7 +352,7 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
     const loadIndependentOptions = async () => {
         if (!activeField) return;
         try {
-            const response = await fetchCategoryFields(category.slug);
+            const response = await fetchCategoryFields(category.slug, undefined, { includeHidden: true });
             const targetField = response.data.find((f: CategoryField) => f.field_name === activeField.field_name);
 
             if (!targetField) {
@@ -415,12 +425,12 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
         } finally {
             setSaving(false);
         }
-    }, [category.slug, activeField?.field_name, parent, selectedParent, fieldMetadata, handleClose]);
+    }, [category.slug, activeField, parent, selectedParent, fieldMetadata]);
 
     const renderOption = useCallback((option: string) => {
         return (
-            <div className="flex items-center gap-3 p-3 rounded-lg border" style={{ backgroundColor: '#f9fafb', borderColor: '#e5e7eb' }}>
-                <span className="flex-1" style={{ color: '#111827' }}>{option}</span>
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <span className="flex-1 text-base font-semibold text-slate-900">{option}</span>
             </div>
         );
     }, []);
@@ -468,46 +478,24 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                     overflow: 'hidden'
                 }}
             >
-                <div className="flex items-center justify-between p-6" style={{
+                <div className="flex items-start justify-between gap-4 p-6" style={{
                     background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
                     borderBottom: '1px solid #e5e7eb'
                 }}>
-                    <h2 id="rank-modal-title" className="font-bold truncate" style={{
-                        color: '#111827',
-                        fontSize: '1.5rem',
-                        flex: 1,
-                        paddingRight: '1rem',
-                        margin: 0
-                    }}>
-                        ترتيب اختيارات {category.name}
-                        {selectedParent && ` - ${selectedParent}`}
-                    </h2>
+                    <div className="min-w-0 flex-1 pr-3">
+                        <h2 id="rank-modal-title" className="truncate text-2xl font-bold text-slate-900">
+                            ترتيب اختيارات {titleOverride || category.name}
+                            {selectedParent && ` - ${selectedParent}`}
+                        </h2>
+                        <p className="mt-2 text-sm leading-7 text-slate-500">
+                            اسحب العناصر لإعادة ترتيبها، وسيتم حفظ الترتيب تلقائيًا فور الإفلات.
+                        </p>
+                    </div>
                     <button
                         onClick={handleClose}
-                        className="transition-all duration-200 rounded-full flex-shrink-0"
+                        className="flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800"
                         style={{
-                            width: '40px',
-                            height: '40px',
-                            minWidth: '40px',
-                            minHeight: '40px',
-                            color: '#6b7280',
-                            backgroundColor: '#f3f4f6',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
                             padding: 0
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.color = '#ef4444';
-                            e.currentTarget.style.backgroundColor = '#fee2e2';
-                            e.currentTarget.style.transform = 'scale(1.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.color = '#6b7280';
-                            e.currentTarget.style.backgroundColor = '#f3f4f6';
-                            e.currentTarget.style.transform = 'scale(1)';
                         }}
                         aria-label="إغلاق نافذة ترتيب الخيارات"
                         title="إغلاق (Esc)"
@@ -523,25 +511,19 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                     <div
                         role="status"
                         aria-live="polite"
-                        style={{
-                            position: 'absolute',
-                            bottom: '5.5rem',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            zIndex: 20,
-                            backgroundColor: '#166534',
-                            color: '#ffffff',
-                            padding: '0.6rem 1.25rem',
-                            borderRadius: '999px',
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                            whiteSpace: 'nowrap',
-                            pointerEvents: 'none',
-                            animation: 'fadeIn 0.2s ease',
-                        }}
+                        className="pointer-events-none absolute inset-x-0 top-[6.7rem] z-20 mx-auto w-[min(92%,28rem)] rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-right text-emerald-950 shadow-lg"
                     >
-                        {successMessage}
+                        <div className="flex items-start gap-3">
+                            <div className="mt-0.5 rounded-full bg-emerald-100 p-2 text-emerald-700">
+                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="font-semibold">تم حفظ الترتيب</p>
+                                <p className="mt-1 text-sm leading-6 text-emerald-800">{successMessage}</p>
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -552,12 +534,12 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                             display: 'flex',
                             flexDirection: 'row',
                             overflowX: 'auto',
-                            borderBottom: '2px solid #e5e7eb',
-                            padding: '0 1.5rem',
-                            gap: '0.25rem',
+                            borderBottom: '1px solid #e5e7eb',
+                            padding: '1rem 1.5rem 0.9rem',
+                            gap: '0.5rem',
                             flexShrink: 0,
                             WebkitOverflowScrolling: 'touch',
-                            backgroundColor: '#ffffff',
+                            backgroundColor: '#f8fafc',
                         }}
                         role="tablist"
                         aria-label="حقول القسم"
@@ -577,17 +559,18 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                                         setSelectedParent(null);
                                     }}
                                     style={{
-                                        padding: '0.65rem 1.1rem',
+                                        padding: '0.75rem 1.1rem',
                                         whiteSpace: 'nowrap',
-                                        border: 'none',
-                                        borderBottom: isActive ? '2px solid #2563eb' : '2px solid transparent',
-                                        background: 'none',
-                                        color: isActive ? '#2563eb' : '#6b7280',
-                                        fontWeight: isActive ? 600 : 400,
-                                        fontSize: '0.875rem',
+                                        border: isActive ? '1px solid #bfdbfe' : '1px solid transparent',
+                                        borderBottom: '1px solid ' + (isActive ? '#bfdbfe' : 'transparent'),
+                                        background: isActive ? '#eff6ff' : '#ffffff',
+                                        color: isActive ? '#2563eb' : '#64748b',
+                                        fontWeight: isActive ? 700 : 600,
+                                        fontSize: '0.9rem',
                                         cursor: 'pointer',
                                         transition: 'all 0.15s ease',
-                                        marginBottom: '-2px',
+                                        borderRadius: '999px',
+                                        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)',
                                     }}
                                 >
                                     {f.display_name}
@@ -620,9 +603,16 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                     )}
 
                     {error && (
-                        <div className="border rounded-lg p-4 mb-4" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }} role="alert" aria-live="assertive">
-                            <p className="font-medium">خطأ</p>
-                            <p className="text-sm mt-1">{error}</p>
+                        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-right text-rose-900 shadow-sm" role="alert" aria-live="assertive">
+                            <div className="mt-0.5 rounded-full bg-rose-100 p-2 text-rose-700">
+                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="font-semibold">تعذر تنفيذ العملية</p>
+                                <p className="mt-1 text-sm leading-6 text-rose-800">{error}</p>
+                            </div>
                         </div>
                     )}
 
@@ -630,28 +620,39 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
 
                     {!loading && fieldMetadata && (
                         <div>
+                            <div className="mb-5 flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-950 shadow-sm">
+                                <div className="mt-0.5 rounded-full bg-white p-2 text-sky-700 shadow-sm">
+                                    <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="font-semibold">ترتيب تلقائي الحفظ</p>
+                                    <p className="mt-1 text-sm leading-6 text-sky-800">
+                                        لا تحتاج إلى زر حفظ. اسحب الخيار إلى مكانه الجديد وسيتم حفظ الترتيب تلقائيًا.
+                                    </p>
+                                </div>
+                            </div>
                             {fieldMetadata.listType === 'independent' ? (
                                 <div>
-                                    <p className="text-sm mb-4" style={{ color: '#4b5563' }}>
+                                    <p className="mb-2 text-sm font-semibold" style={{ color: '#475569' }}>
                                         قائمة مستقلة - {options.length} خيار
                                     </p>
-                                    <p className="text-xs mb-4" style={{ color: '#6b7280' }}>
+                                    <p className="mb-4 text-xs leading-7" style={{ color: '#64748b' }}>
                                         اسحب الخيارات لإعادة ترتيبها. سيتم حفظ التغييرات تلقائياً.
                                     </p>
-                                    <Suspense fallback={<DraggableListLoading />}>
-                                        <DraggableOptionsList
-                                            options={options}
-                                            onReorder={handleReorder}
-                                            onSave={handleSave}
-                                            renderOption={renderOption}
-                                            otherOptionLabel="غير ذلك"
-                                            disabled={saving}
-                                        />
-                                    </Suspense>
+                                    <DraggableOptionsList
+                                        options={options}
+                                        onReorder={handleReorder}
+                                        onSave={handleSave}
+                                        renderOption={renderOption}
+                                        otherOptionLabel="غير ذلك"
+                                        disabled={saving}
+                                    />
                                 </div>
                             ) : (
                                 <div>
-                                    <p className="text-sm mb-4" style={{ color: '#4b5563' }}>
+                                    <p className="mb-4 text-sm font-semibold" style={{ color: '#475569' }}>
                                         قائمة هرمية - {fieldMetadata.hasParent ? 'خيارات فرعية' : 'خيارات رئيسية'}
                                     </p>
 
@@ -668,19 +669,17 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
 
                                     {(!fieldMetadata.hasParent || selectedParent) ? (
                                         <>
-                                            <p className="text-xs mb-4" style={{ color: '#6b7280' }}>
+                                            <p className="mb-4 text-xs leading-7" style={{ color: '#64748b' }}>
                                                 اسحب الخيارات لإعادة ترتيبها. سيتم حفظ التغييرات تلقائياً.
                                             </p>
-                                            <Suspense fallback={<DraggableListLoading />}>
-                                                <DraggableOptionsList
-                                                    options={options}
-                                                    onReorder={handleReorder}
-                                                    onSave={handleSave}
-                                                    renderOption={renderOption}
-                                                    otherOptionLabel="غير ذلك"
-                                                    disabled={saving}
-                                                />
-                                            </Suspense>
+                                            <DraggableOptionsList
+                                                options={options}
+                                                onReorder={handleReorder}
+                                                onSave={handleSave}
+                                                renderOption={renderOption}
+                                                otherOptionLabel="غير ذلك"
+                                                disabled={saving}
+                                            />
                                         </>
                                     ) : (
                                         <div className="text-center py-8" style={{ color: '#6b7280' }} role="status">
@@ -703,30 +702,12 @@ export default function RankModal({ isOpen, onClose, category, field: initialFie
                     <button
                         onClick={handleClose}
                         disabled={saving}
-                        className="px-6 py-3 rounded-lg transition-all duration-200 font-medium"
+                        className="rounded-xl bg-slate-900 px-6 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:bg-slate-800"
                         style={{
                             minHeight: '44px',
-                            fontSize: '1rem',
-                            color: '#374151',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #d1d5db',
                             cursor: saving ? 'not-allowed' : 'pointer',
                             opacity: saving ? 0.5 : 1,
-                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-                        }}
-                        onMouseEnter={(e) => {
-                            if (!saving) {
-                                e.currentTarget.style.backgroundColor = '#f9fafb';
-                                e.currentTarget.style.borderColor = '#9ca3af';
-                                e.currentTarget.style.transform = 'translateY(-1px)';
-                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-                            }
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#ffffff';
-                            e.currentTarget.style.borderColor = '#d1d5db';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+                            boxShadow: '0 12px 25px rgba(15, 23, 42, 0.18)'
                         }}
                         aria-label={saving ? 'جاري حفظ الترتيب، الرجاء الانتظار' : 'إغلاق نافذة الترتيب'}
                     >

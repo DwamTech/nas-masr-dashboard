@@ -10,6 +10,7 @@ import type { SystemSettingsData } from '@/models/system-settings';
 import type { AdminMainSectionRecord, AdminSubSectionRecord, AdminCategoryListItem } from '@/models/makes';
 import { DraggableOptionsList } from '@/components/DraggableOptions';
 import { updateOptionRanksWithRetry } from '@/services/optionRanks';
+import { resolveBackendAssetUrl } from '@/utils/api';
 import '@/components/DraggableOptions/styles.css';
 
 interface Category {
@@ -121,8 +122,11 @@ export default function CategoriesPage() {
     const isRel = u.startsWith('/');
     const looksFile = /\.(png|jpe?g|webp)$/i.test(u);
     if (!isAbs && !isRel && (u.startsWith('defaults/') || looksFile)) u = '/' + u.replace(/^\.?\/?/, '');
-    if (u.startsWith('/defaults/')) u = `https://back.nasmasr.app/storage${u}`;
-    else if (u.startsWith('/')) u = `https://back.nasmasr.app${u}`;
+    if (u.startsWith('/')) {
+      const resolved = resolveBackendAssetUrl(u);
+      if (!resolved) return null;
+      u = resolved;
+    }
     try { new URL(u); return u; } catch { return null; }
   };
   useEffect(() => {

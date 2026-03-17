@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
 import SharedListsSection from '../SharedListsSection';
 import { fetchGovernorates } from '@/services/governorates';
+import { fetchAdminMakesWithIds } from '@/services/makes';
 import { cache } from '@/utils/cache';
 import type { Governorate } from '@/models/governorates';
 import '@testing-library/jest-dom';
@@ -10,6 +11,10 @@ import '@testing-library/jest-dom';
 // Mock the services
 vi.mock('@/services/governorates', () => ({
     fetchGovernorates: vi.fn()
+}));
+
+vi.mock('@/services/makes', () => ({
+    fetchAdminMakesWithIds: vi.fn()
 }));
 
 // Mock the cache utility
@@ -60,6 +65,10 @@ describe('SharedListsSection', () => {
         vi.clearAllMocks();
         // Reset cache mock
         (cache.get as ReturnType<typeof vi.fn>).mockReturnValue(null);
+        (fetchAdminMakesWithIds as ReturnType<typeof vi.fn>).mockResolvedValue([
+            { id: 1, name: 'تويوتا', models: ['كورولا', 'يارس'] },
+            { id: 2, name: 'هيونداي', models: ['النترا'] },
+        ]);
     });
 
     describe('Rendering', () => {
@@ -78,6 +87,16 @@ describe('SharedListsSection', () => {
 
             await waitFor(() => {
                 expect(screen.getByText('المحافظات والمدن')).toBeInTheDocument();
+            });
+        });
+
+        it('renders automotive shared list card with correct title', async () => {
+            (fetchGovernorates as ReturnType<typeof vi.fn>).mockResolvedValue(mockGovernorates);
+
+            render(<SharedListsSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('الماركات والموديلات')).toBeInTheDocument();
             });
         });
 
@@ -100,6 +119,16 @@ describe('SharedListsSection', () => {
                 expect(screen.getByText('قائمة المحافظات والمدن المستخدمة في جميع الأقسام')).toBeInTheDocument();
             });
         });
+
+        it('displays automotive shared description', async () => {
+            (fetchGovernorates as ReturnType<typeof vi.fn>).mockResolvedValue(mockGovernorates);
+
+            render(<SharedListsSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText(/مصدر موحد للمركبات/)).toBeInTheDocument();
+            });
+        });
     });
 
     describe('Count Display Accuracy', () => {
@@ -110,7 +139,7 @@ describe('SharedListsSection', () => {
 
             await waitFor(() => {
                 expect(screen.getByText('المحافظات')).toBeInTheDocument();
-                expect(screen.getByText('3')).toBeInTheDocument();
+                expect(screen.getByLabelText('3 محافظة')).toBeInTheDocument();
             });
         });
 
@@ -121,8 +150,7 @@ describe('SharedListsSection', () => {
 
             await waitFor(() => {
                 expect(screen.getByText('المدن')).toBeInTheDocument();
-                // Total cities: 3 (Cairo) + 2 (Giza) + 4 (Alexandria) = 9
-                expect(screen.getByText('9')).toBeInTheDocument();
+                expect(screen.getByLabelText('9 مدينة')).toBeInTheDocument();
             });
         });
 
@@ -132,7 +160,18 @@ describe('SharedListsSection', () => {
             render(<SharedListsSection />);
 
             await waitFor(() => {
-                expect(screen.getByText('←')).toBeInTheDocument();
+                expect(screen.getAllByText('←')).toHaveLength(2);
+            });
+        });
+
+        it('displays correct automotive makes and models counts', async () => {
+            (fetchGovernorates as ReturnType<typeof vi.fn>).mockResolvedValue(mockGovernorates);
+
+            render(<SharedListsSection />);
+
+            await waitFor(() => {
+                expect(screen.getByLabelText('2 ماركة')).toBeInTheDocument();
+                expect(screen.getByLabelText('3 موديل')).toBeInTheDocument();
             });
         });
 
@@ -157,8 +196,8 @@ describe('SharedListsSection', () => {
             render(<SharedListsSection />);
 
             await waitFor(() => {
-                expect(screen.getByText('2')).toBeInTheDocument(); // 2 governorates
-                expect(screen.getByText('1')).toBeInTheDocument(); // 1 city total
+                expect(screen.getByLabelText('2 محافظة')).toBeInTheDocument();
+                expect(screen.getByLabelText('1 مدينة')).toBeInTheDocument();
             });
         });
 
@@ -176,8 +215,8 @@ describe('SharedListsSection', () => {
             render(<SharedListsSection />);
 
             await waitFor(() => {
-                expect(screen.getByText('1')).toBeInTheDocument(); // 1 governorate
-                expect(screen.getByText('0')).toBeInTheDocument(); // 0 cities
+                expect(screen.getByLabelText('1 محافظة')).toBeInTheDocument();
+                expect(screen.getByLabelText('0 مدينة')).toBeInTheDocument();
             });
         });
     });
@@ -305,7 +344,16 @@ describe('SharedListsSection', () => {
 
     describe('Cache Integration', () => {
         it('checks cache before fetching from API', async () => {
-            (cache.get as ReturnType<typeof vi.fn>).mockReturnValue(mockGovernorates);
+            (cache.get as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+                if (key === 'governorates:all') return mockGovernorates;
+                if (key === 'shared:automotive-makes') {
+                    return [
+                        { id: 1, name: 'تويوتا', models: ['كورولا', 'يارس'] },
+                        { id: 2, name: 'هيونداي', models: ['النترا'] },
+                    ];
+                }
+                return null;
+            });
 
             render(<SharedListsSection />);
 
@@ -315,16 +363,26 @@ describe('SharedListsSection', () => {
 
             // Should not call API if cache hit
             expect(fetchGovernorates).not.toHaveBeenCalled();
+            expect(fetchAdminMakesWithIds).not.toHaveBeenCalled();
         });
 
         it('uses cached data when available', async () => {
-            (cache.get as ReturnType<typeof vi.fn>).mockReturnValue(mockGovernorates);
+            (cache.get as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+                if (key === 'governorates:all') return mockGovernorates;
+                if (key === 'shared:automotive-makes') {
+                    return [
+                        { id: 1, name: 'تويوتا', models: ['كورولا', 'يارس'] },
+                        { id: 2, name: 'هيونداي', models: ['النترا'] },
+                    ];
+                }
+                return null;
+            });
 
             render(<SharedListsSection />);
 
             await waitFor(() => {
                 expect(screen.getByText('المحافظات والمدن')).toBeInTheDocument();
-                expect(screen.getByText('3')).toBeInTheDocument(); // governorates count
+                expect(screen.getByLabelText('3 محافظة')).toBeInTheDocument();
             });
         });
 

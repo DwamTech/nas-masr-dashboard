@@ -5,6 +5,8 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { AdminCategoryListItem } from '@/models/makes';
 import '@testing-library/jest-dom';
 
+const BACKEND_BASE = (process.env.LARAVEL_API_URL || 'http://localhost:8000/api').replace(/\/api$/, '');
+
 // Mock the services
 vi.mock('@/services/makes', () => ({
     fetchAdminCategories: vi.fn(),
@@ -28,7 +30,7 @@ describe('UnifiedImagesPage', () => {
             icon: '🏠',
             is_global_image_active: true,
             global_image_url: 'uploads/categories/global/2_1234567890.webp',
-            global_image_full_url: 'https://back.nasmasr.app/storage/uploads/categories/global/2_1234567890.webp',
+            global_image_full_url: `${BACKEND_BASE}/storage/uploads/categories/global/2_1234567890.webp`,
         },
     ];
 
@@ -244,7 +246,7 @@ describe('UnifiedImagesPage', () => {
             const updatedCategory: AdminCategoryListItem = {
                 ...mockCategories[1],
                 global_image_url: 'uploads/categories/global/2_9999999999.webp',
-                global_image_full_url: 'https://back.nasmasr.app/storage/uploads/categories/global/2_9999999999.webp',
+                global_image_full_url: `${BACKEND_BASE}/storage/uploads/categories/global/2_9999999999.webp`,
             };
 
             // We need to trigger the success callback

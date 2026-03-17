@@ -1,20 +1,26 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SharedListsSection from '@/components/filters-lists/SharedListsSection';
 import CategoryCardsSection from '@/components/filters-lists/CategoryCardsSection';
-import { useModalState } from '@/hooks/useModalState';
+import RankModal from '@/components/filters-lists/RankModal';
+import EditModal from '@/components/filters-lists/EditModal';
+import SectionsRankModal from '@/components/filters-lists/SectionsRankModal';
+import SectionsEditModal from '@/components/filters-lists/SectionsEditModal';
+import GovernorateRankModal from '@/components/filters-lists/GovernorateRankModal';
+import GovernorateEditModal from '@/components/filters-lists/GovernorateEditModal';
+import {
+    AUTOMOTIVE_SHARED_MODAL_TITLE,
+    getModalFieldScope,
+    isAutomotiveSharedFieldName,
+} from '@/components/filters-lists/automotiveShared';
+import { prefetchCategoryFields } from '@/services/categoryFields';
+import { prefetchGovernorates } from '@/services/governorates';
+import { prefetchAllGovernorates } from '@/services/governorates-admin';
+import { prefetchAdminMakesWithIds } from '@/services/makes';
+import { prefetchMainSections } from '@/services/sections';
 import { Category } from '@/types/filters-lists';
-import { fetchCategories } from '@/services/categories';
-
-// Lazy load modals for code splitting
-const RankModal = lazy(() => import('@/components/filters-lists/RankModal'));
-const EditModal = lazy(() => import('@/components/filters-lists/EditModal'));
-const SectionsRankModal = lazy(() => import('@/components/filters-lists/SectionsRankModal'));
-const SectionsEditModal = lazy(() => import('@/components/filters-lists/SectionsEditModal'));
-const GovernorateRankModal = lazy(() => import('@/components/filters-lists/GovernorateRankModal'));
-const GovernorateEditModal = lazy(() => import('@/components/filters-lists/GovernorateEditModal'));
 
 /**
  * Categories that use category_fields. All other categories
@@ -33,66 +39,14 @@ function isGovernorateSlug(slug: string): boolean {
     return slug === 'shared_governorates';
 }
 
+function isAutomotiveCategory(slug: string): boolean {
+    return slug === 'cars' || slug === 'cars_rent' || slug === 'spare-parts';
+}
+
 /**
  * Loading fallback for lazy-loaded modals
  * Displays a centered spinner while the modal is being loaded
  */
-function ModalLoadingFallback() {
-    return (
-        <div className="modal-loading-overlay">
-            <div className="modal-loading-spinner">
-                <div className="spinner"></div>
-                <p>جاري التحميل...</p>
-            </div>
-            <style jsx>{`
-                .modal-loading-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background-color: rgba(0, 0, 0, 0.5);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 1000;
-                }
-
-                .modal-loading-spinner {
-                    background: white;
-                    padding: 2rem;
-                    border-radius: 8px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 1rem;
-                }
-
-                .spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 4px solid #f3f4f6;
-                    border-top-color: #3b82f6;
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                }
-
-                @keyframes spin {
-                    to {
-                        transform: rotate(360deg);
-                    }
-                }
-
-                .modal-loading-spinner p {
-                    margin: 0;
-                    color: #4b5563;
-                    font-size: 0.875rem;
-                }
-            `}</style>
-        </div>
-    );
-}
-
 /**
  * Filters and Lists Management Page
  * 
@@ -102,10 +56,32 @@ function ModalLoadingFallback() {
  */
 export default function FiltersListsPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [categories, setCategories] = useState<Category[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+    const [selectedModalType, setSelectedModalType] = useState<'rank' | 'edit' | null>(null);
+    const [selectedFieldName, setSelectedFieldName] = useState<string | null>(null);
     const router = useRouter();
-    const { modalState, openModal, closeModal } = useModalState();
+    const modalTitleOverride = selectedCategory?.slug === 'cars' && selectedFieldName && isAutomotiveSharedFieldName(selectedFieldName)
+        ? AUTOMOTIVE_SHARED_MODAL_TITLE
+        : undefined;
+
+    const prefetchModalData = (category: Category, fieldName?: string) => {
+        if (isGovernorateSlug(category.slug)) {
+            void prefetchAllGovernorates();
+            return;
+        }
+
+        if (isUnifiedCategory(category.slug)) {
+            void prefetchMainSections(category.slug, { includeInactive: true });
+            return;
+        }
+
+        void prefetchCategoryFields(category.slug, undefined, { includeHidden: true });
+        void prefetchGovernorates();
+
+        if (isAutomotiveCategory(category.slug) || (fieldName && isAutomotiveSharedFieldName(fieldName))) {
+            void prefetchAdminMakesWithIds(undefined, { includeInactive: true });
+        }
+    };
 
     useEffect(() => {
         // Check authentication
@@ -117,70 +93,45 @@ export default function FiltersListsPage() {
         }
     }, [router]);
 
-    // Load categories on mount
-    useEffect(() => {
-        const loadCategories = async () => {
-            try {
-                const data = await fetchCategories();
-                setCategories(data);
-            } catch (error) {
-                console.error('Error loading categories:', error);
-            }
-        };
-
-        if (isAuthenticated) {
-            loadCategories();
-        }
-    }, [isAuthenticated]);
-
-    // Handle URL-based modal state restoration
-    useEffect(() => {
-        if (!modalState.category) return;
-
-        const loadModalData = async () => {
-            try {
-                // Find the category
-                const category = categories.find(c => c.slug === modalState.category);
-                if (!category) return;
-
-                setSelectedCategory(category);
-            } catch (error) {
-                console.error('Error loading modal data:', error);
-            }
-        };
-
-        loadModalData();
-    }, [modalState.category, categories]);
-
     /**
      * Handle rank button click from CategoryCard
      * Opens the rank modal for the selected category
      */
-    const handleRankClick = (category: Category) => {
+    const handleRankClick = (category: Category, fieldName?: string) => {
+        prefetchModalData(category, fieldName);
         setSelectedCategory(category);
-        openModal('rank', category.slug, null);
+        setSelectedFieldName(fieldName ?? null);
+        setSelectedModalType('rank');
     };
 
     /**
      * Handle edit button click from CategoryCard
      * Opens the edit modal for the selected category
      */
-    const handleEditClick = (category: Category) => {
+    const handleEditClick = (category: Category, fieldName?: string) => {
+        prefetchModalData(category, fieldName);
         setSelectedCategory(category);
-        openModal('edit', category.slug, null);
+        setSelectedFieldName(fieldName ?? null);
+        setSelectedModalType('edit');
     };
 
     /**
      * Handle modal close
      */
     const handleCloseModal = () => {
-        closeModal();
+        setSelectedModalType(null);
         setSelectedCategory(null);
+        setSelectedFieldName(null);
     };
 
     if (!isAuthenticated) {
         return null;
     }
+
+    const fieldScope = selectedCategory
+        ? getModalFieldScope(selectedCategory.slug, selectedFieldName)
+        : 'all';
+    const initialFieldName = selectedFieldName || undefined;
 
     return (
         <div className="filters-lists-container">
@@ -204,71 +155,62 @@ export default function FiltersListsPage() {
             />
 
             {/* Field-based Rank Modal (real_estate, cars, jobs, etc.) */}
-            {modalState.type === 'rank' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && !isGovernorateSlug(selectedCategory.slug) && (
-                <Suspense fallback={<ModalLoadingFallback />}>
-                    <RankModal
-                        isOpen={true}
-                        onClose={handleCloseModal}
-                        category={selectedCategory}
-                        parent={modalState.parent || undefined}
-                    />
-                </Suspense>
+            {selectedModalType === 'rank' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && !isGovernorateSlug(selectedCategory.slug) && (
+                <RankModal
+                    isOpen={true}
+                    onClose={handleCloseModal}
+                    category={selectedCategory}
+                    initialFieldName={initialFieldName}
+                    fieldScope={fieldScope}
+                    titleOverride={modalTitleOverride}
+                />
             )}
 
             {/* Sections-based Rank Modal (unified categories) */}
-            {modalState.type === 'rank' && selectedCategory && isUnifiedCategory(selectedCategory.slug) && (
-                <Suspense fallback={<ModalLoadingFallback />}>
-                    <SectionsRankModal
-                        isOpen={true}
-                        onClose={handleCloseModal}
-                        category={selectedCategory}
-                    />
-                </Suspense>
+            {selectedModalType === 'rank' && selectedCategory && isUnifiedCategory(selectedCategory.slug) && (
+                <SectionsRankModal
+                    isOpen={true}
+                    onClose={handleCloseModal}
+                    category={selectedCategory}
+                />
             )}
 
             {/* Governorate Rank Modal */}
-            {modalState.type === 'rank' && selectedCategory && isGovernorateSlug(selectedCategory.slug) && (
-                <Suspense fallback={<ModalLoadingFallback />}>
-                    <GovernorateRankModal
-                        isOpen={true}
-                        onClose={handleCloseModal}
-                        category={selectedCategory}
-                    />
-                </Suspense>
+            {selectedModalType === 'rank' && selectedCategory && isGovernorateSlug(selectedCategory.slug) && (
+                <GovernorateRankModal
+                    isOpen={true}
+                    onClose={handleCloseModal}
+                    category={selectedCategory}
+                />
             )}
 
             {/* Field-based Edit Modal (real_estate, cars, jobs, etc.) */}
-            {modalState.type === 'edit' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && !isGovernorateSlug(selectedCategory.slug) && (
-                <Suspense fallback={<ModalLoadingFallback />}>
-                    <EditModal
-                        isOpen={true}
-                        onClose={handleCloseModal}
-                        category={selectedCategory}
-                        parent={modalState.parent || undefined}
-                    />
-                </Suspense>
+            {selectedModalType === 'edit' && selectedCategory && !isUnifiedCategory(selectedCategory.slug) && !isGovernorateSlug(selectedCategory.slug) && (
+                <EditModal
+                    isOpen={true}
+                    onClose={handleCloseModal}
+                    category={selectedCategory}
+                    initialFieldName={initialFieldName}
+                    fieldScope={fieldScope}
+                    titleOverride={modalTitleOverride}
+                />
             )}
 
             {/* Sections-based Edit Modal (unified categories) */}
-            {modalState.type === 'edit' && selectedCategory && isUnifiedCategory(selectedCategory.slug) && (
-                <Suspense fallback={<ModalLoadingFallback />}>
-                    <SectionsEditModal
-                        isOpen={true}
-                        onClose={handleCloseModal}
-                        category={selectedCategory}
-                    />
-                </Suspense>
+            {selectedModalType === 'edit' && selectedCategory && isUnifiedCategory(selectedCategory.slug) && (
+                <SectionsEditModal
+                    isOpen={true}
+                    onClose={handleCloseModal}
+                    category={selectedCategory}
+                />
             )}
 
             {/* Governorate Edit Modal */}
-            {modalState.type === 'edit' && selectedCategory && isGovernorateSlug(selectedCategory.slug) && (
-                <Suspense fallback={<ModalLoadingFallback />}>
-                    <GovernorateEditModal
-                        isOpen={true}
-                        onClose={handleCloseModal}
-                        category={selectedCategory}
-                    />
-                </Suspense>
+            {selectedModalType === 'edit' && selectedCategory && isGovernorateSlug(selectedCategory.slug) && (
+                <GovernorateEditModal
+                    isOpen={true}
+                    onClose={handleCloseModal}
+                />
             )}
 
             <style jsx>{`

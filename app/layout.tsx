@@ -84,6 +84,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   const isHomeIntro = pathname === "/";
   const isNewLanding = pathname?.startsWith("/landing");
   const isLegalPage = pathname?.startsWith("/terms") || pathname?.startsWith("/privacy");
+  const isAuthPage = pathname?.startsWith("/auth");
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -104,7 +105,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
-        {(isHomeIntro || isNewLanding || isLegalPage) ? (
+        {(isHomeIntro || isNewLanding || isLegalPage || isAuthPage) ? (
           <main>{children}</main>
         ) : (
           <AuthGuard>

@@ -9,6 +9,9 @@ import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import type { AdminCategoryListItem } from '@/models/makes';
 
+const API_BASE = process.env.LARAVEL_API_URL || 'http://localhost:8000/api';
+const BACKEND_BASE = API_BASE.replace(/\/api$/, '');
+
 /**
  * Helper function to create a category with specific properties
  */
@@ -26,7 +29,7 @@ function createCategory(
         is_global_image_active: isGlobalImageActive,
         global_image_url: globalImageUrl,
         global_image_full_url: globalImageUrl
-            ? `https://back.nasmasr.app/storage/${globalImageUrl}`
+            ? `${BACKEND_BASE}/storage/${globalImageUrl}`
             : undefined,
     };
 }

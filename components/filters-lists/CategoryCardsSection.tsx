@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Category, CategoryField } from '@/types/filters-lists';
+import { Category } from '@/types/filters-lists';
 import { fetchCategories } from '@/services/categories';
 import { cache, CACHE_TIMES } from '@/utils/cache';
 import CategoryCard from './CategoryCard';
 
 interface CategoryCardsSectionProps {
-    onRankClick: (category: Category, field?: CategoryField) => void;
-    onEditClick: (category: Category, field?: CategoryField) => void;
+    onRankClick: (category: Category, fieldName?: string) => void;
+    onEditClick: (category: Category, fieldName?: string) => void;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { UnpaidListingsResponse, ApproveResponse } from '@/models/unpaid';
 import { PendingListing, PendingListingsMeta } from '@/models/listings';
+import { buildApiUrl } from '@/utils/api';
 
 const normalizeString = (v: unknown): string | null => {
   if (v === null || v === undefined) return null;
@@ -90,7 +91,7 @@ export async function fetchAdminUnpaidListings(token?: string): Promise<UnpaidLi
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const url = `https://back.nasmasr.app/api/admin/ads-not-payment`;
+  const url = buildApiUrl('/admin/ads-not-payment');
   const res = await fetch(url, { method: 'GET', headers });
   let raw: unknown = null;
   try { raw = await res.json(); } catch { }
@@ -132,7 +133,7 @@ export async function approveListing(listingId: number | string, token?: string)
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const id = encodeURIComponent(String(listingId));
-  const url = `https://back.nasmasr.app/api/admin/listings/${id}/approve`;
+  const url = buildApiUrl(`/admin/listings/${id}/approve`);
   const res = await fetch(url, { method: 'PATCH', headers });
   let raw: unknown = null;
   try { raw = await res.json(); } catch { }

@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { login as loginService, AuthResponse, AuthError } from '@/services/auth';
+import { storeDashboardUser } from '@/utils/dashboardSession';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,11 +27,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     const validationErrors: { email?: string; password?: string } = {};
-    if (!email) validationErrors.email = 'يرجى إدخال البريد الإلكتروني';
+    if (!identifier) validationErrors.email = 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف';
     if (!password) validationErrors.password = 'يرجى إدخال كلمة المرور';
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (email && !emailPattern.test(email)) {
-      validationErrors.email = 'البريد الإلكتروني غير صحيح';
+    const looksLikePhone = /^[+\d\s-]{6,}$/.test(identifier);
+    if (identifier && !looksLikePhone && !emailPattern.test(identifier)) {
+      validationErrors.email = 'صيغة البريد الإلكتروني أو رقم الهاتف غير صحيحة';
     }
     if (password && password.length < 6) {
       validationErrors.password = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
@@ -45,7 +47,7 @@ export default function LoginPage() {
     
 
     try {
-      const data: AuthResponse = await loginService(email, password);
+      const data: AuthResponse = await loginService(identifier, password);
       const tokenVal = typeof data.token === 'string' ? data.token : typeof data.access_token === 'string' ? data.access_token : null;
       const user = data.user;
       if (!user || typeof user.role !== 'string') {
@@ -53,7 +55,7 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-      if (user.role.toLowerCase() !== 'admin') {
+      if (!['admin', 'employee'].includes(user.role.toLowerCase())) {
         setGeneralErrors(['غير مسموح بدخول هذا الحساب إلى لوحة الإدارة']);
         setIsLoading(false);
         return;
@@ -68,6 +70,7 @@ export default function LoginPage() {
         localStorage.setItem('userPhone', user.phone);
       }
       localStorage.setItem('userRole', user.role);
+      storeDashboardUser(user);
       if (rememberMe) {
         localStorage.setItem('rememberMe', 'true');
       }
@@ -152,14 +155,14 @@ export default function LoginPage() {
                   </svg>
                 </div>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="modern-input"
                   placeholder=" "
                   required
                 />
-                <label className="floating-label">البريد الإلكتروني</label>
+                <label className="floating-label">البريد الإلكتروني أو رقم الهاتف</label>
                 {emailErrors.length > 0 && (
                   <ul className="error-list field-errors">
                     {emailErrors.map((msg, idx) => (

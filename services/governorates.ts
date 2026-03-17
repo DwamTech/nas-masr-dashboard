@@ -1,31 +1,60 @@
 import {
-    GovernoratesResponse,
     CitiesMappingsResponse,
     Governorate,
     CreateGovernorateResponse,
     CreateCityResponse
 } from '@/models/governorates';
+import { API_BASE } from '@/utils/api';
+import { cache, CACHE_TIMES } from '@/utils/cache';
 
-const API_BASE = process.env.LARAVEL_API_URL || 'https://back.nasmasr.app/api';
+const governoratesRequests = new Map<string, Promise<Governorate[]>>();
+const GOVERNORATES_CACHE_KEY = 'governorates:all';
 
 /**
  * Fetch all governorates with their cities
  */
 export async function fetchGovernorates(token?: string): Promise<Governorate[]> {
-    const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (t) headers.Authorization = `Bearer ${t}`;
-
-    const res = await fetch(`${API_BASE}/governorates`, { method: 'GET', headers });
-    const data = (await res.json().catch(() => null)) as Governorate[] | null;
-
-    if (!res.ok || !data) {
-        const err = data as any;
-        const message = err?.error || err?.message || 'تعذر جلب المحافظات';
-        throw new Error(message);
+    const cached = cache.get<Governorate[]>(GOVERNORATES_CACHE_KEY);
+    if (cached) {
+        return cached;
     }
 
-    return Array.isArray(data) ? data : [];
+    const inFlight = governoratesRequests.get(GOVERNORATES_CACHE_KEY);
+    if (inFlight) {
+        return inFlight;
+    }
+
+    const request = (async () => {
+        const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+        const headers: Record<string, string> = { Accept: 'application/json' };
+        if (t) headers.Authorization = `Bearer ${t}`;
+
+        const res = await fetch(`${API_BASE}/admin/governorates`, { method: 'GET', headers });
+        const data = (await res.json().catch(() => null)) as Governorate[] | null;
+
+        if (!res.ok || !data) {
+            const err = data as any;
+            const message = err?.error || err?.message || 'تعذر جلب المحافظات';
+            throw new Error(message);
+        }
+
+        const normalized = Array.isArray(data) ? data : [];
+        cache.set(GOVERNORATES_CACHE_KEY, normalized, CACHE_TIMES.GOVERNORATES);
+        return normalized;
+    })().finally(() => {
+        governoratesRequests.delete(GOVERNORATES_CACHE_KEY);
+    });
+
+    governoratesRequests.set(GOVERNORATES_CACHE_KEY, request);
+    return request;
+}
+
+export async function prefetchGovernorates(token?: string): Promise<void> {
+    try {
+        await fetchGovernorates(token);
+    } catch {
+        // Best-effort prefetch only.
+    }
 }
 
 /**
@@ -36,7 +65,7 @@ export async function fetchGovernorateById(id: number, token?: string): Promise<
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (t) headers.Authorization = `Bearer ${t}`;
 
-    const res = await fetch(`${API_BASE}/governorates/${id}`, { method: 'GET', headers });
+    const res = await fetch(`${API_BASE}/admin/governorates/${id}`, { method: 'GET', headers });
     const data = (await res.json().catch(() => null)) as Governorate | null;
 
     if (!res.ok || !data) {
@@ -93,6 +122,7 @@ export async function createGovernorate(name: string, token?: string): Promise<C
         throw new Error(message);
     }
 
+    cache.invalidate('governorates');
     return data;
 }
 
@@ -121,6 +151,7 @@ export async function updateGovernorate(id: number, name: string, token?: string
         throw new Error(message);
     }
 
+    cache.invalidate('governorates');
     return data;
 }
 
@@ -145,6 +176,7 @@ export async function deleteGovernorate(id: number, token?: string): Promise<{ m
         throw new Error(message);
     }
 
+    cache.invalidate('governorates');
     return data || { message: 'تم الحذف بنجاح' };
 }
 
@@ -173,6 +205,7 @@ export async function createCity(governorateId: number, name: string, token?: st
         throw new Error(message);
     }
 
+    cache.invalidate('governorates');
     return data;
 }
 
@@ -201,6 +234,7 @@ export async function updateCity(id: number, name: string, token?: string): Prom
         throw new Error(message);
     }
 
+    cache.invalidate('governorates');
     return data;
 }
 
@@ -225,5 +259,6 @@ export async function deleteCity(id: number, token?: string): Promise<{ message:
         throw new Error(message);
     }
 
+    cache.invalidate('governorates');
     return data || { message: 'تم الحذف بنجاح' };
 }

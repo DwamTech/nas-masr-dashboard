@@ -1,4 +1,5 @@
 import { AUTH_CONFIG } from '@/config/auth';
+import { fetchDashboardMe } from '@/services/auth';
 import type { ValidationResult } from '@/types/auth';
 
 /**
@@ -7,72 +8,46 @@ import type { ValidationResult } from '@/types/auth';
  * @returns Promise<ValidationResult> - Validation result with status and error info
  */
 export async function validateToken(token: string): Promise<ValidationResult> {
-    // Use admin/stats endpoint to validate admin token (same as dashboard page)
-    const url = 'https://back.nasmasr.app/api/admin/stats';
-
-    // Create AbortController for timeout handling
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), AUTH_CONFIG.VALIDATION_TIMEOUT);
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            },
-            signal: controller.signal
-        });
+        const session = await Promise.race([
+            fetchDashboardMe(token),
+            new Promise<never>((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error('AbortError')), AUTH_CONFIG.VALIDATION_TIMEOUT);
+            }),
+        ]);
+        if (timeoutId) clearTimeout(timeoutId);
 
-        clearTimeout(timeoutId);
-
-        // Handle success response (200)
-        if (response.ok && response.status === 200) {
-            return {
-                isValid: true,
-                shouldRetry: false,
-                statusCode: 200
-            };
-        }
-
-        // Handle authentication errors (401/403)
-        if (response.status === 401 || response.status === 403) {
-            return {
-                isValid: false,
-                shouldRetry: false,
-                statusCode: response.status,
-                error: 'Token invalid or expired'
-            };
-        }
-
-        // Handle server errors (500) - should retry
-        if (response.status === 500) {
-            return {
-                isValid: false,
-                shouldRetry: true,
-                statusCode: 500,
-                error: 'Server error'
-            };
-        }
-
-        // Handle other error responses
         return {
-            isValid: false,
+            isValid: true,
             shouldRetry: false,
-            statusCode: response.status,
-            error: `Unexpected status code: ${response.status}`
+            statusCode: 200,
+            session,
         };
-
     } catch (error) {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
 
         // Handle timeout errors
-        if (error instanceof Error && error.name === 'AbortError') {
+        if (error instanceof Error && (error.name === 'AbortError' || error.message === 'AbortError')) {
             console.error('Token validation timeout');
             return {
                 isValid: false,
                 shouldRetry: true,
                 error: 'Validation timeout'
+            };
+        }
+
+        const status = typeof error === 'object' && error !== null && 'status' in error
+            ? Number((error as { status?: number }).status)
+            : undefined;
+
+        if (status === 401 || status === 403) {
+            return {
+                isValid: false,
+                shouldRetry: false,
+                statusCode: status,
+                error: 'Token invalid or expired'
             };
         }
 
@@ -94,7 +69,7 @@ export async function validateToken(token: string): Promise<ValidationResult> {
  */
 export async function validateWithRetry(
     token: string,
-    context: 'initial' | 'periodic'
+    context: 'initial' | 'periodic' | 'background'
 ): Promise<ValidationResult> {
     let attempt = 0;
     const maxAttempts = AUTH_CONFIG.MAX_RETRY_ATTEMPTS;

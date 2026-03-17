@@ -1,10 +1,11 @@
 import type { SystemSettingsPayload, SystemSettingsResponse } from '@/models/system-settings';
+import { buildApiUrl } from '@/utils/api';
 
 export async function fetchSystemSettings(token?: string): Promise<SystemSettingsResponse> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://back.nasmasr.app/api/system-settings', { method: 'GET', headers });
+  const res = await fetch(buildApiUrl('/admin/system-settings'), { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   if (!res.ok || !raw) {
     const err = raw as { error?: string; message?: string } | null;
@@ -18,7 +19,7 @@ export async function updateSystemSettings(payload: SystemSettingsPayload, token
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch('https://back.nasmasr.app/api/admin/system-settings', {
+  const res = await fetch(buildApiUrl('/admin/system-settings'), {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -42,7 +43,7 @@ export async function updateSystemSettingsImage(key: string, file: File, token?:
   formData.append('key', key);
   formData.append('image', file);
 
-  const res = await fetch('https://back.nasmasr.app/api/admin/system-settings', {
+  const res = await fetch(buildApiUrl('/admin/system-settings'), {
     method: 'POST',
     headers,
     body: formData,
@@ -69,7 +70,7 @@ export async function updatePublicSystemSettingsImage(key: string, file: File, t
   formData.append('image', file);
   formData.append('_method', 'PUT');
 
-  const res = await fetch('https://back.nasmasr.app/api/admin/system-settings/upload-image', {
+  const res = await fetch(buildApiUrl('/admin/system-settings/upload-image'), {
     method: 'POST',
     headers,
     body: formData,

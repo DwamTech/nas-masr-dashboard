@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -42,7 +42,8 @@ const navItems: NavItem[] = [
       { href: "/category-homepage-management", label: "إدارة أقسام الصفحة الرئيسية", icon: "/categories.png", permissionKey: "categories.homepage" },
       { href: "/app-banners", label: "إدارة بنارات التطبيق", icon: "/categories.png", permissionKey: "categories.banners" },
       { href: "/unified-images", label: "إدارة صور الأقسام", icon: "/categories.png", permissionKey: "categories.images" },
-      { href: "/dashboard/filters-lists", label: "إدارة الفلاتر والقوائم", icon: "/categories.png", permissionKey: "categories.filters" }
+      { href: "/dashboard/filters-lists", label: "إدارة الفلاتر والقوائم", icon: "/categories.png", permissionKey: "categories.filters" },
+      { href: "/dashboard/featured-advertisers-order", label: "إدارة ترتيب المعلنين المميزين", icon: "/categories.png", permissionKey: "categories.featured_advertisers" }
     ]
   },
   { href: "/users", label: "المستخدمون والموظفون", icon: "/profile.png", permissionKey: "users.index" },
@@ -81,13 +82,17 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return isAdmin || allowedKeys.has(permissionKey);
   };
 
-  const visibleNavItems = navItems
-    .map((item) => {
-      const subItems = (item.subItems || []).filter((sub) => isAllowed(sub.permissionKey));
-      const showItem = isAllowed(item.permissionKey) || subItems.length > 0;
-      return showItem ? { ...item, subItems } : null;
-    })
-    .filter((item): item is NavItem => Boolean(item));
+  const visibleNavItems = useMemo(
+    () =>
+      navItems
+        .map((item) => {
+          const subItems = (item.subItems || []).filter((sub) => isAllowed(sub.permissionKey));
+          const showItem = isAllowed(item.permissionKey) || subItems.length > 0;
+          return showItem ? { ...item, subItems } : null;
+        })
+        .filter((item): item is NavItem => Boolean(item)),
+    [isAdmin, user?.allowed_dashboard_pages]
+  );
 
   const toggleDropdown = (href: string) => {
     setOpenDropdowns(prev =>
@@ -147,7 +152,13 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       .map((item) => item.href);
 
     if (activeParents.length === 0) return;
-    setOpenDropdowns((prev) => Array.from(new Set([...prev, ...activeParents])));
+    setOpenDropdowns((prev) => {
+      const next = Array.from(new Set([...prev, ...activeParents]));
+      if (next.length === prev.length && next.every((item, index) => item === prev[index])) {
+        return prev;
+      }
+      return next;
+    });
   }, [pathname, visibleNavItems]);
 
   useEffect(() => {

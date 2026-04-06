@@ -16,6 +16,7 @@ export const DASHBOARD_PERMISSION_OPTIONS: DashboardPermissionOption[] = [
   { key: 'categories.banners', label: 'إدارة بنارات التطبيق', path: '/app-banners' },
   { key: 'categories.images', label: 'إدارة صور الأقسام', path: '/unified-images' },
   { key: 'categories.filters', label: 'إدارة الفلاتر والقوائم', path: '/dashboard/filters-lists' },
+  { key: 'categories.featured_advertisers', label: 'إدارة ترتيب المعلنين المميزين', path: '/dashboard/featured-advertisers-order' },
   { key: 'users.index', label: 'المستخدمون والموظفون', path: '/users' },
   { key: 'reports.index', label: 'التقارير والإحصائيات', path: '/reports' },
   { key: 'notifications.index', label: 'الإشعارات', path: '/notifications' },
@@ -26,6 +27,7 @@ export const DASHBOARD_PERMISSION_OPTIONS: DashboardPermissionOption[] = [
 ];
 
 const ROUTE_PERMISSION_MAP: Array<{ prefix: string; key: string }> = [
+  { prefix: '/dashboard/featured-advertisers-order', key: 'categories.featured_advertisers' },
   { prefix: '/dashboard/filters-lists', key: 'categories.filters' },
   { prefix: '/dashboard', key: 'dashboard.home' },
   { prefix: '/ads/create', key: 'ads.create' },

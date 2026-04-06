@@ -30,7 +30,7 @@ export async function validateToken(token: string): Promise<ValidationResult> {
 
         // Handle timeout errors
         if (error instanceof Error && (error.name === 'AbortError' || error.message === 'AbortError')) {
-            console.error('Token validation timeout');
+            console.warn('Token validation timeout');
             return {
                 isValid: false,
                 shouldRetry: true,
@@ -52,7 +52,7 @@ export async function validateToken(token: string): Promise<ValidationResult> {
         }
 
         // Handle network errors - should retry
-        console.error('Token validation network error:', error instanceof Error ? error.message : 'Unknown error');
+        console.warn('Token validation network error:', error instanceof Error ? error.message : 'Unknown error');
         return {
             isValid: false,
             shouldRetry: true,

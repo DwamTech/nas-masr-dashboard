@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import DateInput from '@/components/DateInput';
+import AppOpensInsightsSection from '@/components/reports/AppOpensInsightsSection';
 import {
   fetchTransactions,
 } from '@/services/dashboardReports';
@@ -451,6 +452,8 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+
+      <AppOpensInsightsSection from={dateRange.from} to={dateRange.to} />
 
       {/* Stats Cards Grid */}
       <div className="reports-stats-grid">

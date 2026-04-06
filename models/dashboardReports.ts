@@ -12,6 +12,28 @@ export interface DateRangeParams {
   to?: string;
 }
 
+export interface AppOpensTotals {
+  unique_openers: number;
+  total_opens: number;
+  unique_users: number;
+  unique_guests: number;
+  user_opens: number;
+  guest_opens: number;
+}
+
+export interface AppOpensTimelinePoint extends AppOpensTotals {
+  date: string;
+}
+
+export interface AppOpensSummaryResponse {
+  period: {
+    from: string;
+    to: string;
+  };
+  totals: AppOpensTotals;
+  timeline: AppOpensTimelinePoint[];
+}
+
 export interface PaginationParams {
   per_page?: number;
   page?: number;

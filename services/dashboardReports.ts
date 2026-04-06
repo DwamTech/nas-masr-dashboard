@@ -20,6 +20,7 @@ import {
   TopAdvertisersResponse,
   AdvertisersPackagesResponse,
   TransactionsResponse,
+  AppOpensSummaryResponse,
   FinancialRevenueResponse,
   FinancialPaymentMethodsResponse,
   RecentActivitiesResponse,
@@ -90,6 +91,13 @@ export async function fetchActiveUsers(
   token?: string
 ): Promise<ActiveUsersResponse> {
   return fetchWithAuth<ActiveUsersResponse>('/reports/users/active', params, token);
+}
+
+export async function fetchAppOpensSummary(
+  params: DateRangeParams = {},
+  token?: string
+): Promise<AppOpensSummaryResponse> {
+  return fetchWithAuth<AppOpensSummaryResponse>('/reports/app-opens', params, token);
 }
 
 export async function fetchBlockedUsers(

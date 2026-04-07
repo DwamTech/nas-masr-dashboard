@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, RefreshCcw, Smartphone, UserCheck, Users } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import DateInput from '@/components/DateInput';
 import type { AppOpensSummaryResponse } from '@/models/dashboardReports';
 import { fetchAppOpensSummary } from '@/services/dashboardReports';
 
@@ -67,6 +68,14 @@ export default function AppOpensInsightsSection({
   const [data, setData] = useState<AppOpensSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [draftRange, setDraftRange] = useState<{ from: string; to: string }>(() => {
+    const today = new Date().toISOString().split('T')[0];
+
+    return {
+      from: from || today,
+      to: to || today,
+    };
+  });
 
   const effectiveRange = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -77,6 +86,13 @@ export default function AppOpensInsightsSection({
     };
   }, [from, to]);
 
+  const [appliedRange, setAppliedRange] = useState(effectiveRange);
+
+  useEffect(() => {
+    setDraftRange(effectiveRange);
+    setAppliedRange(effectiveRange);
+  }, [effectiveRange]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -85,7 +101,7 @@ export default function AppOpensInsightsSection({
       setError(null);
 
       try {
-        const response = await fetchAppOpensSummary(effectiveRange);
+        const response = await fetchAppOpensSummary(appliedRange);
         if (!cancelled) {
           setData(response);
         }
@@ -105,7 +121,30 @@ export default function AppOpensInsightsSection({
     return () => {
       cancelled = true;
     };
-  }, [effectiveRange]);
+  }, [appliedRange]);
+
+  const applyRange = () => {
+    setAppliedRange({
+      from: draftRange.from || effectiveRange.from,
+      to: draftRange.to || draftRange.from || effectiveRange.to,
+    });
+  };
+
+  const setPresetRange = (days: number) => {
+    const now = new Date();
+    const toValue = now.toISOString().split('T')[0];
+    const fromDate = new Date(now);
+    fromDate.setDate(fromDate.getDate() - (days - 1));
+    const fromValue = fromDate.toISOString().split('T')[0];
+
+    const nextRange = {
+      from: fromValue,
+      to: toValue,
+    };
+
+    setDraftRange(nextRange);
+    setAppliedRange(nextRange);
+  };
 
   const chartData = useMemo(() => {
     return (data?.timeline || []).map((point) => ({
@@ -149,16 +188,91 @@ export default function AppOpensInsightsSection({
         </div>
         <div
           style={{
-            padding: '0.65rem 0.85rem',
-            borderRadius: 999,
-            background: '#eff6ff',
-            color: '#1d4ed8',
-            fontWeight: 700,
-            fontSize: '0.92rem',
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+            gap: '0.6rem',
           }}
         >
-          {effectiveRange.from} - {effectiveRange.to}
+          {[
+            { label: 'اليوم', days: 1 },
+            { label: '7 أيام', days: 7 },
+            { label: '30 يوم', days: 30 },
+          ].map((preset) => (
+            <button
+              key={preset.days}
+              type="button"
+              onClick={() => setPresetRange(preset.days)}
+              style={{
+                border: '1px solid #bfdbfe',
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                borderRadius: 999,
+                padding: '0.55rem 0.9rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {preset.label}
+            </button>
+          ))}
         </div>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '0.8rem',
+          marginBottom: '1rem',
+          alignItems: 'end',
+        }}
+      >
+        <div>
+          <div style={{ marginBottom: '0.35rem', color: '#475569', fontWeight: 700 }}>من تاريخ</div>
+          <DateInput
+            value={draftRange.from}
+            onChange={(value) => setDraftRange((current) => ({ ...current, from: value }))}
+            className="reports-date-field"
+          />
+        </div>
+        <div>
+          <div style={{ marginBottom: '0.35rem', color: '#475569', fontWeight: 700 }}>إلى تاريخ</div>
+          <DateInput
+            value={draftRange.to}
+            onChange={(value) => setDraftRange((current) => ({ ...current, to: value }))}
+            className="reports-date-field"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={applyRange}
+          style={{
+            height: 46,
+            border: 'none',
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+            color: '#ffffff',
+            fontWeight: 800,
+            cursor: 'pointer',
+            boxShadow: '0 12px 28px rgba(37, 99, 235, 0.28)',
+          }}
+        >
+          تطبيق الفلتر
+        </button>
+      </div>
+
+      <div
+        style={{
+          marginBottom: '1rem',
+          padding: '0.75rem 0.9rem',
+          borderRadius: 18,
+          background: '#f8fafc',
+          color: '#475569',
+          fontWeight: 700,
+        }}
+      >
+        الفترة المعروضة: {appliedRange.from} - {appliedRange.to}
       </div>
 
       {loading ? (

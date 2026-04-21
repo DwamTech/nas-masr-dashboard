@@ -33,7 +33,7 @@ function createBlock(type: LegalBlockType, content = ''): LegalDocumentBlock {
 export function createEmptyLegalDocument(): LegalDocumentData {
   return {
     version: 1,
-    blocks: [createBlock('title'), createBlock('description')],
+    blocks: [],
   };
 }
 
@@ -94,7 +94,7 @@ function sanitizeParsedDocument(input: Partial<LegalDocumentData> | null | undef
   return {
     version: 1,
     updatedAt: typeof input.updatedAt === 'string' && input.updatedAt.trim() ? input.updatedAt : undefined,
-    blocks: blocks.length ? blocks : createEmptyLegalDocument().blocks,
+    blocks,
   };
 }
 

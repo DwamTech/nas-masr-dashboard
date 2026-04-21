@@ -4,30 +4,14 @@ import "./terms.css";
 import LegalDocumentRenderer from "@/components/legal/LegalDocumentRenderer";
 import { fetchPublicSystemSettings } from "@/services/publicSystemSettings";
 
-const FALLBACK_TERMS_CONTENT = `نبذة عامة
-
-باستخدامك لهذا التطبيق، فإنك توافق على الالتزام بهذه الشروط والأحكام. نحتفظ بحق تعديلها في أي وقت، مع إشعار المستخدم بالتحديثات داخل التطبيق.
-
-استخدام التطبيق
-
-يجب استخدام التطبيق لأغراض مشروعة فقط، مع الالتزام بعدم إساءة استخدام الخدمات أو محاولة تعطيلها بأي شكل. يتحمل المستخدم مسؤولية صحة ودقة المعلومات التي يقوم بإدخالها.
-
-إنشاء الحساب والخصوصية
-
-عند إنشاء حساب داخل التطبيق، تلتزم بتقديم معلومات صحيحة ومحدثة. نحرص على حماية بياناتك والتعامل معها وفقًا لسياسة الخصوصية المعتمدة.
-
-المسؤولية وإخلاء المسؤولية
-
-يتم تقديم الخدمات كما هي دون أي ضمانات. ولا نتحمل أي مسؤولية عن الأضرار المباشرة أو غير المباشرة الناتجة عن سوء الاستخدام أو عن أعطال خارجة عن نطاق سيطرتنا.`;
-
 export default async function TermsPage() {
-  let content = FALLBACK_TERMS_CONTENT;
+  let content = '';
 
   try {
     const settings = await fetchPublicSystemSettings();
-    content = String(settings['terms_conditions-main_'] || '').trim() || FALLBACK_TERMS_CONTENT;
+    content = String(settings['terms_conditions-main_'] || '').trim();
   } catch {
-    content = FALLBACK_TERMS_CONTENT;
+    content = '';
   }
 
   return (

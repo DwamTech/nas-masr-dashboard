@@ -130,8 +130,8 @@ export default function SettingsPage() {
 
         setSettings((prev) => ({
           ...prev,
-          privacyPolicy: prev?.privacyPolicy || d.privacy_policy || '',
-          termsOfService: prev?.termsOfService || d['terms_conditions-main_'] || '',
+          privacyPolicy: d.privacy_policy || '',
+          termsOfService: d['terms_conditions-main_'] || '',
           contactLinks: {
             facebook: prev?.contactLinks?.facebook || d.facebook || '',
             twitter: prev?.contactLinks?.twitter || d.twitter || '',
@@ -250,11 +250,11 @@ export default function SettingsPage() {
     }
   };
 
-  const tabs: { id: SettingsTabId; label: string; icon: string }[] = [
-    { id: 'general', label: 'عام', icon: '⚙️' },
-    { id: 'interface', label: 'واجهة', icon: '🎨' },
-    { id: 'terms', label: 'الشروط والأحكام', icon: '📜' },
-    { id: 'privacy', label: 'سياسة الخصوصية', icon: '🔐' },
+  const tabs: { id: SettingsTabId; label: string }[] = [
+    { id: 'general', label: 'عام' },
+    { id: 'interface', label: 'واجهة' },
+    { id: 'terms', label: 'الشروط والأحكام' },
+    { id: 'privacy', label: 'سياسة الخصوصية' },
   ];
 
   const renderGeneralSettings = () => (
@@ -548,7 +548,6 @@ export default function SettingsPage() {
               className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >
-              <span className="tab-icon">{tab.icon}</span>
               <span className="tab-label">{tab.label}</span>
             </button>
           ))}

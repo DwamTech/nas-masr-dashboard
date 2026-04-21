@@ -11,7 +11,29 @@ export default function LegalDocumentRenderer({ rawContent }: LegalDocumentRende
 
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
-      {sections.map((section) => (
+      {sections.length === 0 ? (
+        <section
+          style={{
+            background: 'rgba(255, 255, 255, 0.82)',
+            border: '1px solid rgba(15, 23, 42, 0.08)',
+            borderRadius: '24px',
+            padding: '1.35rem 1.25rem',
+            boxShadow: '0 22px 48px rgba(15, 23, 42, 0.08)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              color: '#64748b',
+              lineHeight: 2,
+              fontSize: '1rem',
+            }}
+          >
+            لا يوجد محتوى متاح حاليًا.
+          </p>
+        </section>
+      ) : sections.map((section) => (
         <section
           key={section.id}
           style={{

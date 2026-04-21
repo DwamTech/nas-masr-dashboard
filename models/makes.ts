@@ -207,6 +207,7 @@ export interface AdminCategoryListItem {
   name: string;
   icon?: string;
   is_active?: boolean;
+  show_featured_advertisers?: boolean;
   sort_order?: number;
   show_on_homepage?: boolean;
   homepage_image?: string;

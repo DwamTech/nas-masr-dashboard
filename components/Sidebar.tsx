@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -39,6 +39,7 @@ const navItems: NavItem[] = [
     permissionKey: "categories.index",
     toggleOnly: true,
     subItems: [
+      { href: "/dashboard/featured-advertisers-control", label: "إدارة المعلنين المميزين للاقسام", icon: "/categories.png", permissionKey: "categories.featured_advertisers" },
       { href: "/category-homepage-management", label: "إدارة أقسام الصفحة الرئيسية", icon: "/categories.png", permissionKey: "categories.homepage" },
       { href: "/app-banners", label: "إدارة بنارات التطبيق", icon: "/categories.png", permissionKey: "categories.banners" },
       { href: "/unified-images", label: "إدارة صور الأقسام", icon: "/categories.png", permissionKey: "categories.images" },
@@ -67,7 +68,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [user, setUser] = useState(() => readDashboardUser());
   const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
-  const allowedKeys = new Set(user?.allowed_dashboard_pages || []);
+  const allowedKeys = useMemo(
+    () => new Set(user?.allowed_dashboard_pages || []),
+    [user?.allowed_dashboard_pages]
+  );
   const canSeeHome = isAdmin || allowedKeys.has('dashboard.home');
   const canSeeNotifications = isAdmin || allowedKeys.has('notifications.index');
 
@@ -77,10 +81,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return () => window.removeEventListener('dashboard-user-updated', syncUser);
   }, []);
 
-  const isAllowed = (permissionKey?: string) => {
+  const isAllowed = useCallback((permissionKey?: string) => {
     if (!permissionKey) return true;
     return isAdmin || allowedKeys.has(permissionKey);
-  };
+  }, [allowedKeys, isAdmin]);
 
   const visibleNavItems = useMemo(
     () =>
@@ -91,7 +95,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           return showItem ? { ...item, subItems } : null;
         })
         .filter((item): item is NavItem => Boolean(item)),
-    [isAdmin, user?.allowed_dashboard_pages]
+    [isAllowed]
   );
 
   const toggleDropdown = (href: string) => {

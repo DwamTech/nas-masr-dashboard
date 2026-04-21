@@ -1164,6 +1164,9 @@ export async function fetchAdminCategories(token?: string): Promise<AdminCategor
     if (!id || !name) return null;
     const icon = pickIcon(o, slug);
     const is_active = typeof o['is_active'] === 'boolean' ? (o['is_active'] as boolean) : (normalizeString(o['status']) ? String(o['status']).toLowerCase() === 'active' : undefined);
+    const show_featured_advertisers = typeof o['show_featured_advertisers'] === 'boolean'
+      ? (o['show_featured_advertisers'] as boolean)
+      : true;
     const sort_order = typeof o['sort_order'] === 'number' ? (o['sort_order'] as number) : (typeof o['order'] === 'number' ? (o['order'] as number) : undefined);
     const show_on_homepage = typeof o['show_on_homepage'] === 'boolean' ? (o['show_on_homepage'] as boolean) : undefined;
     const homepage_image = pickImage(o);
@@ -1172,7 +1175,7 @@ export async function fetchAdminCategories(token?: string): Promise<AdminCategor
     const is_global_image_active = typeof o['is_global_image_active'] === 'boolean' ? (o['is_global_image_active'] as boolean) : false;
     const global_image_url = typeof o['global_image_url'] === 'string' ? (o['global_image_url'] as string) : undefined;
     const global_image_full_url = typeof o['global_image_full_url'] === 'string' ? (o['global_image_full_url'] as string) : undefined;
-    return { id, slug, name, icon, is_active, sort_order, show_on_homepage, homepage_image, cards_count, fields, is_global_image_active, global_image_url, global_image_full_url };
+    return { id, slug, name, icon, is_active, show_featured_advertisers, sort_order, show_on_homepage, homepage_image, cards_count, fields, is_global_image_active, global_image_url, global_image_full_url };
   };
   const out: AdminCategoryListItem[] = [];
   if (Array.isArray(raw)) {

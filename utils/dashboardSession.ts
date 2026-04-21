@@ -53,7 +53,7 @@ export function getFirstAllowedPath(user: DashboardUser | null): string {
     ['categories.banners', '/app-banners'],
     ['categories.images', '/unified-images'],
     ['categories.filters', '/dashboard/filters-lists'],
-    ['categories.featured_advertisers', '/dashboard/featured-advertisers-order'],
+    ['categories.featured_advertisers', '/dashboard/featured-advertisers-control'],
     ['users.index', '/users'],
     ['reports.index', '/reports'],
     ['notifications.index', '/notifications'],

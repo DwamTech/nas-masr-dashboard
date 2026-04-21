@@ -12,6 +12,7 @@ export interface FeaturedAdvertiserSection {
   icon_url?: string | null;
   global_image_url?: string | null;
   global_image_full_url?: string | null;
+  show_featured_advertisers: boolean;
   featured_advertisers_count: number;
 }
 

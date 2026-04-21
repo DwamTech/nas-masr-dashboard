@@ -50,6 +50,10 @@ function normalizeSection(input: unknown): FeaturedAdvertiserSection | null {
     icon_url: normalizeString(record.icon_url),
     global_image_url: normalizeString(record.global_image_url),
     global_image_full_url: normalizeString(record.global_image_full_url),
+    show_featured_advertisers:
+      typeof record.show_featured_advertisers === 'boolean'
+        ? record.show_featured_advertisers
+        : true,
     featured_advertisers_count:
       typeof record.featured_advertisers_count === 'number'
         ? record.featured_advertisers_count
@@ -177,4 +181,27 @@ export async function reorderFeaturedAdvertisersInSection(
     response,
     'تعذر حفظ ترتيب المعلنين المميزين'
   );
+}
+
+export async function updateFeaturedAdvertiserSectionVisibility(
+  sectionId: number,
+  showFeaturedAdvertisers: boolean
+): Promise<FeaturedAdvertiserSection> {
+  const response = await fetch(buildApiUrl(`/admin/featured/sections/${sectionId}/visibility`), {
+    method: 'PATCH',
+    headers: getHeaders(),
+    body: JSON.stringify({ show_featured_advertisers: showFeaturedAdvertisers }),
+  });
+
+  const data = await parseResponse<Record<string, unknown>>(
+    response,
+    'تعذر تحديث حالة أفضل المعلنين لهذا القسم'
+  );
+
+  const section = normalizeSection(data.data);
+  if (!section) {
+    throw new Error('تعذر قراءة بيانات القسم بعد التحديث');
+  }
+
+  return section;
 }

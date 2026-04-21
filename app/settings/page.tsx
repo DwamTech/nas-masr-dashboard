@@ -1,7 +1,12 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { fetchSystemSettings, updateSystemSettings } from '@/services/systemSettings';
+import LegalDocumentEditor from '@/components/settings/LegalDocumentEditor';
+import { parseLegalDocument, serializeLegalDocument, stampLegalDocument } from '@/utils/legalDocument';
+import type { SystemSettingsPayload } from '@/models/system-settings';
 const LS_KEY = 'systemSettingsDraft';
+
+type SettingsTabId = 'general' | 'interface' | 'terms' | 'privacy';
 
 interface Toast {
   id: string;
@@ -12,7 +17,8 @@ interface Toast {
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState<SettingsTabId>('general');
+  const [savingTab, setSavingTab] = useState<SettingsTabId | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = (
@@ -183,72 +189,77 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleSave = async () => {
-    const payload = {
-      support_number: settings.supportNumbers.support,
-      sub_support_number: settings.supportNumbers.passwordChange,
-      instapay_number: settings.supportNumbers.instapay,
-      vodafone_cash_number: settings.supportNumbers.vodafoneCash,
-      payment_inquiries_number: settings.supportNumbers.paymentInquiries,
-      emergency_number: settings.supportNumbers.inquiries,
-      privacy_policy: settings.privacyPolicy,
-      'terms_conditions-main_': settings.termsOfService,
-      facebook: settings.contactLinks.facebook,
-      twitter: settings.contactLinks.twitter,
-      instagram: settings.contactLinks.instagram,
-      email: settings.contactLinks.email,
-      show_phone: settings.showPhoneNumbers,
-      featured_users_count: settings.advertisersCount,
-    };
+  const handleSave = async (tab: SettingsTabId) => {
+    let payload: SystemSettingsPayload = {};
+    let successMessage = 'تم حفظ الإعدادات بنجاح!';
+
+    if (tab === 'general') {
+      payload = {
+        support_number: settings.supportNumbers.support,
+        sub_support_number: settings.supportNumbers.passwordChange,
+        instapay_number: settings.supportNumbers.instapay,
+        vodafone_cash_number: settings.supportNumbers.vodafoneCash,
+        payment_inquiries_number: settings.supportNumbers.paymentInquiries,
+        emergency_number: settings.supportNumbers.inquiries,
+        facebook: settings.contactLinks.facebook,
+        twitter: settings.contactLinks.twitter,
+        instagram: settings.contactLinks.instagram,
+        email: settings.contactLinks.email,
+      };
+      successMessage = 'تم حفظ الإعدادات العامة بنجاح!';
+    }
+
+    if (tab === 'interface') {
+      payload = {
+        show_phone: settings.showPhoneNumbers,
+        featured_users_count: settings.advertisersCount,
+      };
+      successMessage = 'تم حفظ إعدادات الواجهة بنجاح!';
+    }
+
+    if (tab === 'terms' || tab === 'privacy') {
+      const fieldName = tab === 'terms' ? 'termsOfService' : 'privacyPolicy';
+      const stampedDocument = serializeLegalDocument(
+        stampLegalDocument(parseLegalDocument(settings[fieldName]))
+      );
+
+      setSettings((prev) => ({
+        ...prev,
+        [fieldName]: stampedDocument,
+      }));
+
+      payload =
+        tab === 'terms'
+          ? { 'terms_conditions-main_': stampedDocument }
+          : { privacy_policy: stampedDocument };
+      successMessage = tab === 'terms' ? 'تم حفظ الشروط والأحكام بنجاح!' : 'تم حفظ سياسة الخصوصية بنجاح!';
+    }
+
+    setSavingTab(tab);
     try {
       const resp = await updateSystemSettings(payload);
       if (resp?.status === 'ok') {
-        showToast('تم حفظ الإعدادات بنجاح!', 'success');
+        showToast(successMessage, 'success');
       } else {
         showToast('تعذر حفظ الإعدادات', 'error');
       }
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : 'حدث خطأ أثناء الحفظ', 'error');
+    } finally {
+      setSavingTab(null);
     }
   };
 
-  const tabs = [
+  const tabs: { id: SettingsTabId; label: string; icon: string }[] = [
     { id: 'general', label: 'عام', icon: '⚙️' },
     { id: 'interface', label: 'واجهة', icon: '🎨' },
-    // { id: 'security', label: 'أمان', icon: '🔒' },
-    // { id: 'communications', label: 'اتصالات', icon: '📧' },
-    // { id: 'integrations', label: 'تكاملات', icon: '🔗' }
+    { id: 'terms', label: 'الشروط والأحكام', icon: '📜' },
+    { id: 'privacy', label: 'سياسة الخصوصية', icon: '🔐' },
   ];
 
   const renderGeneralSettings = () => (
     <div className="settings-section">
       <h3 className="section-title">الإعدادات العامة</h3>
-
-      <div className="settings-group">
-        <h4 className="group-title">سياسات الخصوصية والشروط</h4>
-        <div className="form-group">
-          <label htmlFor="privacyPolicy">سياسة الخصوصية</label>
-          <textarea
-            id="privacyPolicy"
-            className="form-textarea"
-            rows={6}
-            value={settings.privacyPolicy}
-            onChange={(e) => setSettings(prev => ({ ...prev, privacyPolicy: e.target.value }))}
-            placeholder="أدخل نص سياسة الخصوصية..."
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="termsOfService">شروط الخدمة</label>
-          <textarea
-            id="termsOfService"
-            className="form-textarea"
-            rows={6}
-            value={settings.termsOfService}
-            onChange={(e) => setSettings(prev => ({ ...prev, termsOfService: e.target.value }))}
-            placeholder="أدخل نص شروط الخدمة..."
-          />
-        </div>
-      </div>
 
       <div className="settings-group">
         <h4 className="group-title">روابط التواصل الاجتماعي</h4>
@@ -476,279 +487,22 @@ export default function SettingsPage() {
     </div>
   );
 
-  const renderSecuritySettings = () => (
-    <div className="settings-section">
-      <h3 className="section-title">إعدادات الأمان</h3>
-
-      <div className="settings-group">
-        <h4 className="group-title">متطلبات كلمة المرور</h4>
-        <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="minLength">الحد الأدنى لطول كلمة المرور</label>
-            <input
-              type="number"
-              id="minLength"
-              className="form-input"
-              min="6"
-              max="32"
-              value={settings.passwordRequirements.minLength}
-              onChange={(e) => handleInputChange('passwordRequirements', 'minLength', parseInt(e.target.value))}
-            />
-          </div>
-        </div>
-
-        <div className="checkbox-group">
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={settings.passwordRequirements.requireUppercase}
-              onChange={(e) => handleInputChange('passwordRequirements', 'requireUppercase', e.target.checked)}
-            />
-            <span className="checkbox-text">يجب أن تحتوي على أحرف كبيرة</span>
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={settings.passwordRequirements.requireLowercase}
-              onChange={(e) => handleInputChange('passwordRequirements', 'requireLowercase', e.target.checked)}
-            />
-            <span className="checkbox-text">يجب أن تحتوي على أحرف صغيرة</span>
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={settings.passwordRequirements.requireNumbers}
-              onChange={(e) => handleInputChange('passwordRequirements', 'requireNumbers', e.target.checked)}
-            />
-            <span className="checkbox-text">يجب أن تحتوي على أرقام</span>
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={settings.passwordRequirements.requireSpecialChars}
-              onChange={(e) => handleInputChange('passwordRequirements', 'requireSpecialChars', e.target.checked)}
-            />
-            <span className="checkbox-text">يجب أن تحتوي على رموز خاصة</span>
-          </label>
-        </div>
-      </div>
-
-      <div className="settings-group">
-        <h4 className="group-title">إعدادات PIN</h4>
-        <div className="form-group">
-          <label className="toggle-label">
-            <span className="toggle-text">قبول PIN رقمي فقط</span>
-            <div className="toggle-switch-container">
-              <input
-                type="checkbox"
-                className="toggle-input"
-                checked={settings.pinSettings.numericOnly}
-                onChange={(e) => handleInputChange('pinSettings', 'numericOnly', e.target.checked)}
-              />
-              <span className="toggle-slider"></span>
-              <span className="toggle-status">
-                {settings.pinSettings.numericOnly ? 'مفعل' : 'غير مفعل'}
-              </span>
-            </div>
-          </label>
-        </div>
-        <div className="form-group">
-          <label htmlFor="pinLength">طول PIN</label>
-          <select
-            id="pinLength"
-            className="form-select"
-            value={settings.pinSettings.length}
-            onChange={(e) => handleInputChange('pinSettings', 'length', parseInt(e.target.value))}
-          >
-            <option value={4}>4 أرقام</option>
-            <option value={6}>6 أرقام</option>
-            <option value={8}>8 أرقام</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="settings-group">
-        <h4 className="group-title">المصادقة الثنائية والجلسات</h4>
-        <div className="form-group">
-          <label className="toggle-label">
-            <span className="toggle-text">تفعيل المصادقة الثنائية (2FA)</span>
-            <div className="toggle-switch-container">
-              <input
-                type="checkbox"
-                className="toggle-input"
-                checked={settings.twoFactorAuth}
-                onChange={(e) => setSettings(prev => ({ ...prev, twoFactorAuth: e.target.checked }))}
-              />
-              <span className="toggle-slider"></span>
-              <span className="toggle-status">
-                {settings.twoFactorAuth ? 'مفعل' : 'غير مفعل'}
-              </span>
-            </div>
-          </label>
-        </div>
-        <div className="form-group">
-          <label htmlFor="sessionDuration">مدة الجلسة (بالساعات)</label>
-          <input
-            type="number"
-            id="sessionDuration"
-            className="form-input"
-            min="1"
-            max="168"
-            value={settings.sessionDuration}
-            onChange={(e) => setSettings(prev => ({ ...prev, sessionDuration: parseInt(e.target.value) }))}
-          />
-        </div>
-      </div>
-    </div>
+  const renderTermsSettings = () => (
+    <LegalDocumentEditor
+      value={settings.termsOfService}
+      onChange={(value) => setSettings((prev) => ({ ...prev, termsOfService: value }))}
+      heading="الشروط والأحكام"
+      description="أضف عناصر من نوع عنوان أو وصف، وسيتم عرضها مباشرة في صفحة الشروط داخل الويب والتطبيق."
+    />
   );
 
-  const renderCommunicationsSettings = () => (
-    <div className="settings-section">
-      <h3 className="section-title">إعدادات الاتصالات</h3>
-
-      <div className="settings-group">
-        <h4 className="group-title">مزودات الخدمة</h4>
-        <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="smsProvider">مزود SMS</label>
-            <select
-              id="smsProvider"
-              className="form-select"
-              value={settings.smsProvider}
-              onChange={(e) => setSettings(prev => ({ ...prev, smsProvider: e.target.value }))}
-            >
-              <option value="default">الافتراضي</option>
-              <option value="twilio">Twilio</option>
-              <option value="nexmo">Nexmo</option>
-              <option value="local">محلي</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="emailProvider">مزود البريد الإلكتروني</label>
-            <select
-              id="emailProvider"
-              className="form-select"
-              value={settings.emailProvider}
-              onChange={(e) => setSettings(prev => ({ ...prev, emailProvider: e.target.value }))}
-            >
-              <option value="default">الافتراضي</option>
-              <option value="sendgrid">SendGrid</option>
-              <option value="mailgun">Mailgun</option>
-              <option value="smtp">SMTP مخصص</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label className="toggle-label">
-            <span className="toggle-text">تفعيل الإشعارات الفورية</span>
-            <div className="toggle-switch-container">
-              <input
-                type="checkbox"
-                className="toggle-input"
-                checked={settings.pushNotifications}
-                onChange={(e) => setSettings(prev => ({ ...prev, pushNotifications: e.target.checked }))}
-              />
-              <span className="toggle-slider"></span>
-              <span className="toggle-status">
-                {settings.pushNotifications ? 'مفعل' : 'غير مفعل'}
-              </span>
-            </div>
-          </label>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderIntegrationsSettings = () => (
-    <div className="settings-section">
-      <h3 className="section-title">إعدادات التكاملات</h3>
-
-      <div className="settings-group">
-        <h4 className="group-title">مفاتيح API</h4>
-        <div className="form-group">
-          <label htmlFor="smsApiKey">مفتاح SMS API</label>
-          <input
-            type="password"
-            id="smsApiKey"
-            className="form-input"
-            value={settings.apiKeys.sms}
-            onChange={(e) => handleInputChange('apiKeys', 'sms', e.target.value)}
-            placeholder="أدخل مفتاح SMS API..."
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="emailApiKey">مفتاح Email API</label>
-          <input
-            type="password"
-            id="emailApiKey"
-            className="form-input"
-            value={settings.apiKeys.email}
-            onChange={(e) => handleInputChange('apiKeys', 'email', e.target.value)}
-            placeholder="أدخل مفتاح Email API..."
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="pushApiKey">مفتاح Push Notifications API</label>
-          <input
-            type="password"
-            id="pushApiKey"
-            className="form-input"
-            value={settings.apiKeys.push}
-            onChange={(e) => handleInputChange('apiKeys', 'push', e.target.value)}
-            placeholder="أدخل مفتاح Push API..."
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="analyticsApiKey">مفتاح Analytics API</label>
-          <input
-            type="password"
-            id="analyticsApiKey"
-            className="form-input"
-            value={settings.apiKeys.analytics}
-            onChange={(e) => handleInputChange('apiKeys', 'analytics', e.target.value)}
-            placeholder="أدخل مفتاح Analytics API..."
-          />
-        </div>
-      </div>
-
-      <div className="settings-group">
-        <h4 className="group-title">Webhooks</h4>
-        <div className="form-group">
-          <label htmlFor="userRegistrationWebhook">تسجيل المستخدمين</label>
-          <input
-            type="url"
-            id="userRegistrationWebhook"
-            className="form-input"
-            value={settings.webhooks.userRegistration}
-            onChange={(e) => handleInputChange('webhooks', 'userRegistration', e.target.value)}
-            placeholder="https://example.com/webhook/user-registration"
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="adApprovalWebhook">موافقة الإعلانات</label>
-          <input
-            type="url"
-            id="adApprovalWebhook"
-            className="form-input"
-            value={settings.webhooks.adApproval}
-            onChange={(e) => handleInputChange('webhooks', 'adApproval', e.target.value)}
-            placeholder="https://example.com/webhook/ad-approval"
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="paymentSuccessWebhook">نجاح الدفع</label>
-          <input
-            type="url"
-            id="paymentSuccessWebhook"
-            className="form-input"
-            value={settings.webhooks.paymentSuccess}
-            onChange={(e) => handleInputChange('webhooks', 'paymentSuccess', e.target.value)}
-            placeholder="https://example.com/webhook/payment-success"
-          />
-        </div>
-      </div>
-    </div>
+  const renderPrivacySettings = () => (
+    <LegalDocumentEditor
+      value={settings.privacyPolicy}
+      onChange={(value) => setSettings((prev) => ({ ...prev, privacyPolicy: value }))}
+      heading="سياسة الخصوصية"
+      description="نفس المحتوى هنا سيظهر في صفحة سياسة الخصوصية في الويب والتطبيق بدل النصوص الثابتة."
+    />
   );
 
   const renderTabContent = () => {
@@ -757,16 +511,23 @@ export default function SettingsPage() {
         return renderGeneralSettings();
       case 'interface':
         return renderInterfaceSettings();
-      case 'security':
-        return renderSecuritySettings();
-      case 'communications':
-        return renderCommunicationsSettings();
-      case 'integrations':
-        return renderIntegrationsSettings();
+      case 'terms':
+        return renderTermsSettings();
+      case 'privacy':
+        return renderPrivacySettings();
       default:
         return renderGeneralSettings();
     }
   };
+
+  const saveButtonLabel =
+    activeTab === 'general'
+      ? 'حفظ الإعدادات العامة'
+      : activeTab === 'interface'
+        ? 'حفظ إعدادات الواجهة'
+        : activeTab === 'terms'
+          ? 'حفظ الشروط والأحكام'
+          : 'حفظ سياسة الخصوصية';
 
   return (
     <div className="settings-page">
@@ -797,11 +558,16 @@ export default function SettingsPage() {
           {renderTabContent()}
 
           <div className="settings-actions">
-            <button className="btn-save" onClick={handleSave}>
+            <button
+              className="btn-save"
+              onClick={() => handleSave(activeTab)}
+              disabled={savingTab === activeTab}
+              style={savingTab === activeTab ? { opacity: 0.7, cursor: 'wait' } : undefined}
+            >
               <svg className="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              حفظ الإعدادات
+              {savingTab === activeTab ? 'جارٍ الحفظ...' : saveButtonLabel}
             </button>
             {/* <button className="btn-reset" onClick={() => { try { localStorage.removeItem(LS_KEY); } catch {}; window.location.reload(); }}>
               <svg className="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

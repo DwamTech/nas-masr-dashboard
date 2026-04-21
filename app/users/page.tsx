@@ -6,7 +6,7 @@ import ManagedSelect from '@/components/ManagedSelect';
 import { CATEGORY_LABELS_AR } from '@/constants/categories';
 import { DASHBOARD_PERMISSION_OPTIONS } from '@/constants/dashboardPermissions';
 import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Search, RefreshCw, Calendar } from 'lucide-react';
-import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, fetchCategories, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage, fetchUserFeaturedCategories } from '@/services/users';
+import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage, fetchUserFeaturedCategories } from '@/services/users';
 import { fetchAdminCategories } from '@/services/makes';
 import { CATEGORY_SLUGS, CategorySlug } from '@/models/makes';
 import { UsersMeta, AssignUserPackagePayload, UsersSummaryResponse, DelegateClient } from '@/models/users';
@@ -73,6 +73,7 @@ interface Category {
   slug: string;
   name: string;
   nameAr: string;
+  showFeaturedAdvertisers: boolean;
 }
 
 interface PackageError {
@@ -149,15 +150,24 @@ const toImageUrl = (src: string | null | undefined): string => {
   return buildBackendUrl(`/${trimmed}`);
 };
 
-const normalizeCategorySlug = (slug: string): CategorySlug | null => {
-  const s = String(slug || '').trim();
-  if (!s) return null;
-  const variants = [s, s.replace(/-/g, '_'), s.replace(/_/g, '-')];
-  for (const v of variants) {
-    const i = CATEGORY_SLUGS.indexOf(v as CategorySlug);
-    if (i >= 0) return CATEGORY_SLUGS[i];
-  }
-  return null;
+const mapCategoryRecordToUi = (input: {
+  id?: number;
+  slug?: string;
+  name?: string;
+  show_featured_advertisers?: boolean;
+}): Category | null => {
+  const slug = String(input.slug || '').trim();
+  if (!slug) return null;
+
+  const name = String(input.name || slug).trim() || slug;
+
+  return {
+    id: Number(input.id) || 0,
+    slug,
+    name,
+    nameAr: CATEGORY_LABELS_AR[slug as keyof typeof CATEGORY_LABELS_AR] || name,
+    showFeaturedAdvertisers: input.show_featured_advertisers !== false,
+  };
 };
 
 // Cache management functions
@@ -1072,12 +1082,9 @@ const formatDate = (dateString: string): string => {
           const slugs = resp.map((c: any) => c.slug).filter(Boolean);
           setCategories(['all', ...slugs]);
           
-          const cats: Category[] = resp.map((c: any) => ({
-            id: c.id,
-            slug: c.slug,
-            name: c.name,
-            nameAr: c.name
-          }));
+          const cats = resp
+            .map((c: any) => mapCategoryRecordToUi(c))
+            .filter((c): c is Category => Boolean(c));
           setDynamicCategories(cats);
           setCategoriesLoadState('loaded');
           saveCategoriesToCache(cats);
@@ -1095,7 +1102,8 @@ const formatDate = (dateString: string): string => {
             id: index + 1,
             slug,
             name: slug,
-            nameAr
+            nameAr,
+            showFeaturedAdvertisers: true,
           })
         );
         setDynamicCategories(fallbackCategories);
@@ -1132,6 +1140,7 @@ const formatDate = (dateString: string): string => {
   const [packageHistory, setPackageHistory] = useState<PackageHistoryItem[]>([]);
   const [dynamicCategories, setDynamicCategories] = useState<Category[]>([]);
   const [categoriesLoadState, setCategoriesLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const featuredEnabledCategories = dynamicCategories.filter((category) => category.showFeaturedAdvertisers !== false);
 
   // Verify modal state
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
@@ -1236,18 +1245,17 @@ const formatDate = (dateString: string): string => {
     setIsFavoritesModalOpen(true);
     setIsLoadingFavorites(true);
     setFavoritesError(null);
+    let availableCategories = dynamicCategories;
     
     // التأكد من تحميل الأقسام إذا لم تكن محملة
     if (dynamicCategories.length === 0) {
       try {
-        const resp = await fetchCategories();
-        if (Array.isArray(resp?.data)) {
-          const cats: Category[] = resp.data.map((c: any) => ({
-            id: c.id,
-            slug: c.slug,
-            name: c.name || c.slug,
-            nameAr: CATEGORY_LABELS_AR[c.slug as keyof typeof CATEGORY_LABELS_AR] || c.name || c.slug
-          }));
+        const resp = await fetchAdminCategories();
+        if (Array.isArray(resp)) {
+          const cats = resp
+            .map((c: any) => mapCategoryRecordToUi(c))
+            .filter((c): c is Category => Boolean(c));
+          availableCategories = cats;
           setDynamicCategories(cats);
           setCategoriesLoadState('loaded');
         }
@@ -1259,10 +1267,18 @@ const formatDate = (dateString: string): string => {
     try {
       // جلب البيانات من API
       const response = await fetchUserFeaturedCategories(user.id);
+      const hasLoadedCategories = availableCategories.length > 0;
+      const enabledSlugSet = new Set(
+        availableCategories
+          .filter((category) => category.showFeaturedAdvertisers !== false)
+          .map((category) => category.slug)
+      );
       
       if (response.data && response.data.categories) {
         // تحويل الأقسام إلى slugs
-        const slugs = response.data.categories.map(cat => cat.slug);
+        const slugs = response.data.categories
+          .map(cat => cat.slug)
+          .filter((slug) => !hasLoadedCategories || enabledSlugSet.has(slug));
         setFavoriteSlugs(slugs);
         
         // تحديث localStorage ليتطابق مع البيانات من API
@@ -1283,7 +1299,13 @@ const formatDate = (dateString: string): string => {
       try {
         const raw = localStorage.getItem(FAV_LS_PREFIX + user.id);
         const arr = raw ? JSON.parse(raw) as string[] : [];
-        setFavoriteSlugs(Array.isArray(arr) ? arr.filter(Boolean) : []);
+        const hasLoadedCategories = featuredEnabledCategories.length > 0 || dynamicCategories.length > 0;
+        const enabledSlugSet = new Set(featuredEnabledCategories.map((category) => category.slug));
+        setFavoriteSlugs(
+          Array.isArray(arr)
+            ? arr.filter((slug) => Boolean(slug) && (!hasLoadedCategories || enabledSlugSet.has(slug)))
+            : []
+        );
       } catch {
         setFavoriteSlugs([]);
       }
@@ -1314,8 +1336,7 @@ const formatDate = (dateString: string): string => {
     }
     
     const ids = Array.from(new Set(favoriteSlugs))
-      .map((slug) => normalizeCategorySlug(slug))
-      .map((s) => (s ? CATEGORY_SLUGS.indexOf(s) + 1 : 0))
+      .map((slug) => dynamicCategories.find((category) => category.slug === slug)?.id || 0)
       .filter((id) => id > 0);
     try {
       const resp = await setUserFeaturedCategories({ user_id: uid, category_ids: ids });
@@ -1757,12 +1778,9 @@ const formatDate = (dateString: string): string => {
           try {
             const categoriesResp = await fetchAdminCategories();
             if (Array.isArray(categoriesResp)) {
-              const cats: Category[] = categoriesResp.map((c: any) => ({
-                id: c.id,
-                slug: c.slug,
-                name: c.name,
-                nameAr: c.name
-              }));
+              const cats = categoriesResp
+                .map((c: any) => mapCategoryRecordToUi(c))
+                .filter((c): c is Category => Boolean(c));
               setDynamicCategories(cats);
               saveCategoriesToCache(cats);
               setCategoriesLoadState('loaded');
@@ -1776,7 +1794,8 @@ const formatDate = (dateString: string): string => {
                 id: index + 1,
                 slug,
                 name: slug,
-                nameAr
+                nameAr,
+                showFeaturedAdvertisers: true,
               })
             );
             setDynamicCategories(fallbackCategories);
@@ -3785,36 +3804,57 @@ const formatDate = (dateString: string): string => {
                       ⚠️ {favoritesError}
                     </div>
                   )}
-                  <div className="favorites-grid">
-                    {categories.filter(c => c !== 'all').map((slug) => {
-                      const categoryObj = dynamicCategories.find(cat => cat.slug === slug);
-                      const label = categoryObj?.nameAr ?? slug;
-                      const checked = favoriteSlugs.includes(slug);
-                      return (
-                        <div key={slug} className="favorite-item">
-                          <div className="favorite-label">{label}</div>
-                          <label className="toggle-label compact">
-                            <div className="toggle-switch-container">
-                              <input
-                                type="checkbox"
-                                className="toggle-input"
-                                checked={checked}
-                                onChange={(e) => toggleFavoriteSlug(slug, e.target.checked)}
-                              />
-                              <span className="toggle-slider"></span>
-                              <span className="toggle-status">{checked ? 'مفضل' : 'غير مفضل'}</span>
-                            </div>
-                          </label>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {featuredEnabledCategories.length === 0 ? (
+                    <div style={{
+                      border: '1px solid #fde68a',
+                      background: '#fffbeb',
+                      color: '#92400e',
+                      borderRadius: '12px',
+                      padding: '1rem',
+                      lineHeight: 1.8,
+                      fontWeight: 600,
+                    }}>
+                      برجاء تشغيل المعلنين المميزين لدي أي قسم لإظهاره في النافذة.
+                    </div>
+                  ) : (
+                    <div className="favorites-grid">
+                      {featuredEnabledCategories.map((categoryObj) => {
+                        const slug = categoryObj.slug;
+                        const label = categoryObj.nameAr ?? slug;
+                        const checked = favoriteSlugs.includes(slug);
+                        return (
+                          <div key={slug} className="favorite-item">
+                            <div className="favorite-label">{label}</div>
+                            <label className="toggle-label compact">
+                              <div className="toggle-switch-container">
+                                <input
+                                  type="checkbox"
+                                  className="toggle-input"
+                                  checked={checked}
+                                  onChange={(e) => toggleFavoriteSlug(slug, e.target.checked)}
+                                />
+                                <span className="toggle-slider"></span>
+                                <span className="toggle-status">{checked ? 'مفضل' : 'غير مفضل'}</span>
+                              </div>
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               )}
             </div>
             <div className="modal-footer">
               <button className="btn-cancel" onClick={clearFavoritesForUser}>إلغاء التفضيل للجميع</button>
-              <button className="btn-save" onClick={saveFavoritesForUser}>حفظ</button>
+              <button
+                className="btn-save"
+                onClick={saveFavoritesForUser}
+                disabled={featuredEnabledCategories.length === 0}
+                style={featuredEnabledCategories.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+              >
+                حفظ
+              </button>
             </div>
           </div>
         </div>

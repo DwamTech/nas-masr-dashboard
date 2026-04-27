@@ -64,6 +64,25 @@
   align-items: center;
   gap: 10px;
 }
+.header-logo-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 148px;
+  height: 92px;
+  padding: 5px 8px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  box-shadow: 0 14px 34px rgba(17,24,39,0.09);
+  border: 1px solid #e5e7eb;
+}
+.header-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scale(1.18);
+}
 .brand-name {
   font-weight: 800;
   color: #111827;
@@ -1046,9 +1065,50 @@
   align-items: center;
   gap: 10px;
 }
+.footer-logo-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 86px;
+  height: 52px;
+  padding: 7px 10px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 24px rgba(17,24,39,0.08);
+}
+.footer-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .footer-text { display: grid; gap: 2px; }
 .footer-title { font-weight: 800; color: #111827; font-size: 16px; }
 .footer-subtitle { font-weight: 700; color: #6b7280; font-size: 12px; }
+.footer-credit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid rgba(20,135,111,0.18);
+  box-shadow: 0 10px 26px rgba(17,24,39,0.06);
+  color: #374151;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.footer-credit-logo {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(20,135,111,0.22);
+}
 .footer-links {
   display: inline-flex;
   align-items: center;
@@ -1174,10 +1234,20 @@
   .hero-categories { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .categories-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .why-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .footer-inner {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
   /* removed plans-grid */
 }
 @media (max-width: 560px) {
   .header-inner { padding: 8px 12px; }
+  .header-logo-card {
+    width: 112px;
+    height: 70px;
+    padding: 5px 7px;
+    border-radius: 20px;
+  }
   .header-nav { gap: 10px; }
   .hero-title { font-size: 26px; }
   .hero-subtitle { font-size: 16px; }
@@ -1201,6 +1271,18 @@
   .section-subtitle { font-size: 12px; }
   .stat-card { padding: 16px 18px; min-height: 84px; }
   .stat-value { font-size: 22px; }
+  .footer-inner {
+    flex-direction: column;
+    padding: 18px 16px 26px;
+  }
+  .footer-brand,
+  .footer-links {
+    justify-content: center;
+  }
+  .footer-credit {
+    white-space: normal;
+    text-align: center;
+  }
 }
 
 @media (max-width: 768px) {

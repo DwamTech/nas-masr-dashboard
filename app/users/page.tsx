@@ -2422,7 +2422,7 @@ const formatDate = (dateString: string): string => {
       'الاسم': u.name,
       'رقم الهاتف': u.phone,
       'كود المستخدم': u.userCode,
-      'كود المندوب': u.delegateCode || '-',
+      'رقم المستخدم': u.delegateCode || '-',
       'الحالة': u.status === 'active' ? 'نشط' : 'محظور',
       'تاريخ التسجيل': u.registrationDate,
       // 'عدد الإعلانات': u.adsCount,
@@ -2595,7 +2595,7 @@ const formatDate = (dateString: string): string => {
                     )}
                   </div>
                   <div className="data-item">
-                    <label>كود المندوب:</label>
+                    <label>رقم المستخدم:</label>
                     {isEditing ? (
                       <input
                         type="text"
@@ -4066,7 +4066,7 @@ const formatDate = (dateString: string): string => {
                 <th>الاسم</th>
                 <th>رقم الهاتف</th>
                 <th>كود المستخدم</th>
-                <th>كود المندوب</th>
+                <th>رقم المستخدم</th>
                 <th>الحالة</th>
                 <th>تاريخ التسجيل</th>
                 <th>عدد الإعلانات</th>

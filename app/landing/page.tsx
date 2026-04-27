@@ -1,10 +1,10 @@
 "use client";
-import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState, useRef } from "react";
 import "./landing.css";
 import { FiSmartphone, FiMessageSquare, FiSearch, FiLock, FiZap, FiShield, FiBell, FiMapPin, FiChevronDown, FiCheckCircle, FiUploadCloud } from "react-icons/fi";
 import { FaAndroid, FaGem, FaStar, FaHeart, FaRocket, FaMagic } from "react-icons/fa";
+import { LandingFooter, LandingHeader } from "@/components/LandingChrome";
 
 const LANDING_CATEGORIES = [
   { id: 1, name: 'إيجار السيارات'},
@@ -128,20 +128,7 @@ export default function LandingPage() {
         <div className="landing-orb orb-c" />
         <div className="landing-mesh" />
       </div>
-      <header className="landing-header">
-        <div className="header-inner">
-          <div className="header-brand">
-            <Image src="/nas-masr.png" alt="ناس مصر" width={66} height={66} className="brand-logo" />
-            {/* <span className="brand-name">ناس مصر</span> */}
-          </div>
-          <nav className="header-nav">
-            <a href="#features" className="header-link">المزايا</a>
-            <a href="#stats" className="header-link">الإحصائيات</a>
-            <a href="#download" className="header-link">تواصل</a>
-            {/* <Link href="/auth/login" className="header-login">تسجيل الدخول</Link> */}
-          </nav>
-        </div>
-      </header>
+      <LandingHeader />
 
       <section className="landing-hero" id="home">
         <div className="hero-floating-icons">
@@ -383,21 +370,7 @@ export default function LandingPage() {
         </div>
       </section>
  
-      <footer className="landing-footer">
-        <div className="footer-inner">
-          <div className="footer-brand">
-            <Image src="/nas-masr.png" alt="ناس مصر" width={36} height={36} className="brand-logo" />
-            <div className="footer-text">
-              {/* <div className="footer-title">ناس مصر</div> */}
-              <div className="footer-subtitle">منصّة الإدارة الذكية للإعلانات</div>
-            </div>
-          </div>
-          <div className="footer-links">
-            <Link href="/terms" className="footer-link">الشروط والأحكام</Link>
-            <Link href="/privacy" className="footer-link">سياسة الخصوصية</Link>
-          </div>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   );
 }

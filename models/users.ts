@@ -20,6 +20,7 @@ export interface UserSummary {
   phone_verified: boolean;
   allowed_dashboard_pages?: string[];
   profile_image_url?: string | null;
+  show_ad_update_button?: boolean;
 }
 
 export interface UsersSummaryResponse {
@@ -38,6 +39,11 @@ export interface UpdateUserPayload {
 }
 
 export interface UpdateUserResponse {
+  message: string;
+  user: UserSummary;
+}
+
+export interface ToggleAdUpdateButtonResponse {
   message: string;
   user: UserSummary;
 }

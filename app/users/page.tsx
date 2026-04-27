@@ -5,11 +5,11 @@ import Image from 'next/image';
 import ManagedSelect from '@/components/ManagedSelect';
 import { CATEGORY_LABELS_AR } from '@/constants/categories';
 import { DASHBOARD_PERMISSION_OPTIONS } from '@/constants/dashboardPermissions';
-import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Search, RefreshCw, Calendar } from 'lucide-react';
-import { fetchUsersSummary, fetchUsersSummaryPage, updateUser, toggleUserBlock, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage, fetchUserFeaturedCategories } from '@/services/users';
+import { User as UserIcon, Phone, MapPin, ExternalLink, Users, Calendar, ToggleLeft, ToggleRight } from 'lucide-react';
+import { fetchUsersSummaryPage, updateUser, toggleUserBlock, toggleUserAdUpdateButton, deleteUser, createUser, changeUserPassword, createUserOtp, fetchUserListings, assignUserPackage, setUserFeaturedCategories, disableUserFeatured, fetchDelegateClients, fetchUserPackage, fetchUserFeaturedCategories } from '@/services/users';
 import { fetchAdminCategories } from '@/services/makes';
 import { CATEGORY_SLUGS, CategorySlug } from '@/models/makes';
-import { UsersMeta, AssignUserPackagePayload, UsersSummaryResponse, DelegateClient } from '@/models/users';
+import { UsersMeta, AssignUserPackagePayload, DelegateClient, UserSummary } from '@/models/users';
 import { buildBackendUrl } from '@/utils/api';
 import { readDashboardUser } from '@/utils/dashboardSession';
 
@@ -30,6 +30,7 @@ interface User {
   package?: UserPackage;
   allowedDashboardPages?: string[];
   profileImageUrl?: string | null;
+  showAdUpdateButton?: boolean;
 }
 
 interface Toast {
@@ -81,6 +82,32 @@ interface PackageError {
   message: string;
   canRetry: boolean;
 }
+
+const mapUserSummaryToUi = (u: UserSummary): User => ({
+  id: String(u.id),
+  name: u.name ?? '',
+  email: u.email ?? null,
+  phone: u.phone,
+  address: u.address,
+  userCode: u.user_code,
+  delegateCode: u.delegate_code,
+  status: u.status === 'active' ? 'active' : 'banned',
+  registrationDate: u.registered_at,
+  adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
+  role: u.role,
+  lastLogin: u.registered_at,
+  phoneVerified: u.phone_verified,
+  allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
+  profileImageUrl: u.profile_image_url ?? null,
+  showAdUpdateButton: u.show_ad_update_button !== false,
+});
+
+const mapUsersRoleFilterToApi = (role: UserPageRoleFilter): string | undefined => {
+  if (role === 'all') return undefined;
+  return role;
+};
+
+type UserPageRoleFilter = 'all' | 'users' | 'advertisers' | 'delegates' | 'employees';
 
 interface PackageCacheData {
   userId: string;
@@ -476,7 +503,7 @@ const formatDate = (dateString: string): string => {
   export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'users' | 'advertisers' | 'delegates' | 'employees'>('all');
+  const [roleFilter, setRoleFilter] = useState<UserPageRoleFilter>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [activeTab, setActiveTab] = useState('data');
@@ -496,9 +523,8 @@ const formatDate = (dateString: string): string => {
   const [subscriptionForm, setSubscriptionForm] = useState<UserSubscriptionForm>({ title: '', annualFee: 0, paidAmount: 0 });
   type TransactionItem = { title: string; annualFee: number; paidAmount: number; date: string };
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
-  const [allUsersCache, setAllUsersCache] = useState<User[] | null>(null);
   const [viewerRole, setViewerRole] = useState('');
-  const isFilterActive = (roleFilter !== 'all') || (searchTerm.trim() !== '');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
   const formatDateDDMMYYYY = (s?: string | null) => {
     const t = String(s || '').trim();
@@ -983,27 +1009,23 @@ const formatDate = (dateString: string): string => {
   };
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
     const load = async () => {
       try {
-        if (isFilterActive) return;
-        const resp = await fetchUsersSummaryPage(currentPage);
-        const mapped = resp.users.map(u => ({
-          id: String(u.id),
-          name: u.name ?? '',
-          email: u.email ?? null,
-          phone: u.phone,
-          address: u.address,
-          userCode: u.user_code,
-          delegateCode: u.delegate_code,
-          status: u.status === 'active' ? 'active' : 'banned',
-          registrationDate: u.registered_at,
-          adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
-          role: u.role,
-          lastLogin: u.registered_at,
-          phoneVerified: u.phone_verified,
-          allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
-          profileImageUrl: u.profile_image_url ?? null,
-        } as User));
+        const resp = await fetchUsersSummaryPage({
+          page: currentPage,
+          perPage: usersPerPage,
+          q: debouncedSearchTerm,
+          role: mapUsersRoleFilterToApi(roleFilter),
+        });
+        const mapped = resp.users.map(mapUserSummaryToUi);
         setUsers(mapped);
         setUsersMeta(resp.meta);
         if (resp.meta?.page && resp.meta.page !== currentPage) setCurrentPage(resp.meta.page);
@@ -1012,7 +1034,7 @@ const formatDate = (dateString: string): string => {
       }
     };
     load();
-  }, [currentPage, isFilterActive]);
+  }, [currentPage, debouncedSearchTerm, roleFilter]);
 
   useEffect(() => {
     try {
@@ -1417,24 +1439,7 @@ const formatDate = (dateString: string): string => {
         allowed_dashboard_pages: roleMapped === 'employee' ? newUserForm.allowedDashboardPages : [],
       };
       const resp = await createUser(payload);
-      const u = resp.user;
-      const created: User = {
-        id: String(u.id),
-        name: u.name ?? '',
-        email: u.email ?? null,
-        phone: u.phone,
-        address: u.address,
-        userCode: u.user_code,
-        delegateCode: u.delegate_code,
-        status: u.status === 'active' ? 'active' : 'banned',
-        registrationDate: u.registered_at,
-        adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
-        role: u.role,
-        lastLogin: u.registered_at,
-        phoneVerified: false,
-        allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
-        profileImageUrl: u.profile_image_url ?? null,
-      };
+      const created: User = mapUserSummaryToUi(resp.user);
       setUsers(prev => [created, ...prev]);
       setCurrentPage(1);
       setIsAddModalOpen(false);
@@ -1509,19 +1514,7 @@ const formatDate = (dateString: string): string => {
         ad.categorySlug === selectedCategory ||
         ad.category === (CATEGORY_LABELS_AR[selectedCategory] ?? selectedCategory)
     );
-  const filteredUsers = users
-    .filter((user) => {
-      if (roleFilter === 'users') return user.role === 'user';
-      if (roleFilter === 'advertisers') return user.role === 'advertiser';
-      if (roleFilter === 'delegates') return user.role === 'delegate' || user.role === 'representative';
-      if (roleFilter === 'employees') return user.role === 'employee';
-      return true;
-    })
-    .filter(user =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone.includes(searchTerm) ||
-      user.userCode.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const filteredUsers = users;
 
   // Pagination calculations
   const totalPages = usersMeta ? Math.max(1, usersMeta.last_page) : Math.ceil(filteredUsers.length / usersPerPage);
@@ -1572,71 +1565,6 @@ const formatDate = (dateString: string): string => {
     setCurrentPage(1);
   }, [searchTerm, roleFilter]);
 
-  useEffect(() => {
-    const loadAllIfNeeded = async () => {
-      try {
-        if (!isFilterActive) {
-          return;
-        }
-        if (allUsersCache && allUsersCache.length > 0) {
-          setUsers(allUsersCache);
-          setUsersMeta(null);
-          return;
-        }
-        const first = await fetchUsersSummaryPage(1);
-        let aggregated: User[] = first.users.map(u => ({
-          id: String(u.id),
-          name: u.name ?? '',
-          email: u.email ?? null,
-          phone: u.phone,
-          userCode: String(u.id),
-          delegateCode: u.delegate_code,
-          status: u.status === 'active' ? 'active' : 'banned',
-          registrationDate: u.registered_at,
-          adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
-          role: u.role,
-          lastLogin: u.registered_at,
-          phoneVerified: u.phone_verified,
-          allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
-          profileImageUrl: u.profile_image_url ?? null,
-        } as User));
-        const last = Math.max(1, Number(first.meta?.last_page || 1));
-        if (last > 1) {
-          const promises: Promise<UsersSummaryResponse>[] = [];
-          for (let p = 2; p <= last; p++) {
-            promises.push(fetchUsersSummaryPage(p));
-          }
-          const pages = await Promise.all(promises);
-          pages.forEach(resp => {
-            const mapped = resp.users.map(u => ({
-              id: String(u.id),
-              name: u.name ?? '',
-              email: u.email ?? null,
-              phone: u.phone,
-              userCode: String(u.id),
-              delegateCode: u.delegate_code,
-              status: u.status === 'active' ? 'active' : 'banned',
-              registrationDate: u.registered_at,
-              adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
-              role: u.role,
-              lastLogin: u.registered_at,
-              phoneVerified: u.phone_verified,
-              allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
-              profileImageUrl: u.profile_image_url ?? null,
-            } as User));
-            aggregated = aggregated.concat(mapped);
-          });
-        }
-        setAllUsersCache(aggregated);
-        setUsers(aggregated);
-        setUsersMeta(null);
-      } catch (e) {
-        showToast('تعذر تحميل جميع المستخدمين للفلاتر', 'error');
-      }
-    };
-    loadAllIfNeeded();
-  }, [isFilterActive]);
-
   // Reset edit mode when switching selected user
   useEffect(() => {
     setIsEditing(false);
@@ -1676,6 +1604,21 @@ const formatDate = (dateString: string): string => {
       showToast(newStatus === 'banned' ? `تم حظر المستخدم ${u.name} بنجاح` : `تم إلغاء حظر المستخدم ${u.name} بنجاح`, 'success');
     } catch (e) {
       showToast('تعذر تغيير حالة المستخدم', 'error');
+    }
+  };
+
+  const handleToggleAdUpdateButton = async (user: User) => {
+    const nextValue = user.showAdUpdateButton === false;
+    try {
+      const resp = await toggleUserAdUpdateButton(Number(user.id), nextValue);
+      const updated = mapUserSummaryToUi(resp.user);
+      setUsers(prev => prev.map(x => (x.id === user.id ? updated : x)));
+      if (selectedUser?.id === user.id) {
+        setSelectedUser(updated);
+      }
+      showToast(resp.message || (nextValue ? 'تم إظهار زر تحديث الإعلان' : 'تم إخفاء زر تحديث الإعلان'), 'success');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'تعذر تغيير ظهور زر تحديث الإعلان', 'error');
     }
   };
 
@@ -2243,23 +2186,9 @@ const formatDate = (dateString: string): string => {
         allowed_dashboard_pages: roleMapped === 'employee' ? (editForm.allowedDashboardPages || []) : [],
       };
       const resp = await updateUser(Number(selectedUser.id), payload);
-      const u = resp.user;
       const updated: User = {
-        id: String(u.id),
-        name: u.name ?? '',
-        email: u.email ?? null,
-        phone: u.phone,
-        address: u.address,
-        userCode: u.user_code,
-        delegateCode: u.delegate_code,
-        status: u.status === 'active' ? 'active' : 'banned',
-        registrationDate: u.registered_at,
-        adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
-        role: u.role,
-        lastLogin: u.registered_at,
+        ...mapUserSummaryToUi(resp.user),
         phoneVerified: selectedUser.phoneVerified,
-        allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
-        profileImageUrl: u.profile_image_url ?? null,
       };
       setUsers(prev => prev.map(x => (x.id === selectedUser.id ? updated : x)));
       setSelectedUser(updated);
@@ -2388,58 +2317,9 @@ const formatDate = (dateString: string): string => {
       }]);
 
       try {
-        // تحميل كل المستخدمين إذا لم يكن محملين
-        if (!allUsersCache || allUsersCache.length === 0) {
-          const first = await fetchUsersSummaryPage(1);
-          let aggregated: User[] = first.users.map(u => ({
-            id: String(u.id),
-            name: u.name ?? '',
-            email: u.email ?? null,
-            phone: u.phone,
-            userCode: u.user_code,
-            delegateCode: u.delegate_code,
-            status: u.status === 'active' ? 'active' : 'banned',
-            registrationDate: u.registered_at,
-            adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
-            role: u.role,
-            lastLogin: u.registered_at,
-            phoneVerified: u.phone_verified,
-            allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
-            profileImageUrl: u.profile_image_url ?? null,
-          } as User));
-
-          const last = Math.max(1, Number(first.meta?.last_page || 1));
-          if (last > 1) {
-            const promises: Promise<UsersSummaryResponse>[] = [];
-            for (let p = 2; p <= last; p++) {
-              promises.push(fetchUsersSummaryPage(p));
-            }
-            const pages = await Promise.all(promises);
-            pages.forEach(resp => {
-              const mapped = resp.users.map(u => ({
-                id: String(u.id),
-                name: u.name ?? '',
-                email: u.email ?? null,
-                phone: u.phone,
-                userCode: u.user_code,
-                delegateCode: u.delegate_code,
-                status: u.status === 'active' ? 'active' : 'banned',
-                registrationDate: u.registered_at,
-                adsCount: typeof u.listings_count === 'number' ? u.listings_count : 0,
-                role: u.role,
-                lastLogin: u.registered_at,
-                phoneVerified: u.phone_verified,
-                allowedDashboardPages: Array.isArray(u.allowed_dashboard_pages) ? u.allowed_dashboard_pages : [],
-                profileImageUrl: u.profile_image_url ?? null,
-              } as User));
-              aggregated = aggregated.concat(mapped);
-            });
-          }
-          setAllUsersCache(aggregated);
-          delegate = aggregated.find(u => u.userCode === delegateCode);
-        } else {
-          delegate = allUsersCache.find(u => u.userCode === delegateCode);
-        }
+        const response = await fetchUsersSummaryPage({ page: 1, perPage: 10, q: delegateCode });
+        const matches = response.users.map(mapUserSummaryToUi);
+        delegate = matches.find(u => u.userCode === delegateCode || u.delegateCode === delegateCode);
 
         // إزالة رسالة البحث
         setToasts(prev => prev.filter(t => t.id !== searchToastId));
@@ -4110,12 +3990,12 @@ const formatDate = (dateString: string): string => {
           <div className="search-container">
             <input
               type="text"
-              placeholder="البحث برقم الهاتف أو كود المستخدم أو الاسم..."
+              placeholder="ابحث بالاسم، الهاتف، الكود، الإيميل، الحالة، الدور أو العنوان..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
             />
-            <button className="search-btn">🔍</button>
+            <button className="search-btn" onClick={() => setDebouncedSearchTerm(searchTerm.trim())}>🔍</button>
           </div>
         </div>
 
@@ -4363,6 +4243,25 @@ const formatDate = (dateString: string): string => {
                           <path d="M3 12l9 4 9-4" stroke="white" strokeWidth="2" />
                           <path d="M3 12v5l9 4 9-4v-5" stroke="white" strokeWidth="2" />
                         </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAdUpdateButton(user)}
+                        title={user.showAdUpdateButton === false ? 'إظهار زر تحديث الإعلان في التطبيق' : 'إخفاء زر تحديث الإعلان من التطبيق'}
+                        style={{
+                          backgroundColor: user.showAdUpdateButton === false ? '#64748b' : '#0f766e',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '11px',
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: '4px',
+                        }}
+                      >
+                        {user.showAdUpdateButton === false ? <ToggleLeft size={16} /> : <ToggleRight size={16} />}
                       </button>
                       {(
                         ['advertiser', 'معلن'].includes(String(user.role || '').toLowerCase().trim()) ||
@@ -4612,6 +4511,27 @@ const formatDate = (dateString: string): string => {
                   title="الباقات"
                 >
                   الباقات
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleAdUpdateButton(user)}
+                  title={user.showAdUpdateButton === false ? 'إظهار زر تحديث الإعلان في التطبيق' : 'إخفاء زر تحديث الإعلان من التطبيق'}
+                  style={{
+                    backgroundColor: user.showAdUpdateButton === false ? '#64748b' : '#0f766e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '11px',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                  }}
+                >
+                  {user.showAdUpdateButton === false ? <ToggleLeft size={16} /> : <ToggleRight size={16} />}
+                  {user.showAdUpdateButton === false ? 'إظهار التحديث' : 'إخفاء التحديث'}
                 </button>
                 {(
                   ['advertiser', 'معلن'].includes(String(user.role || '').toLowerCase().trim()) ||

@@ -1,12 +1,23 @@
-import { UsersSummaryResponse, UpdateUserPayload, UpdateUserResponse, BlockUserResponse, DeleteUserResponse, CreateUserPayload, CreateUserResponse, ChangePasswordResponse, CreateOtpResponse, SingleUserListingsResponse, CategoriesResponse, AssignUserPackagePayload, AssignUserPackageResponse, SetFeaturedPayload, SetFeaturedResponse, DisableFeaturedResponse, DelegateClientsResponse, GetUserPackageResponse, FetchUserFeaturedCategoriesResponse } from '@/models/users';
+import { UsersSummaryResponse, UpdateUserPayload, UpdateUserResponse, BlockUserResponse, DeleteUserResponse, CreateUserPayload, CreateUserResponse, ChangePasswordResponse, CreateOtpResponse, SingleUserListingsResponse, CategoriesResponse, AssignUserPackagePayload, AssignUserPackageResponse, SetFeaturedPayload, SetFeaturedResponse, DisableFeaturedResponse, DelegateClientsResponse, GetUserPackageResponse, FetchUserFeaturedCategoriesResponse, ToggleAdUpdateButtonResponse } from '@/models/users';
 import { buildApiUrl } from '@/utils/api';
 
+export interface UsersSummaryParams {
+  page?: number;
+  perPage?: number;
+  q?: string;
+  role?: string;
+  status?: string;
+}
 
-export async function fetchUsersSummary(token?: string): Promise<UsersSummaryResponse> {
-  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+export async function fetchUsersSummary(paramsOrToken?: UsersSummaryParams | string, token?: string): Promise<UsersSummaryResponse> {
+  const params = typeof paramsOrToken === 'string' ? undefined : paramsOrToken;
+  const explicitToken = typeof paramsOrToken === 'string' ? paramsOrToken : token;
+  const t = explicitToken ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(buildApiUrl('/admin/users-summary'), { method: 'GET', headers });
+  const url = new URL(buildApiUrl('/admin/users-summary'));
+  applyUsersSummaryParams(url, params);
+  const res = await fetch(url.toString(), { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
   const data = raw as UsersSummaryResponse | null;
   if (!res.ok || !data) {
@@ -17,13 +28,15 @@ export async function fetchUsersSummary(token?: string): Promise<UsersSummaryRes
   return data;
 }
 
-export async function fetchUsersSummaryPage(page?: number, token?: string): Promise<UsersSummaryResponse> {
+export async function fetchUsersSummaryPage(pageOrParams?: number | UsersSummaryParams, token?: string): Promise<UsersSummaryResponse> {
   const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (t) headers.Authorization = `Bearer ${t}`;
   const url = new URL(buildApiUrl('/admin/users-summary'));
-  if (typeof page === 'number' && Number.isFinite(page) && page > 0) {
-    url.searchParams.set('page', String(page));
+  if (typeof pageOrParams === 'number' && Number.isFinite(pageOrParams) && pageOrParams > 0) {
+    url.searchParams.set('page', String(pageOrParams));
+  } else {
+    applyUsersSummaryParams(url, pageOrParams);
   }
   const res = await fetch(url.toString(), { method: 'GET', headers });
   const raw = (await res.json().catch(() => null)) as unknown;
@@ -34,6 +47,25 @@ export async function fetchUsersSummaryPage(page?: number, token?: string): Prom
     throw new Error(message);
   }
   return data;
+}
+
+function applyUsersSummaryParams(url: URL, params?: UsersSummaryParams): void {
+  if (!params) return;
+  if (typeof params.page === 'number' && Number.isFinite(params.page) && params.page > 0) {
+    url.searchParams.set('page', String(params.page));
+  }
+  if (typeof params.perPage === 'number' && Number.isFinite(params.perPage) && params.perPage > 0) {
+    url.searchParams.set('per_page', String(params.perPage));
+  }
+  if (params.q && params.q.trim()) {
+    url.searchParams.set('q', params.q.trim());
+  }
+  if (params.role && params.role !== 'all') {
+    url.searchParams.set('role', params.role);
+  }
+  if (params.status && params.status !== 'all') {
+    url.searchParams.set('status', params.status);
+  }
 }
 
 export async function updateUser(userId: number | string, payload: UpdateUserPayload, token?: string): Promise<UpdateUserResponse> {
@@ -68,6 +100,29 @@ export async function toggleUserBlock(userId: number | string, token?: string): 
   if (!res.ok || !data) {
     const err = raw as { error?: string; message?: string } | null;
     const message = (err?.error || err?.message || 'تعذر تغيير حالة الحظر للمستخدم');
+    throw new Error(message);
+  }
+  return data;
+}
+
+export async function toggleUserAdUpdateButton(
+  userId: number | string,
+  showAdUpdateButton: boolean,
+  token?: string
+): Promise<ToggleAdUpdateButtonResponse> {
+  const t = token ?? (typeof window !== 'undefined' ? localStorage.getItem('authToken') ?? undefined : undefined);
+  const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  const res = await fetch(buildApiUrl(`/admin/users/${userId}/ad-update-button`), {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ show_ad_update_button: showAdUpdateButton }),
+  });
+  const raw = (await res.json().catch(() => null)) as unknown;
+  const data = raw as ToggleAdUpdateButtonResponse | null;
+  if (!res.ok || !data) {
+    const err = raw as { error?: string; message?: string } | null;
+    const message = (err?.error || err?.message || 'تعذر تغيير ظهور زر تحديث الإعلان');
     throw new Error(message);
   }
   return data;

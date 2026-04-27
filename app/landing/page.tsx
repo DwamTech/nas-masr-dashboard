@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState, useRef } from "react";
 import "./landing.css";
-import { FiSmartphone, FiMessageSquare, FiSearch, FiLock, FiZap, FiShield, FiBell, FiMapPin, FiChevronDown } from "react-icons/fi";
+import { FiSmartphone, FiMessageSquare, FiSearch, FiLock, FiZap, FiShield, FiBell, FiMapPin, FiChevronDown, FiCheckCircle, FiUploadCloud } from "react-icons/fi";
 import { FaAndroid, FaGem, FaStar, FaHeart, FaRocket, FaMagic } from "react-icons/fa";
 
 const LANDING_CATEGORIES = [
@@ -53,6 +53,11 @@ const WHY_POINTS = [
   'بلاغات وحماية من السبام',
   'الباقات: مجاني • باقات تمييز • باقات شركات',
 ];
+
+const STORE_LINKS = {
+  appStore: 'https://apps.apple.com/eg/app/%D9%86%D8%A7%D8%B3-%D9%85%D8%B5%D8%B1/id6759855668',
+  googlePlay: 'https://play.google.com/store/apps/details?id=com.nasmasr.app',
+};
 
 export default function LandingPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -150,24 +155,36 @@ export default function LandingPage() {
             {/* <div className="brand-logo">
               <Image src="/nas-masr.png" alt="ناس مصر" width={120} height={120} />
             </div> */}
-            <h1 className="hero-title">تطبيق ناس مصر - انشر إعلانك في دقيقة</h1>
-            <h2 className="hero-title alt animate-text">بيع واشترِ بسهولة</h2>
+            <div className="hero-kicker">
+              <FiZap />
+              <span>منصة إعلانات مصرية لكل احتياجاتك</span>
+            </div>
+            <h1 className="hero-title">ناس مصر</h1>
+            <h2 className="hero-title alt animate-text">بيع، اشتري، أعلن وتواصل بسهولة</h2>
+            <p className="hero-subtitle">
+              انشر إعلانك في دقيقة، وابحث وسط عشرات الأقسام بتجربة سريعة وآمنة على الموبايل.
+            </p>
             <div className="hero-actions">
               <div className="download-actions">
-                <a href="#" className="store-badge play" aria-label="Google Play">
-                  <Image src="/google.png" alt="Google Play" width={28} height={28} className="store-logo" />
+                <a href={STORE_LINKS.googlePlay} className="store-badge play" aria-label="تحميل ناس مصر من Google Play" target="_blank" rel="noopener noreferrer">
+                  <Image src="/google.png" alt="Google Play" width={42} height={42} className="store-logo" />
                   <span className="store-text">
                     <strong>Google Play</strong>
-                    <em>قريباً <span className="loading-dots"><span className="dot"></span><span className="dot"></span><span className="dot"></span></span></em>
+                    <em>حمّل الآن</em>
                   </span>
                 </a>
-                <a href="#" className="store-badge appstore" aria-label="App Store">
-                  <Image src="/app-store.png" alt="App Store" width={28} height={28} className="store-logo" />
+                <a href={STORE_LINKS.appStore} className="store-badge appstore" aria-label="تحميل ناس مصر من App Store" target="_blank" rel="noopener noreferrer">
+                  <Image src="/app-store.png" alt="App Store" width={42} height={42} className="store-logo" />
                   <span className="store-text">
                     <strong>App Store</strong>
-                    <em>قريباً <span className="loading-dots"><span className="dot"></span><span className="dot"></span><span className="dot"></span></span></em>
+                    <em>حمّل الآن</em>
                   </span>
                 </a>
+              </div>
+              <div className="hero-proof-points" aria-label="مزايا سريعة">
+                <span><FiCheckCircle /> نشر سريع</span>
+                <span><FiShield /> تواصل آمن</span>
+                <span><FiUploadCloud /> إدارة إعلاناتك</span>
               </div>
               {/* <Link href="/ads/create" className="landing-btn primary">
                 <span>ابدأ نشر إعلان</span>
@@ -341,18 +358,18 @@ export default function LandingPage() {
             <h2 className="promo-title">حمّل تطبيق ناس مصر الآن</h2>
             <p className="promo-subtitle">تجربة عربية عصرية سريعة وآمنة على هاتفك</p>
             <div className="promo-actions">
-              <a href="#" className="store-badge play" aria-label="Google Play">
-                <Image src="/google.png" alt="Google Play" width={28} height={28} className="store-logo" />
+              <a href={STORE_LINKS.googlePlay} className="store-badge play" aria-label="تحميل ناس مصر من Google Play" target="_blank" rel="noopener noreferrer">
+                <Image src="/google.png" alt="Google Play" width={42} height={42} className="store-logo" />
                 <span className="store-text">
                   <strong>Google Play</strong>
-                  <em>قريباً <span className="loading-dots"><span className="dot"></span><span className="dot"></span><span className="dot"></span></span></em>
+                  <em>حمّل الآن</em>
                 </span>
               </a>
-              <a href="#" className="store-badge appstore" aria-label="App Store">
-                <Image src="/app-store.png" alt="App Store" width={28} height={28} className="store-logo" />
+              <a href={STORE_LINKS.appStore} className="store-badge appstore" aria-label="تحميل ناس مصر من App Store" target="_blank" rel="noopener noreferrer">
+                <Image src="/app-store.png" alt="App Store" width={42} height={42} className="store-logo" />
                 <span className="store-text">
                   <strong>App Store</strong>
-                  <em>قريباً <span className="loading-dots"><span className="dot"></span><span className="dot"></span><span className="dot"></span></span></em>
+                  <em>حمّل الآن</em>
                 </span>
               </a>
             </div>
